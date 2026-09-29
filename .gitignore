@@ -9,3 +9,4 @@ storage
 next-env.d.ts
 coverage
 .DS_Store
+storage-test

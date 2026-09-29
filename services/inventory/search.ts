@@ -161,6 +161,8 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
   const queryCompact = compact(input.query);
   const identifierCandidates = new Set<string>(explicitIds);
   if (input.query && !/\s/.test(input.query.trim()) && queryCompact.length >= 3) identifierCandidates.add(queryCompact);
+  const wholeCompact = compact(input.query);
+  if (wholeCompact.length >= 4 && wholeCompact.length <= 30 && /\d/.test(wholeCompact)) identifierCandidates.add(wholeCompact);
   // A multi-word query might still contain an embedded part number, e.g. "brake pads 5Q0698151B".
   for (const w of (input.query ?? "").split(/\s+/)) {
     const c = compact(w);
@@ -182,6 +184,21 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
   }
   for (const id of identifierCandidates) {
     for (const f of ["sku", "partNumber", "barcode"] as const) ors.push({ [f]: { contains: id, mode: "insensitive" } });
+  }
+  // Identifiers are compared ignoring punctuation/spacing ("BSH 0986-G7F" == "BSH-0986-G7F"), which a plain
+  // SQL LIKE cannot do, so resolve exact compact matches in SQL and add them to the candidate set.
+  if (identifierCandidates.size > 0) {
+    const ids = [...identifierCandidates];
+    const rows = await db.$queryRaw<{ id: string }[]>`
+      SELECT id FROM "parts"
+      WHERE "businessId" = ${businessId}
+        AND (
+          upper(regexp_replace("sku", '[^A-Za-z0-9]', '', 'g')) = ANY(${ids})
+          OR upper(regexp_replace(coalesce("partNumber", ''), '[^A-Za-z0-9]', '', 'g')) = ANY(${ids})
+          OR upper(regexp_replace(coalesce("barcode", ''), '[^A-Za-z0-9]', '', 'g')) = ANY(${ids})
+        )
+      LIMIT 50`;
+    if (rows.length) ors.push({ id: { in: rows.map((r) => r.id) } });
   }
   if (input.category && ors.length === 0) {
     ors.push({ category: { contains: input.category, mode: "insensitive" } });
@@ -205,7 +222,7 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
 
   // ---- Deterministic ranking ----------------------------------------------
   const scored: PartMatch[] = [];
-  let excludedByFitment = 0;
+  const excludedIds = new Set<string>();
 
   const scoreCandidates = (strict: boolean) => {
     for (const p of candidates) {
@@ -271,7 +288,7 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
         })),
       );
       if (fit.status === "CONFLICT") {
-        excludedByFitment++;
+        excludedIds.add(p.id);
         continue;
       }
 
@@ -339,11 +356,13 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
     const withDim = matches.filter((m) => m.fit.status === "FITMENT" && m.fit.unverified.includes(dim));
     if (withDim.length === 0) continue;
     const values = new Set<string>();
-    for (const m of matches) {
-      if (m.fit.status !== "FITMENT" || !m.fit.best) continue;
-      const f = m.fit.best.fitment;
-      const v = dim === "year" ? (f.yearFrom != null || f.yearTo != null ? `${f.yearFrom ?? ""}-${f.yearTo ?? ""}` : "") : normalizeText((f as unknown as Record<string, string | null | undefined>)[dim]);
-      if (v) values.add(v);
+    for (const m of withDim) {
+      for (const row of m.fit.compatibleRows ?? []) {
+        if (!row.unverified.includes(dim)) continue;
+        const f = row.fitment;
+        const v = dim === "year" ? (f.yearFrom != null || f.yearTo != null ? `${f.yearFrom ?? ""}-${f.yearTo ?? ""}` : "") : normalizeText((f as unknown as Record<string, string | null | undefined>)[dim]);
+        if (v) values.add(v);
+      }
     }
     if (values.size >= 2) missing.push(dim);
     else confirm.push(dim);
@@ -355,7 +374,7 @@ export async function searchParts(input: PartSearchInput): Promise<PartSearchRes
     multipleOptions,
     missingVehicleInfo: missing,
     confirmVehicleInfo: confirm,
-    excludedByFitment,
+    excludedByFitment: excludedIds.size,
     vehicleKnown,
     ambiguities,
   };

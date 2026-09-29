@@ -258,6 +258,8 @@ export interface PartFitResult {
   confidence: FitmentConfidence | "UNIVERSAL" | "UNVERIFIED" | "NONE";
   score: number;
   best?: FitmentEvaluation;
+  /** Every compatible fitment row, best first. */
+  compatibleRows?: FitmentEvaluation[];
   unverified: Dimension[];
   notes?: string;
   /** Present when status is CONFLICT: every row was rejected. */
@@ -299,6 +301,7 @@ export function evaluatePartFit(
     confidence: best.confidence,
     score: best.score,
     best,
+    compatibleRows: compatible,
     unverified: best.unverified,
     notes: best.fitment.notes ?? undefined,
   };

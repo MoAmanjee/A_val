@@ -157,7 +157,13 @@ async function resolveItems(
   existing: Map<string, { partId: string | null; description: string; sku: string | null; partNumber: string | null; quantity: unknown; unitPrice: unknown; discount: unknown; vatRate: unknown; fitmentConfidence: string | null; matchNote: string | null; alternatives: unknown }>,
 ): Promise<ResolvedItem[]> {
   const isAi = actor.kind === "ai";
-  const partIds = [...new Set(inputs.map((i) => i.partId).filter((x): x is string => !!x))];
+  const partIds = [
+    ...new Set(
+      inputs
+        .map((i) => (i.partId !== undefined ? i.partId : i.id ? existing.get(i.id)?.partId : null))
+        .filter((x): x is string => !!x),
+    ),
+  ];
   const parts = await db.part.findMany({ where: { id: { in: partIds }, businessId } });
   const partMap = new Map(parts.map((p) => [p.id, p]));
 
@@ -211,7 +217,13 @@ async function resolveLabour(
   existing: Map<string, { labourId: string | null; description: string; hours: unknown; unitPrice: unknown; vatRate: unknown }>,
 ): Promise<ResolvedLabour[]> {
   const isAi = actor.kind === "ai";
-  const ids = [...new Set(inputs.map((i) => i.labourId).filter((x): x is string => !!x))];
+  const ids = [
+    ...new Set(
+      inputs
+        .map((i) => (i.labourId !== undefined ? i.labourId : i.id ? existing.get(i.id)?.labourId : null))
+        .filter((x): x is string => !!x),
+    ),
+  ];
   const rates = await db.labourRate.findMany({ where: { id: { in: ids }, businessId } });
   const rateMap = new Map(rates.map((r) => [r.id, r]));
 

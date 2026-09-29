@@ -4,6 +4,7 @@ import { NotFoundError, ValidationError } from "@/lib/errors";
 import { audit } from "@/services/audit";
 import type { Actor } from "@/types/actor";
 import { getVehicleDecoder, type VinDecodeResult } from "@/services/vehicles/decoder";
+import { displayMake } from "@/services/vehicles/matching";
 import { validateVin } from "@/utils/vin";
 
 export interface VehicleInput {
@@ -31,7 +32,7 @@ function clean(input: VehicleInput): Prisma.VehicleUncheckedUpdateInput {
   for (const f of TEXT_FIELDS) {
     if (input[f] !== undefined) {
       const v = input[f]?.toString().trim();
-      data[f] = v ? (f === "registrationNumber" ? v.toUpperCase() : v) : null;
+      data[f] = v ? (f === "registrationNumber" ? v.toUpperCase() : f === "make" ? displayMake(v) : v) : null;
     }
   }
   if (input.year !== undefined) {

@@ -114,6 +114,20 @@ export function tokens(s: string | null | undefined): string[] {
   return n ? n.split(" ") : [];
 }
 
+const MAKE_DISPLAY: Record<string, string> = {
+  vw: "Volkswagen",
+  merc: "Mercedes-Benz",
+  mercedes: "Mercedes-Benz",
+  benz: "Mercedes-Benz",
+  "mercedes benz": "Mercedes-Benz",
+  chevy: "Chevrolet",
+};
+
+/** Expand well-known abbreviations for display and storage ("vw" -> "Volkswagen"); other makes are kept as typed. */
+export function displayMake(s: string): string {
+  return MAKE_DISPLAY[normalizeText(s)] ?? s.trim();
+}
+
 export function normalizeMake(s: string | null | undefined): string {
   const n = normalizeText(s);
   return MAKE_ALIASES[n] ?? n;

@@ -301,8 +301,9 @@ export async function importFitment(actor: Actor, sheet: ParsedSheet, mapping: C
       if (!make) throw new Error("Missing make");
       let partIds: string[] = [];
       if (pn) partIds = byPn.get(pn.toLowerCase()) ?? [];
-      if (partIds.length === 0 && sku) {
-        const id = bySku.get(sku.toLowerCase());
+      for (const candidate of [sku, pn]) {
+        if (partIds.length > 0 || !candidate) continue;
+        const id = bySku.get(candidate.toLowerCase());
         if (id) partIds = [id];
       }
       if (partIds.length === 0) throw new Error(`No part found for "${pn ?? sku ?? ""}"`);

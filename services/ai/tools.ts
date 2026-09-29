@@ -9,7 +9,7 @@ import { applyOptionDisplayMode, searchParts, type PartMatch } from "@/services/
 import { listLabourRates, labourLineDefaults } from "@/services/labour";
 import { createQuotation, getQuotationFull, submitForApproval, updateQuotation, type QuoteItemInput, type QuoteLabourInput } from "@/services/quotes/service";
 import { createVehicle, describeVehicle, updateVehicle } from "@/services/vehicles";
-import { evaluatePartFit, normalizeText, vehicleHasIdentity, type FitmentSpec } from "@/services/vehicles/matching";
+import { evaluatePartFit, normalizeMake, normalizeText, vehicleHasIdentity, type FitmentSpec } from "@/services/vehicles/matching";
 import { requestHuman } from "@/services/conversations";
 import { formatMoney, toNumber } from "@/utils/money";
 import { validateVin } from "@/utils/vin";
@@ -316,7 +316,7 @@ const TOOLS: Record<string, ToolSpec> = {
       const existing = conv.vehicle;
       const sameCar =
         existing &&
-        (!args.make || normalizeText(args.make) === normalizeText(existing.make)) &&
+        (!args.make || normalizeMake(args.make) === normalizeMake(existing.make)) &&
         (!args.model || !existing.model || normalizeText(args.model) === normalizeText(existing.model));
 
       let vehicleId: string;

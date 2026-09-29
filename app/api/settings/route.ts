@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { parseJson, route } from "@/lib/api";
+import { env } from "@/lib/env";
 import { getBusiness, publicBusiness, updateBusinessSettings } from "@/services/settings";
 
 const body = z.object({
@@ -24,7 +25,12 @@ const body = z.object({
   termsAndConditions: z.string().max(8000).nullish(),
 });
 
-export const GET = route(async ({ session }) => ({ business: publicBusiness(await getBusiness(session.businessId)) }));
+export const GET = route(async ({ session }) => ({
+  business: {
+    ...publicBusiness(await getBusiness(session.businessId)),
+    whatsappDriver: env.whatsappDriver,
+  },
+}));
 
 export const PUT = route(
   async ({ req, session }) => {

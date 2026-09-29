@@ -17,4 +17,6 @@ html, body { height: 100%; }
 body { @apply bg-slate-50 text-slate-900 antialiased; font-family: var(--font-sans); }
 
 .chat-bg { background-color: #efe8dd; background-image: radial-gradient(#e3dccf 1px, transparent 1px); background-size: 18px 18px; }
-input[type="number"]::-webkit-inner-spin-button { opacity: 0.4; }
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }

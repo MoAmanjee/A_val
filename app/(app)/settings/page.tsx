@@ -8,8 +8,9 @@ import { api, useApi } from "@/lib/client";
 interface Business {
   name: string; tradingName: string | null; registrationNumber: string | null; vatNumber: string | null; address: string | null; phone: string | null; email: string | null;
   logoUrl: string | null; logoKey: string | null; whatsappNumber: string | null; whatsappPhoneNumberId: string | null; whatsappTokenConfigured: boolean;
-  currencySymbol: string; currency: string; vatRate: number; pricesIncludeVat: boolean; quotePrefix: string; quoteValidityDays: number;
+  currencySymbol: string; currency: string;   vatRate: number; pricesIncludeVat: boolean; quotePrefix: string; quoteValidityDays: number;
   optionDisplayMode: "CHEAPEST" | "RECOMMENDED" | "ALL" | "BUSINESS_SELECTED"; paymentDetails: string | null; termsAndConditions: string | null;
+  whatsappDriver?: string;
 }
 
 const MODES = [
@@ -120,7 +121,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card title="WhatsApp connection" actions={<Badge tone={f.whatsappPhoneNumberId && f.whatsappTokenConfigured ? "green" : "amber"}>{f.whatsappPhoneNumberId && f.whatsappTokenConfigured ? "Configured" : "Incomplete"}</Badge>}>
+        <Card title="WhatsApp connection" actions={<Badge tone={f.whatsappPhoneNumberId && (f.whatsappTokenConfigured || f.whatsappDriver === "mock") ? "green" : "amber"}>{f.whatsappPhoneNumberId && (f.whatsappTokenConfigured || f.whatsappDriver === "mock") ? (f.whatsappDriver === "mock" ? "Mock driver" : "Configured") : "Incomplete"}</Badge>}>
           <div className="grid gap-4 sm:grid-cols-2">
             {text("whatsappNumber", "Business WhatsApp number", { hint: "Shown for reference, e.g. 27115550100" })}
             {text("whatsappPhoneNumberId", "Phone number ID", { hint: "From Meta WhatsApp Manager. Routes incoming messages to your business." })}

@@ -79,8 +79,8 @@ function QuotationsInner() {
           <Input placeholder="Customer" value={customer} onChange={(e) => { setCustomer(e.target.value); setPage(1); }} />
           <Input placeholder="Vehicle" value={vehicle} onChange={(e) => { setVehicle(e.target.value); setPage(1); }} />
           <div className="flex items-center gap-2">
-            <Input type="date" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} aria-label="From date" />
-            <Input type="date" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} aria-label="To date" />
+            <Input type="date" className="min-w-0" value={dateFrom} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} aria-label="From date" />
+            <Input type="date" className="min-w-0" value={dateTo} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} aria-label="To date" />
           </div>
         </div>
         {loading && !data ? <Spinner /> : !data?.items.length ? <EmptyState title="No quotations found" hint="Quotations prepared by the AI assistant land here for approval." /> : (

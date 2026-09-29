@@ -203,7 +203,7 @@ function InventoryInner() {
       <ErrorBanner message={error} onRetry={reload} />
       <Card padded={false}>
         <div className="flex flex-wrap items-center gap-3 border-b border-slate-100 p-4">
-          <SearchInput value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search SKU, part number, name, brand" />
+          <SearchInput className="w-64 shrink-0" value={q} onChange={(v) => { setQ(v); setPage(1); }} placeholder="Search SKU, part number, name, brand" />
           <Select className="w-44" value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }}>
             <option value="">All categories</option>
             {cats.data?.categories.map((c) => <option key={c}>{c}</option>)}

@@ -2,7 +2,12 @@
 
 import { X, Loader2, ChevronLeft, ChevronRight, Search } from "lucide-react";
 import { createContext, useCallback, useContext, useEffect, useId, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
-import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import { clsx, type ClassValue } from "clsx";
+
+function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
 
 // ---------------------------------------------------------------- Button
 type Variant = "primary" | "secondary" | "danger" | "ghost" | "success";
@@ -27,7 +32,7 @@ export function Button({
     <button
       {...props}
       disabled={disabled || loading}
-      className={clsx(
+      className={cn(
         "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "px-2.5 py-1.5 text-xs" : "px-4 py-2 text-sm",
         VARIANTS[variant],
@@ -45,14 +50,14 @@ const inputCls =
   "block w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 disabled:bg-slate-100 disabled:text-slate-500";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={clsx(inputCls, className)} />;
+  return <input {...props} className={cn(inputCls, className)} />;
 }
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={clsx(inputCls, "min-h-[80px]", className)} />;
+  return <textarea {...props} className={cn(inputCls, "min-h-[80px]", className)} />;
 }
 export function Select({ className, children, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select {...props} className={clsx(inputCls, "pr-8", className)}>
+    <select {...props} className={cn(inputCls, "pr-8", className)}>
       {children}
     </select>
   );
@@ -60,7 +65,7 @@ export function Select({ className, children, ...props }: SelectHTMLAttributes<H
 
 export function Field({ label, hint, error, children, className }: { label: string; hint?: string; error?: string | null; children: ReactNode; className?: string }) {
   return (
-    <label className={clsx("block", className)}>
+    <label className={cn("block", className)}>
       <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{label}</span>
       {children}
       {hint && !error && <span className="mt-1 block text-xs text-slate-400">{hint}</span>}
@@ -82,11 +87,11 @@ export function Checkbox({ label, checked, onChange, hint }: { label: string; ch
   );
 }
 
-export function SearchInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
+export function SearchInput({ value, onChange, placeholder, className }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
   return (
-    <div className="relative w-full max-w-xs">
+    <div className={cn("relative w-full max-w-xs", className)}>
       <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Search..."} className={clsx(inputCls, "pl-9")} />
+      <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder ?? "Search..."} className={cn(inputCls, "pl-9")} />
     </div>
   );
 }
@@ -94,7 +99,7 @@ export function SearchInput({ value, onChange, placeholder }: { value: string; o
 // ---------------------------------------------------------------- Layout bits
 export function Card({ children, className, title, actions, padded = true }: { children: ReactNode; className?: string; title?: ReactNode; actions?: ReactNode; padded?: boolean }) {
   return (
-    <section className={clsx("rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
+    <section className={cn("rounded-xl border border-slate-200 bg-white shadow-sm", className)}>
       {(title || actions) && (
         <header className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-3">
           <h2 className="text-sm font-semibold text-slate-800">{title}</h2>
@@ -129,7 +134,7 @@ const TONES: Record<string, string> = {
 };
 
 export function Badge({ children, tone = "slate", className }: { children: ReactNode; tone?: string; className?: string }) {
-  return <span className={clsx("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", TONES[tone] ?? TONES.slate, className)}>{children}</span>;
+  return <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", TONES[tone] ?? TONES.slate, className)}>{children}</span>;
 }
 
 export function Spinner({ label }: { label?: string }) {
@@ -167,16 +172,16 @@ export function ErrorBanner({ message, onRetry }: { message: string | null; onRe
 // ---------------------------------------------------------------- Table
 export function Table({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className={clsx("overflow-x-auto", className)}>
+    <div className={cn("overflow-x-auto", className)}>
       <table className="min-w-full divide-y divide-slate-200 text-sm">{children}</table>
     </div>
   );
 }
 export const Th = ({ children, className, align }: { children?: ReactNode; className?: string; align?: "right" | "center" }) => (
-  <th className={clsx("whitespace-nowrap bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500", align === "right" && "text-right", align === "center" && "text-center", className)}>{children}</th>
+  <th className={cn("whitespace-nowrap bg-slate-50 px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500", align === "right" && "text-right", align === "center" && "text-center", className)}>{children}</th>
 );
 export const Td = ({ children, className, align, colSpan }: { children?: ReactNode; className?: string; align?: "right" | "center"; colSpan?: number }) => (
-  <td colSpan={colSpan} className={clsx("px-4 py-3 align-middle text-slate-700", align === "right" && "text-right tabular-nums", align === "center" && "text-center", className)}>{children}</td>
+  <td colSpan={colSpan} className={cn("px-4 py-3 align-middle text-slate-700", align === "right" && "text-right tabular-nums", align === "center" && "text-center", className)}>{children}</td>
 );
 
 export function Pagination({ page, pageSize, total, onPage }: { page: number; pageSize: number; total: number; onPage: (p: number) => void }) {
@@ -215,7 +220,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md" }: {
   const width = { sm: "max-w-md", md: "max-w-xl", lg: "max-w-3xl", xl: "max-w-5xl" }[size];
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-4 sm:p-8" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" aria-label={title} className={clsx("w-full rounded-xl bg-white shadow-2xl", width)}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={cn("w-full rounded-xl bg-white shadow-2xl", width)}>
         <header className="flex items-center justify-between border-b border-slate-100 px-5 py-3">
           <h2 className="text-base font-semibold text-slate-900">{title}</h2>
           <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" aria-label="Close">
@@ -283,7 +288,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
           <div
             key={t.id}
             role="status"
-            className={clsx(
+            className={cn(
               "pointer-events-auto rounded-lg border px-4 py-3 text-sm shadow-lg",
               t.kind === "success" && "border-emerald-200 bg-emerald-50 text-emerald-900",
               t.kind === "error" && "border-red-200 bg-red-50 text-red-900",

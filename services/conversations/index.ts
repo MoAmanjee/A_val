@@ -153,14 +153,14 @@ export async function sendBusinessReply(actor: Actor, conversationId: string, te
   return sendTextToCustomer(conversationId, { text, sender: "BUSINESS" });
 }
 
-export async function requestHuman(actor: Actor, conversationId: string, reason: string) {
+export async function requestHuman(actor: Actor, conversationId: string, reason: string, opts: { note?: string } = {}) {
   const conv = await db.conversation.findFirst({ where: { id: conversationId, businessId: actor.businessId } });
   if (!conv) throw new NotFoundError("Conversation");
   const updated = await db.conversation.update({
     where: { id: conversationId },
     data: { status: "HUMAN_REQUIRED", handler: "HUMAN", humanRequestedAt: new Date(), humanReason: reason },
   });
-  await addInternalNote(conversationId, `Customer requested human assistance: ${reason}`);
+  await addInternalNote(conversationId, opts.note ?? `Customer requested human assistance: ${reason}`);
   await audit(actor, { action: "conversation.human_requested", entityType: "Conversation", entityId: conversationId, summary: `Human assistance requested: ${reason}` });
   return updated;
 }

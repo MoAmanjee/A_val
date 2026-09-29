@@ -64,6 +64,8 @@ const quoteItem = z.object({
   description: z.string().min(1).max(300).optional(),
   sku: z.string().max(80).nullish(),
   partNumber: z.string().max(80).nullish(),
+  fitmentConfidence: z.string().max(20).nullish(),
+  matchNote: z.string().max(500).nullish(),
   quantity: z.coerce.number().positive().max(100_000),
   unitPrice: z.coerce.number().min(0).max(100_000_000).optional(),
   discount: z.coerce.number().min(0).max(100_000_000).optional(),

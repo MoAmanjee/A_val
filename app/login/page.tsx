@@ -48,6 +48,9 @@ export default function LoginPage() {
           </Field>
           <Button type="submit" className="w-full" loading={busy}>Sign in</Button>
         </form>
+        <p className="mt-4 text-center text-xs text-slate-400">
+          Seeded demo: <span className="font-mono text-slate-300">admin@elitecarspares.test</span> / <span className="font-mono text-slate-300">Password123!</span>
+        </p>
       </div>
     </main>
   );

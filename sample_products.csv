@@ -1,0 +1,8 @@
+sku,title,description,category,cost,shipping,image_url,supplier_rating,supplier_orders,supplier_url
+P1001,Magnetic Phone Car Mount,Strong magnetic dashboard mount that holds any phone securely.,Car Accessories,3.20,1.80,https://example.com/img/mount.jpg,4.8,12400,https://supplier.example/p1001
+P1002,Portable Neck Fan,Bladeless rechargeable neck fan for hot days and workouts.,Gadgets,7.90,2.50,https://example.com/img/fan.jpg,4.7,8300,https://supplier.example/p1002
+P1003,Silicone Kitchen Utensil Set,12-piece heat resistant non-stick utensil set.,Kitchen,6.40,3.10,https://example.com/img/utensils.jpg,4.6,2100,https://supplier.example/p1003
+P1004,Pet Hair Remover Roller,Reusable roller that removes pet hair from furniture and clothes.,Pets,2.10,1.50,https://example.com/img/roller.jpg,4.9,31000,https://supplier.example/p1004
+P1005,LED Strip Lights 10m,App-controlled RGB LED strip lights for bedrooms and desks.,Home,5.50,2.20,https://example.com/img/led.jpg,4.4,5200,https://supplier.example/p1005
+P1006,Mini Massage Gun,Compact percussion massager with 4 heads.,Fitness,18.00,4.00,https://example.com/img/massage.jpg,4.7,900,https://supplier.example/p1006
+P1007,Cheap Keychain,Metal keychain.,Misc,0.40,0.80,https://example.com/img/key.jpg,4.8,50000,https://supplier.example/p1007

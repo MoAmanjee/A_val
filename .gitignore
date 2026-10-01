@@ -1,0 +1,6 @@
+.env
+state.json
+orders_to_place.csv
+__pycache__/
+.pytest_cache/
+*.pyc

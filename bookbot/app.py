@@ -46,6 +46,16 @@ CREATE TABLE IF NOT EXISTS bookings (
     created_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_bookings_biz_start ON bookings(business_id, start);
+CREATE TABLE IF NOT EXISTS approvals (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind TEXT NOT NULL,
+    description TEXT NOT NULL,
+    amount_zar INTEGER NOT NULL DEFAULT 0,
+    payload TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'pending',
+    created_at TEXT NOT NULL,
+    decided_at TEXT
+);
 """
 
 
@@ -353,6 +363,80 @@ def create_app(config=None):
         if not cur.rowcount:
             abort(404)
         return jsonify(ok=True)
+
+    def admin_key_ok(value):
+        key = app.config["ADMIN_KEY"]
+        return bool(key) and bool(value) and secrets.compare_digest(value, key)
+
+    @app.route("/admin/approvals", methods=["GET", "POST"])
+    def approvals_api():
+        """Used by the automation to request money-related approvals and read decisions."""
+        if not admin_key_ok(request.values.get("key", "")):
+            abort(403)
+        if request.method == "POST":
+            kind = request.form.get("kind", "").strip()
+            description = request.form.get("description", "").strip()
+            try:
+                amount = int(request.form.get("amount_zar", "0"))
+            except ValueError:
+                abort(400)
+            if not kind or not description or amount < 0:
+                abort(400)
+            cur = db().execute(
+                "INSERT INTO approvals (kind, description, amount_zar, payload, created_at) VALUES (?, ?, ?, ?, ?)",
+                (kind, description, amount, request.form.get("payload", ""), now().strftime(DATE_FMT)),
+            )
+            db().commit()
+            return jsonify(id=cur.lastrowid, status="pending"), 201
+        status = request.args.get("status", "approved")
+        rows = db().execute("SELECT * FROM approvals WHERE status = ? ORDER BY id", (status,)).fetchall()
+        return jsonify(approvals=[dict(r) for r in rows])
+
+    @app.route("/admin/approvals/<int:approval_id>/done", methods=["POST"])
+    def approval_done(approval_id):
+        if not admin_key_ok(request.form.get("key", "")):
+            abort(403)
+        cur = db().execute(
+            "UPDATE approvals SET status = 'executed' WHERE id = ? AND status = 'approved'", (approval_id,))
+        db().commit()
+        if not cur.rowcount:
+            abort(409)
+        return jsonify(ok=True)
+
+    @app.route("/owner/login", methods=["GET", "POST"])
+    def owner_login():
+        if request.method == "POST":
+            if admin_key_ok(request.form.get("key", "")):
+                session["owner"] = True
+                return redirect(url_for("owner_approvals"))
+            flash("Wrong key.")
+            return render_template("owner_login.html"), 401
+        return render_template("owner_login.html")
+
+    @app.route("/owner")
+    def owner_approvals():
+        if not session.get("owner"):
+            return redirect(url_for("owner_login"))
+        pending = db().execute("SELECT * FROM approvals WHERE status = 'pending' ORDER BY id").fetchall()
+        recent = db().execute(
+            "SELECT * FROM approvals WHERE status != 'pending' ORDER BY id DESC LIMIT 20").fetchall()
+        return render_template("owner.html", pending=pending, recent=recent)
+
+    @app.route("/owner/approvals/<int:approval_id>/<decision>", methods=["POST"])
+    def owner_decide(approval_id, decision):
+        if not session.get("owner"):
+            abort(403)
+        if decision not in ("approve", "reject"):
+            abort(404)
+        new_status = "approved" if decision == "approve" else "rejected"
+        cur = db().execute(
+            "UPDATE approvals SET status = ?, decided_at = ? WHERE id = ? AND status = 'pending'",
+            (new_status, now().strftime(DATE_FMT), approval_id),
+        )
+        db().commit()
+        if not cur.rowcount:
+            flash("That request was already decided.")
+        return redirect(url_for("owner_approvals"))
 
     return app
 

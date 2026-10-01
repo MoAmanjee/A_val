@@ -142,3 +142,34 @@ def test_reminders_sent_once(client, app):
     assert reminders.run(app.config["DATABASE"], sender=lambda to, text: sent.append((to, text)) or True) == 1
     assert reminders.run(app.config["DATABASE"], sender=lambda to, text: sent.append((to, text)) or True) == 0
     assert sent[0][0] == "27711112222" and "Thandi" in sent[0][1]
+
+
+def test_approval_flow(client):
+    assert client.post("/admin/approvals", data={"key": "bad", "kind": "ad_spend",
+                                                 "description": "x", "amount_zar": 500}).status_code == 403
+    r = client.post("/admin/approvals", data={"key": "k3y", "kind": "ad_spend",
+                                              "description": "Facebook ads, week 1", "amount_zar": 500})
+    assert r.status_code == 201
+    aid = r.get_json()["id"]
+    assert client.get("/admin/approvals?key=k3y").get_json()["approvals"] == []
+
+    assert client.get("/owner", follow_redirects=False).status_code == 302
+    assert client.post("/owner/login", data={"csrf": token(client, "/owner/login"), "key": "wrong"}).status_code == 401
+    client.post("/owner/login", data={"csrf": token(client, "/owner/login"), "key": "k3y"})
+    assert "Facebook ads, week 1" in client.get("/owner").get_data(as_text=True)
+
+    client.post(f"/owner/approvals/{aid}/approve", data={"csrf": token(client, "/owner")})
+    approved = client.get("/admin/approvals?key=k3y").get_json()["approvals"]
+    assert [a["id"] for a in approved] == [aid]
+
+    assert client.post(f"/admin/approvals/{aid}/done", data={"key": "k3y"}).status_code == 200
+    assert client.post(f"/admin/approvals/{aid}/done", data={"key": "k3y"}).status_code == 409
+
+
+def test_rejected_approval_never_executable(client):
+    aid = client.post("/admin/approvals", data={"key": "k3y", "kind": "refund",
+                                                "description": "r", "amount_zar": 100}).get_json()["id"]
+    client.post("/owner/login", data={"csrf": token(client, "/owner/login"), "key": "k3y"})
+    client.post(f"/owner/approvals/{aid}/reject", data={"csrf": token(client, "/owner")})
+    assert client.get("/admin/approvals?key=k3y").get_json()["approvals"] == []
+    assert client.post(f"/admin/approvals/{aid}/done", data={"key": "k3y"}).status_code == 409

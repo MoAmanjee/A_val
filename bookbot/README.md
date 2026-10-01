@@ -50,3 +50,19 @@ curl -X POST https://yourdomain/admin/activate -d key=$ADMIN_KEY -d slug=cool-cu
 - Single timezone (server local time, set the server to Africa/Johannesburg).
 - Payments are manual activation. A Payfast/Paystack webhook calling the same logic is the next step.
 - SQLite is fine for hundreds of businesses; move to Postgres beyond that.
+
+## Owner approval queue (money gate)
+
+Anything that spends or moves money (ad spend, refunds, payouts) must be requested through the approval
+queue and is only executed after the owner approves it at `/owner` (log in with `ADMIN_KEY`).
+
+```bash
+# automation requests approval
+curl -X POST https://yourdomain/admin/approvals -d key=$ADMIN_KEY -d kind=ad_spend \
+  -d description="Facebook ads week 1" -d amount_zar=500
+# automation polls for approved items, executes them, then marks them done
+curl "https://yourdomain/admin/approvals?key=$ADMIN_KEY&status=approved"
+curl -X POST https://yourdomain/admin/approvals/1/done -d key=$ADMIN_KEY
+```
+
+Rejected or pending items are never returned as approved, and an item can only be marked done once.

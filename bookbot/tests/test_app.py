@@ -173,3 +173,8 @@ def test_rejected_approval_never_executable(client):
     client.post(f"/owner/approvals/{aid}/reject", data={"csrf": token(client, "/owner")})
     assert client.get("/admin/approvals?key=k3y").get_json()["approvals"] == []
     assert client.post(f"/admin/approvals/{aid}/done", data={"key": "k3y"}).status_code == 409
+
+
+def test_barbers_landing_page(client):
+    r = client.get("/barbers")
+    assert r.status_code == 200 and "no-show" in r.get_data(as_text=True)

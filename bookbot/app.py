@@ -139,6 +139,10 @@ def create_app(config=None):
     def landing():
         return render_template("landing.html", price=app.config["PRICE_ZAR"], trial=TRIAL_DAYS)
 
+    @app.route("/barbers")
+    def landing_barbers():
+        return render_template("landing_barbers.html", price=app.config["PRICE_ZAR"], trial=TRIAL_DAYS)
+
     @app.route("/signup", methods=["GET", "POST"])
     def signup():
         if request.method == "POST":

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Stop losing money to no-shows - BookBot for barbershops{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>Every no-show is an empty chair and lost cash.</h1>
+  <p>BookBot gives your barbershop a booking link for WhatsApp and Instagram, and sends each client a reminder the day before. No app for your clients to download.</p>
+  <a class="btn" href="{{ url_for('signup') }}">Try it free for {{ trial }} days</a>
+  <p class="muted" style="font-size:.95rem">No card needed. Set up in about 5 minutes.</p>
+</div>
+<div class="grid">
+  <div class="card"><h2>Put your link in your bio</h2><p>Clients pick a haircut and a free time themselves. No more "are you free at 3?" messages while you have clippers in your hand.</p></div>
+  <div class="card"><h2>Cut no-shows</h2><p>Clients are reminded on WhatsApp before their slot, so fewer people forget and more chairs stay full.</p></div>
+  <div class="card"><h2>No double bookings</h2><p>Haircut, beard trim or both: the calendar blocks the right amount of time automatically.</p></div>
+</div>
+<div class="card" style="text-align:center">
+  <h2>One missed haircut costs more than a month of BookBot.</h2>
+  <div class="price">R{{ price }}<span class="muted" style="font-size:1rem"> / month</span></div>
+  <a class="btn" href="{{ url_for('signup') }}">Start free trial</a>
+</div>
+{% endblock %}

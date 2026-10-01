@@ -1,0 +1,5 @@
+{% extends "base.html" %}
+{% block title %}{{ biz.name }}{% endblock %}
+{% block content %}
+<div class="card">Online booking for {{ biz.name }} is currently unavailable. Please contact them directly on <a href="https://wa.me/{{ biz.whatsapp }}">WhatsApp</a>.</div>
+{% endblock %}

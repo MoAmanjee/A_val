@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ biz.name }}{% endblock %}
+{% block content %}
+<h1>{{ biz.name }}</h1>
+
+{% if biz.status == 'trial' %}
+<div class="card">
+  {% if active %}
+    <strong>Free trial: {{ days_left }} day(s) left.</strong>
+  {% else %}
+    <strong>Your free trial has ended.</strong> Your booking page is switched off until you subscribe.
+  {% endif %}
+  Subscribe for R{{ price }}/month to keep taking bookings.
+  {% if payment_link %}<a class="btn" href="{{ payment_link }}" target="_blank" rel="noopener">Subscribe</a>{% endif %}
+</div>
+{% elif biz.status == 'suspended' %}
+<div class="card"><strong>Your account is suspended.</strong> Contact support to reactivate it.</div>
+{% endif %}
+
+<div class="card">
+  <h2>Your booking link</h2>
+  <p>Share this on WhatsApp, Instagram and Facebook:</p>
+  <p><a href="{{ booking_url }}">{{ booking_url }}</a></p>
+</div>
+
+<div class="card">
+  <h2>Upcoming bookings</h2>
+  {% if bookings %}
+  <table>
+    <tr><th>When</th><th>Customer</th><th>Service</th><th></th></tr>
+    {% for b in bookings %}
+    <tr>
+      <td>{{ b.start }}</td>
+      <td>{{ b.customer_name }}<br><span class="muted">{{ b.customer_phone }}</span></td>
+      <td>{{ b.service_name }}</td>
+      <td><form method="post" action="{{ url_for('cancel_booking', booking_id=b.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="danger">Cancel</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">No upcoming bookings yet.</p>{% endif %}
+</div>
+
+<div class="card">
+  <h2>Services</h2>
+  {% if services %}
+  <table>
+    {% for s in services %}
+    <tr>
+      <td>{{ s.name }}</td><td>{{ s.duration_min }} min</td><td>R{{ s.price_zar }}</td>
+      <td><form method="post" action="{{ url_for('delete_service', service_id=s.id) }}"><input type="hidden" name="csrf" value="{{ csrf_token() }}"><button class="danger">Remove</button></form></td>
+    </tr>
+    {% endfor %}
+  </table>
+  {% else %}<p class="muted">Add at least one service so customers can book.</p>{% endif %}
+  <form method="post" action="{{ url_for('add_service') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <div class="row">
+      <div><label>Service name</label><input name="name" placeholder="Men's haircut" required></div>
+      <div><label>Duration (minutes)</label><input type="number" name="duration_min" value="30" required></div>
+      <div><label>Price (R)</label><input type="number" name="price_zar" value="0"></div>
+    </div>
+    <button>Add service</button>
+  </form>
+</div>
+
+<div class="card">
+  <h2>Opening hours</h2>
+  <form method="post" action="{{ url_for('set_hours') }}">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <div class="row">
+      <div><label>Opens (hour, 0-23)</label><input type="number" name="open_hour" min="0" max="23" value="{{ biz.open_hour }}"></div>
+      <div><label>Closes (hour, 1-24)</label><input type="number" name="close_hour" min="1" max="24" value="{{ biz.close_hour }}"></div>
+    </div>
+    <button>Save hours</button>
+  </form>
+</div>
+{% endblock %}

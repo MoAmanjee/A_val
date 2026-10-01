@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Booking confirmed{% endblock %}
+{% block content %}
+<div class="card" style="text-align:center">
+  <h1>You're booked, {{ name }}.</h1>
+  <p>{{ service.name }} at {{ biz.name }}<br><strong>{{ start.strftime('%A %d %B at %H:%M') }}</strong></p>
+  <p class="muted">You'll get a WhatsApp reminder the day before.</p>
+</div>
+{% endblock %}

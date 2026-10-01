@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}BookBot - online bookings and WhatsApp reminders{% endblock %}
+{% block content %}
+<div class="hero">
+  <h1>Fewer no-shows. More booked chairs.</h1>
+  <p>Give your customers a simple online booking page and automatic WhatsApp reminders. Built for salons, barbers, tutors, mechanics and any appointment-based business in South Africa.</p>
+  <a class="btn" href="{{ url_for('signup') }}">Start your free {{ trial }}-day trial</a>
+</div>
+<div class="grid">
+  <div class="card"><h2>1. Set up in 5 minutes</h2><p>Add your services, prices and opening hours. You get your own booking link to put on WhatsApp, Instagram and Facebook.</p></div>
+  <div class="card"><h2>2. Customers book themselves</h2><p>No more back-and-forth messages. Customers pick a service and a free time slot, and double bookings are blocked automatically.</p></div>
+  <div class="card"><h2>3. Automatic reminders</h2><p>Customers get a WhatsApp reminder the day before, which cuts no-shows and empty slots.</p></div>
+</div>
+<div class="card" style="text-align:center">
+  <div class="price">R{{ price }}<span class="muted" style="font-size:1rem"> / month</span></div>
+  <p>Unlimited bookings. Unlimited reminders. Cancel any time.</p>
+  <a class="btn" href="{{ url_for('signup') }}">Try it free</a>
+</div>
+{% endblock %}

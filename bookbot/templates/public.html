@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Book at {{ biz.name }}{% endblock %}
+{% block content %}
+<h1>Book at {{ biz.name }}</h1>
+{% if not services %}
+  <div class="card">Online booking isn't set up yet. Please contact us on WhatsApp: <a href="https://wa.me/{{ biz.whatsapp }}">{{ biz.whatsapp }}</a></div>
+{% else %}
+<form method="post" action="{{ url_for('book', slug=biz.slug) }}" class="card" id="bookForm">
+  <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+  <label>Service</label>
+  <select name="service_id" id="service" required>
+    {% for s in services %}<option value="{{ s.id }}">{{ s.name }} - {{ s.duration_min }} min - R{{ s.price_zar }}</option>{% endfor %}
+  </select>
+  <label>Date</label>
+  <input type="date" name="date" id="date" min="{{ today }}" value="{{ today }}" required>
+  <label>Time</label>
+  <div class="slots" id="slots"><span class="muted">Loading...</span></div>
+  <input type="hidden" name="time" id="time" required>
+  <label>Your name</label><input name="name" required>
+  <label>Your cell number</label><input name="phone" placeholder="082 123 4567" required>
+  <button id="submit" disabled>Confirm booking</button>
+</form>
+<script>
+  const slotsEl = document.getElementById('slots'), timeEl = document.getElementById('time'), submit = document.getElementById('submit');
+  async function load() {
+    timeEl.value = ''; submit.disabled = true; slotsEl.textContent = 'Loading...';
+    const q = new URLSearchParams({service_id: document.getElementById('service').value, date: document.getElementById('date').value});
+    const res = await fetch("{{ url_for('slots', slug=biz.slug) }}?" + q);
+    const data = await res.json();
+    slotsEl.textContent = '';
+    if (!data.slots.length) { slotsEl.innerHTML = '<span class="muted">No free times on this day.</span>'; return; }
+    data.slots.forEach(t => {
+      const b = document.createElement('button'); b.type = 'button'; b.textContent = t;
+      b.onclick = () => { slotsEl.querySelectorAll('button').forEach(x => x.classList.remove('sel')); b.classList.add('sel'); timeEl.value = t; submit.disabled = false; };
+      slotsEl.appendChild(b);
+    });
+  }
+  document.getElementById('service').addEventListener('change', load);
+  document.getElementById('date').addEventListener('change', load);
+  load();
+</script>
+{% endif %}
+{% endblock %}

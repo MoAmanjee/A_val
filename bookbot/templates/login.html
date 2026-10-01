@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Log in - BookBot{% endblock %}
+{% block content %}
+<div class="card" style="max-width:480px;margin:auto">
+  <h2>Log in</h2>
+  <form method="post">
+    <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+    <label>Email</label><input type="email" name="email" required>
+    <label>Password</label><input type="password" name="password" required>
+    <button>Log in</button>
+  </form>
+  <p class="muted">New here? <a href="{{ url_for('signup') }}">Start your free trial</a></p>
+</div>
+{% endblock %}

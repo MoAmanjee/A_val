@@ -81,7 +81,7 @@ export function getIntegrationStatus(business: {
     blockers.push({
       code: "url",
       message:
-        "APP_URL must be a public https:// address. Meta cannot deliver messages to localhost or plain HTTP — deploy the app or put a tunnel (ngrok / Cloudflare Tunnel) in front and set APP_URL to that URL.",
+        "APP_URL must be a public https:// address. Meta cannot deliver messages to localhost or plain HTTP - deploy the app or put a tunnel (ngrok / Cloudflare Tunnel) in front and set APP_URL to that URL.",
     });
   }
   if (!openaiConfigured) {

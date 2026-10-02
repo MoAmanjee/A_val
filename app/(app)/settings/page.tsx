@@ -31,11 +31,24 @@ function CopyField({ label, value, hint }: { label: string; value: string; hint?
   const [copied, setCopied] = useState(false);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(value);
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(value);
+      else throw new Error("clipboard");
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      window.setTimeout(() => setCopied(false), 1500);
     } catch {
-      /* clipboard may be blocked on http */
+      const el = document.createElement("textarea");
+      el.value = value;
+      el.setAttribute("readonly", "");
+      el.style.position = "fixed";
+      el.style.left = "-9999px";
+      document.body.appendChild(el);
+      el.select();
+      const ok = document.execCommand("copy");
+      el.remove();
+      if (ok) {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      }
     }
   }
   return (

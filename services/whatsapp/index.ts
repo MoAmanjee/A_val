@@ -9,6 +9,7 @@ import { WhatsAppError, type WhatsAppCredentials, type WhatsAppService } from "@
 export * from "@/services/whatsapp/types";
 export { MockWhatsAppService } from "@/services/whatsapp/mock";
 export { CloudApiWhatsAppService, parseWhatsAppWebhook } from "@/services/whatsapp/cloud";
+export { getIntegrationStatus, testWhatsAppConnection } from "@/services/whatsapp/status";
 
 let instance: WhatsAppService | null = null;
 

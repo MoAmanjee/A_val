@@ -14,6 +14,11 @@ interface Stats {
   recentCustomers: { id: string; name: string | null; phone: string; createdAt: string }[];
   lowStock: { id: string; sku: string; name: string; quantityInStock: number; minimumStockLevel: number }[];
   humanConversations: { id: string; humanReason: string | null; customer: { name: string | null; phone: string } }[];
+  integrations?: {
+    driver: string;
+    liveReady: boolean;
+    blockers: { code: string; message: string }[];
+  };
 }
 
 function Stat({ label, value, icon, tone, href }: { label: string; value: ReactNode; icon: ReactNode; tone: string; href?: string }) {
@@ -39,6 +44,36 @@ export default function DashboardPage() {
     <>
       <PageHeader title="Dashboard" subtitle="What needs your attention today" />
       <ErrorBanner message={error} onRetry={reload} />
+
+      {data.integrations && !data.integrations.liveReady && (
+        <Link
+          href="/settings"
+          className={`mb-4 flex items-center gap-3 rounded-xl border px-4 py-3 text-sm hover:opacity-95 ${
+            data.integrations.driver === "mock"
+              ? "border-amber-200 bg-amber-50 text-amber-900"
+              : "border-sky-200 bg-sky-50 text-sky-900"
+          }`}
+        >
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <span>
+            {data.integrations.driver === "mock" ? (
+              <>WhatsApp is in <strong>mock</strong> mode - the agent replies in this inbox only. Open Settings to connect the Cloud API and go live.</>
+            ) : (
+              <>
+                WhatsApp agent is <strong>not live</strong> yet
+                {data.integrations.blockers[0] ? ` - ${data.integrations.blockers[0].message}` : "."}{" "}
+                Open Settings to finish connecting.
+              </>
+            )}
+          </span>
+        </Link>
+      )}
+      {data.integrations?.liveReady && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <CheckCircle2 className="h-5 w-5 shrink-0" />
+          <span>WhatsApp agent is live. Inbound messages are answered automatically. Quotations still need your approval before they go out.</span>
+        </div>
+      )}
 
       {(s.humanRequired > 0 || s.sendFailed > 0) && (
         <div className="mb-6 space-y-2">

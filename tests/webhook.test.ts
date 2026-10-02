@@ -195,6 +195,20 @@ describe("webhook HTTP endpoint", () => {
       process.env.WHATSAPP_APP_SECRET = prev;
     }
   });
+
+  it("refuses unsigned webhooks when the cloud driver has no app secret", async () => {
+    const prevDriver = process.env.WHATSAPP_DRIVER;
+    const prevSecret = process.env.WHATSAPP_APP_SECRET;
+    process.env.WHATSAPP_DRIVER = "cloud";
+    process.env.WHATSAPP_APP_SECRET = "";
+    try {
+      const body = JSON.stringify(waPayload({ phoneNumberId: PHONE_A, from: "27831119999", id: wamid(), text: "hi" }));
+      expect((await post(body)).status).toBe(503);
+    } finally {
+      process.env.WHATSAPP_DRIVER = prevDriver;
+      process.env.WHATSAPP_APP_SECRET = prevSecret;
+    }
+  });
 });
 
 describe("agent tool loop through the webhook", () => {

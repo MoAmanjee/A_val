@@ -106,14 +106,54 @@ See `.env.example` for the full list. Key ones:
 | `STORAGE_DRIVER` | `local` or `s3` (any S3-compatible bucket: `S3_*` variables) |
 | `VIN_DECODER` | `basic` (format validation only) or `nhtsa` |
 
-## Connecting WhatsApp (Meta Cloud API)
+## Connecting WhatsApp (Meta Cloud API) so the agent runs automated
 
-1. Create a Meta app with the WhatsApp product and a business phone number.
-2. Set the webhook callback URL to `https://<your-domain>/api/webhooks/whatsapp`, the verify token to your
-   `WHATSAPP_VERIFY_TOKEN`, and subscribe to `messages`.
-3. Set `WHATSAPP_APP_SECRET` (App settings -> Basic) so payload signatures are verified.
-4. In the dashboard open **Settings -> WhatsApp connection** and enter the **Phone number ID** and a permanent
-   access token. The phone number id routes each incoming message to the right business.
+The Cloud API path is already in the product. Once the items below are green in **Settings → WhatsApp
+connection** (badge **Live & automated**), a customer can message the business number and the agent replies
+on WhatsApp by itself. Staff still **Approve & send** quotations; the AI cannot approve, price or send PDFs.
+
+You need Meta credentials and an OpenAI key — those cannot be invented for you. Paste them into `.env` and
+Settings, then use **Test connection** (Graph API GET, no customer message).
+
+### 1. Make the app reachable on public HTTPS
+
+Meta cannot call `localhost`. Deploy, or run a tunnel while developing:
+
+```bash
+# example
+ngrok http 3000
+# then in .env
+APP_URL="https://<your-ngrok-or-production-host>"
+WHATSAPP_DRIVER="cloud"
+```
+
+Restart the app after changing `.env`.
+
+### 2. Meta app, token, webhook
+
+1. [developers.facebook.com](https://developers.facebook.com/) → create an app → add the **WhatsApp** product
+   and a business phone number.
+2. Create a **permanent system-user token** with `whatsapp_business_messaging` and
+   `whatsapp_business_management` (not a 24-hour temp token).
+3. Copy **App secret** (App settings → Basic) into `WHATSAPP_APP_SECRET`.
+4. Set `WHATSAPP_VERIFY_TOKEN` to a long random string (`openssl rand -hex 24`).
+5. Set `OPENAI_API_KEY` so the assistant can reply.
+6. In Meta → WhatsApp → Configuration → Webhook:
+   - Callback URL: `https://<your-host>/api/webhooks/whatsapp` (same host as `APP_URL`)
+   - Verify token: the exact `WHATSAPP_VERIFY_TOKEN`
+   - Subscribe to the **`messages`** field
+7. In the dashboard **Settings → WhatsApp connection**, paste **Phone number ID** and the access token →
+   **Save settings** → **Test connection**. Copy the webhook URL / verify token from that panel if needed.
+
+The phone number id is how inbound webhooks are routed to the right tenant. Each business has its own.
+
+### 3. What goes live automatically
+
+| Event | What happens |
+| --- | --- |
+| Customer texts the WhatsApp number | Meta POSTs `/api/webhooks/whatsapp` (signature checked) → conversation created → AI agent runs tools → reply sent back on WhatsApp |
+| Customer asks for a person / AI fails | Conversation is flagged `HUMAN_REQUIRED`; automated replies stop until staff take over |
+| Draft quote is ready | Lands in the dashboard as `PENDING_APPROVAL`. Nothing is sent until a human clicks **Approve & send** |
 
 **24-hour window:** WhatsApp only allows free-form messages within 24 hours of the customer's last message.
 Sending a quotation PDF later than that requires an approved message template; if Meta rejects the send, the

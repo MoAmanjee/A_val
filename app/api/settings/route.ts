@@ -2,6 +2,7 @@ import { z } from "zod";
 import { parseJson, route } from "@/lib/api";
 import { env } from "@/lib/env";
 import { getBusiness, publicBusiness, updateBusinessSettings } from "@/services/settings";
+import { getIntegrationStatus } from "@/services/whatsapp/status";
 
 const body = z.object({
   name: z.string().min(1).max(160).optional(),
@@ -25,18 +26,30 @@ const body = z.object({
   termsAndConditions: z.string().max(8000).nullish(),
 });
 
-export const GET = route(async ({ session }) => ({
-  business: {
-    ...publicBusiness(await getBusiness(session.businessId)),
-    whatsappDriver: env.whatsappDriver,
-  },
-}));
+export const GET = route(async ({ session }) => {
+  const business = await getBusiness(session.businessId);
+  const integrations = getIntegrationStatus(business);
+  const admin = session.user.role !== "STAFF";
+  return {
+    business: {
+      ...publicBusiness(business),
+      whatsappDriver: env.whatsappDriver,
+    },
+    integrations: {
+      ...integrations,
+      verifyToken: admin ? env.whatsappVerifyToken : undefined,
+    },
+  };
+});
 
 export const PUT = route(
   async ({ req, session }) => {
     const input = await parseJson(req, body);
     const updated = await updateBusinessSettings(session.actor, { ...input, email: input.email === "" ? null : input.email });
-    return { business: publicBusiness(updated) };
+    return {
+      business: { ...publicBusiness(updated), whatsappDriver: env.whatsappDriver },
+      integrations: getIntegrationStatus(updated),
+    };
   },
   { roles: ["BUSINESS_ADMIN"] },
 );

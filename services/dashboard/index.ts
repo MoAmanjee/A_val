@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { lowStockParts } from "@/services/inventory";
 import { expireOverdueQuotes } from "@/services/quotes/service";
+import { getIntegrationStatus } from "@/services/whatsapp/status";
 import { toNumber } from "@/utils/money";
 
 export async function getDashboardStats(businessId: string) {
@@ -22,7 +23,7 @@ export async function getDashboardStats(businessId: string) {
     db.partRequest.count({ where: { businessId, status: { in: ["OPEN", "IN_PROGRESS"] } } }),
   ]);
 
-  const [pendingQuotes, recentConversations, recentCustomers, lowStock, humanConversations] = await Promise.all([
+  const [pendingQuotes, recentConversations, recentCustomers, lowStock, humanConversations, business] = await Promise.all([
     db.quotation.findMany({
       where: { businessId, OR: [{ status: "PENDING_APPROVAL" }, { status: "APPROVED", sendError: { not: null } }] },
       orderBy: { createdAt: "desc" },
@@ -50,6 +51,10 @@ export async function getDashboardStats(businessId: string) {
       take: 5,
       include: { customer: { select: { name: true, phone: true } } },
     }),
+    db.business.findUnique({
+      where: { id: businessId },
+      select: { whatsappPhoneNumberId: true, whatsappAccessTokenEnc: true },
+    }),
   ]);
 
   return {
@@ -68,6 +73,7 @@ export async function getDashboardStats(businessId: string) {
     recentCustomers,
     lowStock,
     humanConversations,
+    integrations: getIntegrationStatus(business ?? { whatsappPhoneNumberId: null, whatsappAccessTokenEnc: null }),
   };
 }
 

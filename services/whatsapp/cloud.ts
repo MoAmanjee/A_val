@@ -117,6 +117,22 @@ export class CloudApiWhatsAppService implements WhatsAppService {
     });
   }
 
+  /** Confirms the token can read this phone number on Graph API (does not send a message). */
+  async verifyPhoneNumber(creds: WhatsAppCredentials): Promise<{
+    id: string;
+    displayPhoneNumber: string;
+    verifiedName: string;
+    qualityRating: string;
+  }> {
+    const body = await this.request(creds, "?fields=id,display_phone_number,verified_name,quality_rating", { method: "GET" });
+    return {
+      id: String(body.id ?? creds.phoneNumberId),
+      displayPhoneNumber: String(body.display_phone_number ?? ""),
+      verifiedName: String(body.verified_name ?? ""),
+      qualityRating: String(body.quality_rating ?? ""),
+    };
+  }
+
   receiveMessage(payload: unknown): ParsedWebhook {
     return parseWhatsAppWebhook(payload);
   }

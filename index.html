@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ahmed Rides — a cyclist's corner of the internet</title>
+<meta name="description" content="A little website for Ahmed: cyclist, early riser, hill climber, and the best dad on two wheels.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&family=Sora:wght@400;600&display=swap" rel="stylesheet">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚴</text></svg>">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+
+<header class="nav" id="nav">
+  <div class="shell nav__inner">
+    <a class="brand" href="#top">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 48 32" role="presentation">
+          <circle cx="11" cy="21" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <circle cx="37" cy="21" r="9" fill="none" stroke="currentColor" stroke-width="2.5"/>
+          <path d="M11 21 20 9h9l8 12M20 9l5 12H11" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+        </svg>
+      </span>
+      <span class="brand__text">Ahmed<span>Rides</span></span>
+    </a>
+
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#about">About</a>
+      <a href="#routes">Routes</a>
+      <a href="#calculator">Ride calc</a>
+      <a href="#rules">Rules</a>
+    </nav>
+
+    <button class="theme-toggle" id="themeToggle" type="button" aria-pressed="false">
+      <span class="theme-toggle__icon" aria-hidden="true">☀️</span>
+      <span class="sr-only">Toggle dark mode</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <div class="hero__sky" aria-hidden="true">
+      <span class="cloud cloud--1"></span>
+      <span class="cloud cloud--2"></span>
+      <span class="cloud cloud--3"></span>
+    </div>
+
+    <div class="shell hero__inner">
+      <div class="hero__copy">
+        <p class="eyebrow">Dawn patrol · Since forever</p>
+        <h1>Ahmed<br><span class="hero__accent">rides bikes.</span></h1>
+        <p class="lede">
+          Up before the sun, home before the coffee goes cold. Hills are a conversation,
+          headwinds are a negotiation, and there is always room for one more lap.
+        </p>
+        <div class="hero__cta">
+          <a class="btn btn--primary" href="#routes">See his favourite routes</a>
+          <a class="btn btn--ghost" href="#calculator">Crunch a ride</a>
+        </div>
+      </div>
+
+      <div class="hero__art" aria-hidden="true">
+        <div class="sun"></div>
+        <svg class="rider" viewBox="0 0 320 200" role="presentation">
+          <defs>
+            <linearGradient id="jersey" x1="0" y1="0" x2="1" y2="1">
+              <stop class="stop-a" offset="0%"/>
+              <stop class="stop-b" offset="100%"/>
+            </linearGradient>
+          </defs>
+          <g class="rider__wheel">
+            <circle cx="70" cy="140" r="42" fill="none" stroke="currentColor" stroke-width="4"/>
+            <g stroke="currentColor" stroke-width="1.6" opacity=".55">
+              <line x1="70" y1="98" x2="70" y2="182"/>
+              <line x1="28" y1="140" x2="112" y2="140"/>
+              <line x1="40" y1="110" x2="100" y2="170"/>
+              <line x1="100" y1="110" x2="40" y2="170"/>
+            </g>
+          </g>
+          <g class="rider__wheel rider__wheel--rear">
+            <circle cx="238" cy="140" r="42" fill="none" stroke="currentColor" stroke-width="4"/>
+            <g stroke="currentColor" stroke-width="1.6" opacity=".55">
+              <line x1="238" y1="98" x2="238" y2="182"/>
+              <line x1="196" y1="140" x2="280" y2="140"/>
+              <line x1="208" y1="110" x2="268" y2="170"/>
+              <line x1="268" y1="110" x2="208" y2="170"/>
+            </g>
+          </g>
+          <path d="M70 140 L150 72 L210 72 L238 140 M150 72 L170 140 L70 140 M210 72 L196 50"
+                fill="none" stroke="url(#jersey)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M150 72 L186 44" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round"/>
+          <circle class="fill-accent" cx="170" cy="140" r="9"/>
+          <g class="rider__body">
+            <path d="M176 44 L164 84 L192 96 L214 62" fill="none" stroke="currentColor" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="220" cy="52" r="13" fill="currentColor"/>
+            <path class="fill-accent-2" d="M206 46 q14 -16 28 -2 z"/>
+          </g>
+        </svg>
+        <div class="road"><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="Ride statistics">
+    <div class="shell stats__grid">
+      <div class="stat reveal">
+        <span class="stat__num" data-count="14820" data-suffix=" km">0</span>
+        <span class="stat__label">Logged on the road</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__num" data-count="186" data-suffix="">0</span>
+        <span class="stat__label">Sunrise starts</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__num" data-count="212" data-suffix=" km">0</span>
+        <span class="stat__label">Longest single ride</span>
+      </div>
+      <div class="stat reveal">
+        <span class="stat__num" data-count="1" data-suffix=" ☕">0</span>
+        <span class="stat__label">Mandatory mid-ride coffee</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="about">
+    <div class="shell about">
+      <div class="about__card reveal">
+        <svg class="portrait" viewBox="0 0 200 200" role="img" aria-label="Illustration of Ahmed in a cycling helmet and sunglasses">
+          <circle class="fill-surface-2" cx="100" cy="100" r="96"/>
+          <circle class="fill-skin" cx="100" cy="112" r="56"/>
+          <path class="fill-accent" d="M44 96 a56 56 0 0 1 112 0 l-6 10 q-50 -26 -100 0 z"/>
+          <path class="stroke-accent-2" d="M44 96 q56 -22 112 0" fill="none" stroke-width="6"/>
+          <rect class="fill-ink" x="56" y="104" width="88" height="22" rx="11" opacity=".85"/>
+          <path class="stroke-ink" d="M72 150 q28 20 56 0" fill="none" stroke-width="5" stroke-linecap="round"/>
+          <path class="fill-accent-2" d="M66 168 q34 26 68 0 l10 32 h-88 z"/>
+        </svg>
+        <div class="about__meta">
+          <h3>Ahmed</h3>
+          <p>Dad. Rider. Chief tyre-pressure officer.</p>
+        </div>
+      </div>
+
+      <div class="about__text reveal">
+        <p class="eyebrow">The man, the bike</p>
+        <h2>Some people collect stamps. Ahmed collects kilometres.</h2>
+        <p>
+          It started with one borrowed bike and a loop around the neighbourhood. These days it's
+          clipped-in Saturday mornings, a pocket full of dates for the long climbs, and a quiet
+          satisfaction in a perfectly clean drivetrain.
+        </p>
+        <p>
+          He'll tell you cycling is just exercise. It isn't. It's thinking time, it's the people
+          he rides with, and it's the one hour of the day that belongs entirely to him.
+        </p>
+        <ul class="kit">
+          <li><span>Weapon of choice</span><strong>Steel frame, road bars</strong></li>
+          <li><span>Preferred weather</span><strong>Cold, still, golden</strong></li>
+          <li><span>Fuel</span><strong>Dates &amp; strong coffee</strong></li>
+          <li><span>Non-negotiable</span><strong>Helmet, always</strong></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="section section--alt" id="routes">
+    <div class="shell">
+      <div class="section__head reveal">
+        <p class="eyebrow">The regulars</p>
+        <h2>Favourite routes</h2>
+        <p class="lede">Four rides on permanent rotation, each one picked for a different mood.</p>
+      </div>
+
+      <div class="routes">
+        <article class="route reveal">
+          <div class="route__profile" aria-hidden="true">
+            <svg viewBox="0 0 300 80" preserveAspectRatio="none"><path d="M0 70 L60 52 L120 60 L180 24 L240 40 L300 12 L300 80 L0 80 Z"/></svg>
+          </div>
+          <h3>The Sunrise Loop</h3>
+          <p>Out of the door at 5:40, back before anyone notices he left. Flat, fast, and quiet.</p>
+          <dl class="route__facts">
+            <div><dt>Distance</dt><dd>32 km</dd></div>
+            <div><dt>Climbing</dt><dd>180 m</dd></div>
+            <div><dt>Mood</dt><dd>Clear head</dd></div>
+          </dl>
+          <div class="meter" data-level="2"><span></span><span></span><span></span><span></span><span></span><em>Easy</em></div>
+        </article>
+
+        <article class="route reveal">
+          <div class="route__profile" aria-hidden="true">
+            <svg viewBox="0 0 300 80" preserveAspectRatio="none"><path d="M0 74 L50 66 L110 34 L150 48 L210 10 L300 30 L300 80 L0 80 Z"/></svg>
+          </div>
+          <h3>The Hill That Shall Not Be Named</h3>
+          <p>Twenty minutes of regret followed by the best view in the county. Worth it every time.</p>
+          <dl class="route__facts">
+            <div><dt>Distance</dt><dd>58 km</dd></div>
+            <div><dt>Climbing</dt><dd>940 m</dd></div>
+            <div><dt>Mood</dt><dd>Something to prove</dd></div>
+          </dl>
+          <div class="meter" data-level="5"><span></span><span></span><span></span><span></span><span></span><em>Brutal</em></div>
+        </article>
+
+        <article class="route reveal">
+          <div class="route__profile" aria-hidden="true">
+            <svg viewBox="0 0 300 80" preserveAspectRatio="none"><path d="M0 60 L70 56 L140 62 L200 50 L260 58 L300 52 L300 80 L0 80 Z"/></svg>
+          </div>
+          <h3>Café Run</h3>
+          <p>Technically a ride. Mostly an excuse. Two laps, one flat white, zero regrets.</p>
+          <dl class="route__facts">
+            <div><dt>Distance</dt><dd>24 km</dd></div>
+            <div><dt>Climbing</dt><dd>95 m</dd></div>
+            <div><dt>Mood</dt><dd>Social</dd></div>
+          </dl>
+          <div class="meter" data-level="1"><span></span><span></span><span></span><span></span><span></span><em>Gentle</em></div>
+        </article>
+
+        <article class="route reveal">
+          <div class="route__profile" aria-hidden="true">
+            <svg viewBox="0 0 300 80" preserveAspectRatio="none"><path d="M0 72 L40 44 L90 58 L150 20 L190 44 L250 16 L300 40 L300 80 L0 80 Z"/></svg>
+          </div>
+          <h3>The Big One</h3>
+          <p>Once a season, with a bag of snacks and a plan he mostly sticks to. All day in the saddle.</p>
+          <dl class="route__facts">
+            <div><dt>Distance</dt><dd>212 km</dd></div>
+            <div><dt>Climbing</dt><dd>2,400 m</dd></div>
+            <div><dt>Mood</dt><dd>Legend status</dd></div>
+          </dl>
+          <div class="meter" data-level="4"><span></span><span></span><span></span><span></span><span></span><em>Epic</em></div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="calculator">
+    <div class="shell calc">
+      <div class="calc__intro reveal">
+        <p class="eyebrow">For the numbers guy</p>
+        <h2>Ride calculator</h2>
+        <p>
+          Punch in the distance and how long it took. It works out average speed, pace,
+          a rough calorie burn, and — most importantly — how many slices of cake that buys.
+        </p>
+      </div>
+
+      <form class="calc__panel reveal" id="rideForm" novalidate>
+        <div class="field">
+          <label for="distance">Distance</label>
+          <div class="field__input">
+            <input id="distance" name="distance" type="number" min="0" step="0.1" value="58" inputmode="decimal">
+            <span class="unit" id="distanceUnit">km</span>
+          </div>
+        </div>
+
+        <div class="field field--split">
+          <label for="hours">Time</label>
+          <div class="field__pair">
+            <div class="field__input">
+              <input id="hours" type="number" min="0" step="1" value="2" inputmode="numeric">
+              <span class="unit">hrs</span>
+            </div>
+            <div class="field__input">
+              <input id="minutes" type="number" min="0" max="59" step="1" value="18" inputmode="numeric">
+              <span class="unit">min</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="weight">Rider weight</label>
+          <div class="field__input">
+            <input id="weight" type="number" min="1" step="1" value="78" inputmode="numeric">
+            <span class="unit" id="weightUnit">kg</span>
+          </div>
+        </div>
+
+        <fieldset class="units">
+          <legend class="sr-only">Units</legend>
+          <label><input type="radio" name="units" value="metric" checked> Metric</label>
+          <label><input type="radio" name="units" value="imperial"> Imperial</label>
+        </fieldset>
+
+        <output class="results" id="results" aria-live="polite">
+          <div class="result result--hero">
+            <span class="result__value" id="speedOut">—</span>
+            <span class="result__label" id="speedLabel">average speed (km/h)</span>
+          </div>
+          <div class="result">
+            <span class="result__value" id="paceOut">—</span>
+            <span class="result__label" id="paceLabel">per km</span>
+          </div>
+          <div class="result">
+            <span class="result__value" id="caloriesOut">—</span>
+            <span class="result__label">calories burned</span>
+          </div>
+          <div class="result">
+            <span class="result__value" id="cakeOut">—</span>
+            <span class="result__label">slices of cake earned</span>
+          </div>
+        </output>
+
+        <p class="calc__note" id="calcNote">Calories are a friendly estimate based on effort and rider weight. Cake is exact.</p>
+      </form>
+    </div>
+  </section>
+
+  <section class="section section--alt" id="rules">
+    <div class="shell">
+      <div class="section__head reveal">
+        <p class="eyebrow">House rules</p>
+        <h2>The things Ahmed rides by</h2>
+      </div>
+      <ol class="rules">
+        <li class="reveal"><span>01</span><p>Check the tyres the night before. Every single time.</p></li>
+        <li class="reveal"><span>02</span><p>Nobody gets dropped on the way out. The way back is fair game.</p></li>
+        <li class="reveal"><span>03</span><p>Rain is just weather. Ice is a reason to stay in.</p></li>
+        <li class="reveal"><span>04</span><p>Wave at other cyclists. It costs nothing.</p></li>
+        <li class="reveal"><span>05</span><p>Clean the chain before you put the bike away, not after.</p></li>
+        <li class="reveal"><span>06</span><p>The ride isn't finished until the coffee is.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="quote">
+    <div class="shell reveal">
+      <blockquote>
+        <p>“It never gets easier. You just go faster.”</p>
+        <cite>— taped to the inside of his toolbox</cite>
+      </blockquote>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="shell footer__inner">
+    <p class="footer__brand">Ahmed<span>Rides</span></p>
+    <p>Built with a lot of love for the best dad on two wheels. Keep the rubber side down. 🚴</p>
+    <p class="footer__small">Ride safe. Wear the helmet. Text when you get home.</p>
+  </div>
+</footer>
+
+<script src="assets/main.js"></script>
+</body>
+</html>

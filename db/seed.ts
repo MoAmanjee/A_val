@@ -116,6 +116,7 @@ export interface SeedResult {
  * Sample quotations are created through the real quote services so totals/audit are genuine.
  */
 export async function seedDemo(db: PrismaClient): Promise<SeedResult> {
+  setWhatsAppService(new MockWhatsAppService());
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
   const businessA = await db.business.create({

@@ -20,6 +20,9 @@ export default function HomePage() {
         <a href="/menu/mochachos-menu-2.jpg" className="rounded-full border border-neutral-300 px-5 py-3 font-semibold">
           Menu, page 2
         </a>
+        <a href="/menu/Mochachos-RSA-Menu-2026.pdf" className="rounded-full border border-neutral-300 px-5 py-3 font-semibold">
+          Menu PDF
+        </a>
       </div>
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 text-sm leading-relaxed text-neutral-700">
         <p className="font-semibold text-neutral-900">How a message is handled</p>

@@ -62,9 +62,12 @@ Menu pictures are uploaded to Meta and the media id is cached. If the upload can
 
 ## Menu pictures
 
-`public/menu/mochachos-menu-1.jpg`, `mochachos-menu-2.jpg`, and `mochachos-menu.pdf` are rendered from the seeded 2026 prices so the bot has something to send. They are not a scan of the printed board. Drop a real photo or the original PDF in those paths (keep the file names, or edit the image rows in `db/menu.ts`) and re-seed.
+The printed board is in the repo:
 
-Regenerate the stand-in boards with `python3 scripts/render-menu-boards.py` after exporting `public/menu/menu.json` from `db/menu.ts`. The script's header has the export command.
+- `public/menu/Mochachos-RSA-Menu-2026.pdf` — the original 2026 RSA menu
+- `public/menu/mochachos-menu-1.jpg` and `mochachos-menu-2.jpg` — the two pages of that PDF, which the bot sends as pictures
+
+The item names and prices the bot charges are in `db/menu.ts`, taken from that board. Re-seed after you edit either.
 
 ## Things still to confirm with the shop
 

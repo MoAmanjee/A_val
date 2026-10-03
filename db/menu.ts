@@ -848,11 +848,11 @@ export const MOCHACHOS_MENU: MenuSeed = {
     { filePath: "menu/mochachos-menu-1.jpg", caption: "Mochachos menu (1 of 2) \u2014 burgers, chicken, combos and salads. Tap to zoom in." },
     { filePath: "menu/mochachos-menu-2.jpg", caption: "Mochachos menu (2 of 2) \u2014 Mexican meals, family meals, sides and desserts." },
     {
-      filePath: "menu/mochachos-menu.pdf",
+      filePath: "menu/Mochachos-RSA-Menu-2026.pdf",
       isDocument: true,
-      fileName: "Mochachos-Menu.pdf",
+      fileName: "Mochachos-RSA-Menu-2026.pdf",
       mimeType: "application/pdf",
-      caption: "Our full menu as a PDF.",
+      caption: "Mochachos RSA menu 2026.",
     },
   ],
 

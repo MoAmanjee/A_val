@@ -147,6 +147,12 @@ export async function applyMenu(
     await prisma.faqEntry.create({ data: { storeId, question: f.question, answer: f.answer, keywords: f.keywords, sortOrder: i } });
   }
 
+  const imagePaths = new Set(menu.images.map((img) => img.filePath));
+  await prisma.menuImage.updateMany({
+    where: { storeId, filePath: { notIn: [...imagePaths] } },
+    data: { active: false },
+  });
+
   for (const [i, img] of menu.images.entries()) {
     const existing = await prisma.menuImage.findFirst({ where: { storeId, filePath: img.filePath } });
     const data = {

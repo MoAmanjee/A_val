@@ -858,27 +858,49 @@ export const MOCHACHOS_MENU: MenuSeed = {
 
   faqs: [
     {
+      question: "What are your hours?",
+      answer:
+        "We are open Monday to Thursday 10:00 to 21:00, Friday and Saturday 10:00 to 22:00, and Sunday 11:00 to 20:00, Johannesburg time. Outside those hours I can still show you the menu, and you can place the order once we open.",
+      keywords: [
+        "hours",
+        "what time do you open",
+        "what time do you close",
+        "when do you open",
+        "when do you close",
+        "opening hours",
+        "trading hours",
+        "are you open",
+        "are you closed",
+      ],
+    },
+    {
       question: "Where are you and where do I park?",
       answer:
         "We are at 17 Nelson Mandela Drive in the Potchefstroom CBD. There is street parking right outside, and the shop is on the main drag so it is easy to find.",
-      keywords: ["where", "address", "location", "directions", "parking", "find you", "cbd", "nelson mandela"],
+      keywords: ["where", "address", "location", "directions", "parking", "find you", "where are you", "nelson mandela"],
     },
     {
       question: "Do you deliver?",
       answer:
-        "WhatsApp orders are collection only from the Potch CBD branch. Order here and we will have it ready for you to pick up.",
-      keywords: ["deliver", "delivery", "bring", "drop off", "uber", "mr d", "bolt", "collect"],
+        "WhatsApp orders are collection only from the Potch CBD branch. Order here and we will have it ready for you to pick up at 17 Nelson Mandela Drive.",
+      keywords: ["deliver", "delivery", "do you deliver", "drop off", "uber eats", "mr d", "bolt food"],
     },
     {
       question: "How do I pay?",
-      answer: "You pay when you collect. We take cash, card and SnapScan at the till.",
-      keywords: ["pay", "payment", "card", "cash", "snapscan", "eft", "speedpoint"],
+      answer: "You pay when you collect. We take cash, card and SnapScan at the till. There is no payment in the chat.",
+      keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint"],
+    },
+    {
+      question: "How do I order on WhatsApp?",
+      answer:
+        "I send the menu pictures and a list. Tap what you want, or type it, then choose the flavour and confirm. The kitchen gets it only after you say yes. You collect from 17 Nelson Mandela Drive and pay at the till.",
+      keywords: ["how do i order", "how does this work", "how to order", "how does ordering work"],
     },
     {
       question: "How hot are Zee Flavours?",
       answer:
         "Zee Flavours go Lemon & Herb (no heat), Mild (a gentle kick), Hot (proper peri-peri), Extra Hot (seriously hot) and then Dynamite, which is our hottest. If you are not sure, Mild or Hot is the safe bet.",
-      keywords: ["spicy", "how hot", "heat", "peri peri", "extra hot", "dynamite", "mild", "flavours", "basting"],
+      keywords: ["spicy", "how hot", "how spicy", "peri peri", "extra hot", "dynamite", "zee flavours", "basting"],
     },
     {
       question: "Is there a vegetarian option?",
@@ -890,13 +912,13 @@ export const MOCHACHOS_MENU: MenuSeed = {
       question: "Can I order for later?",
       answer:
         "Every WhatsApp order goes straight to the kitchen for as soon as possible. If you need it at a particular time, say so and a staff member will set it up for you.",
-      keywords: ["later", "pre order", "book", "schedule", "specific time", "tomorrow", "what time"],
+      keywords: ["order for later", "pre order", "book a time", "specific time", "tomorrow"],
     },
     {
       question: "Do you cater for parties or big orders?",
       answer:
         "We do. The Familia Fiesta meals feed a crowd, and for anything bigger a staff member will put a quote together for you.",
-      keywords: ["party", "catering", "function", "big order", "bulk", "event"],
+      keywords: ["party", "catering", "function", "big order", "bulk order", "event"],
     },
   ],
 };

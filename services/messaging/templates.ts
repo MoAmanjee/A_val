@@ -358,10 +358,11 @@ export function cancelConfirmMessage(order: FullOrder): OutboundMessage {
   };
 }
 
-export function closedMessage(store: Store, openNote: string): OutboundMessage {
+export function closedMessage(store: Store, openNote: string, opts: { withMenu?: boolean } = {}): OutboundMessage {
+  const menu = opts.withMenu ? " The menu is just below so you can see what we have." : "";
   return {
     kind: "text",
-    text: `Thanks for messaging ${storeName(store)}! We are closed right now \u2014 ${openNote} Send me your order then and I will get it in. 👋`,
+    text: `Thanks for messaging ${storeName(store)}! We are closed right now \u2014 ${openNote}${menu} Send me your order when we are open and I will get it in. 👋`,
   };
 }
 

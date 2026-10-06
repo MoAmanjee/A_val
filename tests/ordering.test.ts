@@ -10,7 +10,8 @@ import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orde
 import { toGraphMessage } from "@/services/whatsapp/cloud";
 import { verifyWebhookSignature } from "@/services/whatsapp";
 import { WA_LIMITS } from "@/services/whatsapp/limits";
-import { isGreeting, readAnythingElse, readConfirmation, wantsMenuPictures } from "@/services/conversations/understanding";
+import { matchFaq } from "@/services/conversations/faq";
+import { isGreeting, readAnythingElse, readConfirmation, wantsMenu, wantsMenuPictures } from "@/services/conversations/understanding";
 import { formatCents, parsePriceToCents } from "@/utils/money";
 
 const store = {
@@ -90,6 +91,23 @@ describe("confirmation words", () => {
     expect(isGreeting("goeie more")).toBe(true);
     expect(wantsMenuPictures("send me the menu pictures")).toBe(true);
     expect(wantsMenuPictures("quarter chicken hot")).toBe(false);
+    expect(wantsMenu("menu please")).toBe(true);
+    expect(wantsMenu("hi")).toBe(false);
+  });
+});
+
+describe("shop faqs", () => {
+  const faqs = MOCHACHOS_MENU.faqs;
+
+  it("answers shop questions and leaves orders alone", () => {
+    expect(matchFaq("where are you?", faqs)?.question).toMatch(/Where are you/);
+    expect(matchFaq("do you deliver", faqs)?.question).toMatch(/deliver/i);
+    expect(matchFaq("how do I pay?", faqs)?.question).toMatch(/pay/i);
+    expect(matchFaq("what are your hours?", faqs)?.question).toMatch(/hours/i);
+    expect(matchFaq("how hot is dynamite?", faqs)?.question).toMatch(/Flavours/);
+    expect(matchFaq("hi", faqs)).toBeNull();
+    expect(matchFaq("menu please", faqs)).toBeNull();
+    expect(matchFaq("hot quarter chicken and a coke", faqs)).toBeNull();
   });
 });
 

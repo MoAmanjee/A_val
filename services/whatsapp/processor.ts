@@ -1,4 +1,4 @@
-import type { MessageType } from "@prisma/client";
+import type { MessageType, Store } from "@prisma/client";
 import { db } from "@/lib/db";
 import { errorMessage } from "@/lib/errors";
 import { getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
@@ -12,10 +12,11 @@ import {
   sendToCustomer,
 } from "@/services/conversations";
 import { advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
-import { isGreeting, wantsCancel, wantsHuman, wantsMenu, wantsMenuPictures, wantsStatus } from "@/services/conversations/understanding";
-import { getCategories } from "@/services/menu";
+import { matchFaq } from "@/services/conversations/faq";
+import { isGreeting, normalise, wantsCancel, wantsHuman, wantsMenu, wantsMenuPictures, wantsStatus } from "@/services/conversations/understanding";
+import { getCategories, getStoreFaqs } from "@/services/menu";
 import { sendMenuPictures } from "@/services/menu/images";
-import { decodeReplyId } from "@/services/messaging/reply-ids";
+import { decodeReplyId, type ReplyAction } from "@/services/messaging/reply-ids";
 import {
   categoryPickerMessage,
   closedMessage,
@@ -166,16 +167,27 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     });
     if (alreadyAnswered) return;
 
-    if (wantsHuman(text)) {
+    if (wantsHuman(text) || /\b(halaal|halal)\b/.test(normalise(text))) {
       await handOverToHuman(conv.id, `Customer said: "${text.slice(0, 160)}"`);
       await sendToCustomer(conv.id, HANDOVER_MESSAGE, "AI");
       return;
     }
 
-    // A tapped button carries exactly what it means, so it is applied even when
-    // the shop has since closed: it belongs to an order already in progress.
+    const draft = await findDraft(conv.id);
+    const activeOrder = await findActiveOrder(conv.id);
+    const hours = await db.tradingHour.findMany({ where: { storeId: conv.storeId }, orderBy: { dayOfWeek: "asc" } });
+    const openState = isOpenAt(hours, new Date(), conv.store.timezone);
+    const shopClosed = !openState.open && !activeOrder;
+    const closedNote = openState.opensAt ? `we open again at ${openState.opensAt}.` : "we are closed for now.";
+
+    // A tapped button carries exactly what it means. Browsing the menu is
+    // allowed while closed; starting the order is not, until the shop opens.
     const action = decodeReplyId(msg.interactiveId);
     if (action) {
+      if (shopClosed && startsAnOrder(action)) {
+        await sendToCustomer(conv.id, closedMessage(conv.store, closedNote), "AI");
+        return;
+      }
       try {
         await applyReplyAction(conv, action);
       } catch (e) {
@@ -191,25 +203,29 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
-    const draft = await findDraft(conv.id);
-    const activeOrder = await findActiveOrder(conv.id);
-
     if (!conv.store.acceptingOrders && !activeOrder) {
       await sendToCustomer(conv.id, pausedMessage(conv.store), "AI");
       return;
     }
 
-    const hours = await db.tradingHour.findMany({ where: { storeId: conv.storeId }, orderBy: { dayOfWeek: "asc" } });
-    const openState = isOpenAt(hours, new Date(), conv.store.timezone);
-    if (!openState.open && !activeOrder) {
-      const note = openState.opensAt ? `we open again at ${openState.opensAt}.` : "we are closed for now.";
-      await sendToCustomer(conv.id, closedMessage(conv.store, note), "AI");
+    if (shopClosed) {
+      await replyWhileClosed(conv.id, conv.store, text, closedNote);
       return;
     }
 
     // A plain answer to the question we just asked ("ja", "hot", "no thats all").
     const handled = await handlePendingText(conv, text);
     if (handled?.sent) return;
+
+    const faq = matchFaq(text, await getStoreFaqs(conv.storeId));
+    if (faq) {
+      await sendToCustomer(conv.id, { kind: "text", text: faq.answer }, "AI");
+      if (wantsMenu(text) || wantsMenuPictures(text)) {
+        await sendMenuToCustomer(conv.id, conv.storeId, { text });
+      }
+      if (draft?.items.length) await advanceFlow(conv.id);
+      return;
+    }
 
     // A greeting with nothing in the basket starts the order with the menu pictures
     // and then the tappable sections.
@@ -284,18 +300,12 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
 
 /**
  * Without an AI key the bot still works as a button-driven ordering flow: the
- * menu, the slot questions and the confirmation are all deterministic. Free
- * text it cannot place goes to a staff member rather than being ignored.
+ * menu, the slot questions and the confirmation are all deterministic. An order
+ * the bot cannot read still gets the menu, so the customer can tap it.
  */
 async function handleWithoutAI(conversationId: string, storeId: string, text: string) {
-  if (wantsMenuPictures(text) || wantsMenu(text) || isGreeting(text)) {
-    await sendMenuPictures(conversationId, { includePdf: /\bpdf\b/i.test(text), force: wantsMenuPictures(text) });
-  }
-
   if (wantsMenu(text) || isGreeting(text) || wantsMenuPictures(text)) {
-    const categories = await getCategories(storeId);
-    const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-    await sendToCustomer(conversationId, categoryPickerMessage(conv.store, categories), "AI");
+    await sendMenuToCustomer(conversationId, storeId, { text, body: "Here is our menu. What can we get you?" });
     return;
   }
 
@@ -316,6 +326,54 @@ async function handleWithoutAI(conversationId: string, storeId: string, text: st
     }
   }
 
-  await handOverToHuman(conversationId, "Free-text message with no assistant configured");
-  await sendToCustomer(conversationId, HANDOVER_MESSAGE, "AI");
+  const question = /^(do|does|can|could|what|whats|where|wheres|when|how|is|are|wat|waar|wanneer|hoe)\b|\?/.test(normalise(text));
+  if (question) {
+    await handOverToHuman(conversationId, "Free-text question with no assistant configured");
+    await sendToCustomer(conversationId, HANDOVER_MESSAGE, "AI");
+    return;
+  }
+
+  await sendMenuToCustomer(conversationId, storeId, {
+    text,
+    body: "Here is the menu, so you can see everything we have. Tap what you would like and I will take the order.",
+  });
+}
+
+/** Pictures first, then the tappable list. The customer cannot order what they have not seen. */
+async function sendMenuToCustomer(
+  conversationId: string,
+  storeId: string,
+  opts: { text?: string; body?: string } = {},
+) {
+  const text = opts.text ?? "";
+  await sendMenuPictures(conversationId, { includePdf: /\bpdf\b/i.test(text), force: wantsMenuPictures(text) });
+  const categories = await getCategories(storeId);
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
+  await sendToCustomer(conversationId, categoryPickerMessage(conv.store, categories, opts.body), "AI");
+}
+
+async function replyWhileClosed(conversationId: string, store: Store, text: string, closedNote: string) {
+  const faq = matchFaq(text, await getStoreFaqs(store.id));
+  const showMenu = !faq || isGreeting(text) || wantsMenu(text) || wantsMenuPictures(text);
+  if (faq) {
+    await sendToCustomer(conversationId, { kind: "text", text: `${faq.answer}\n\nWe are closed right now — ${closedNote}` }, "AI");
+  } else {
+    await sendToCustomer(conversationId, closedMessage(store, closedNote, { withMenu: showMenu }), "AI");
+  }
+  if (!showMenu) return;
+  await sendMenuToCustomer(conversationId, store.id, {
+    text,
+    body: "Here is the menu. Have a look, and send the order once we are open.",
+  });
+}
+
+function startsAnOrder(action: ReplyAction): boolean {
+  return (
+    action.kind === "item" ||
+    action.kind === "modifier" ||
+    action.kind === "modifierSkip" ||
+    action.kind === "meal" ||
+    action.kind === "anythingElse" ||
+    action.kind === "confirm"
+  );
 }

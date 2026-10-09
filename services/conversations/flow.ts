@@ -21,6 +21,7 @@ import {
   mealUpgradeMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
+  TYPE_ORDER_MESSAGE,
 } from "@/services/messaging/templates";
 import { addItem, findDraft, getOrCreateDraft, setFulfilment, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
 import { backToDraft, cancelOrder, confirmOrder, findActiveOrder, markAwaitingConfirmation } from "@/services/orders/lifecycle";
@@ -187,6 +188,11 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       await setPendingQuestion(conversationId, checkout ? "ANYTHING_ELSE" : "NONE");
       return { sent: true };
     }
+
+    case "typeOrder":
+      await sendToCustomer(conversationId, TYPE_ORDER_MESSAGE, "AI");
+      await setPendingQuestion(conversationId, "NONE");
+      return { sent: true };
 
     case "menuPhotos": {
       const sent = await sendMenuPictures(conversationId, { force: true });

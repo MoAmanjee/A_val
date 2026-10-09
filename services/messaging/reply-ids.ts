@@ -15,6 +15,8 @@ export type ReplyAction =
   | { kind: "categories" }
   /** Send the printed menu pictures. */
   | { kind: "menuPhotos" }
+  /** The customer would rather type the whole order than tap the menu. */
+  | { kind: "typeOrder" }
   /** Add a menu item to the basket. */
   | { kind: "item"; menuItemId: string }
   /** Answer a modifier question (basting, side, drink, extra). */
@@ -42,6 +44,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return "cats";
     case "menuPhotos":
       return "photos";
+    case "typeOrder":
+      return "type";
     case "item":
       return `item:${action.menuItemId}`;
     case "modifier":
@@ -76,6 +80,8 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       return { kind: "categories" };
     case "photos":
       return { kind: "menuPhotos" };
+    case "type":
+      return { kind: "typeOrder" };
     case "item":
       return a ? { kind: "item", menuItemId: a } : null;
     case "mod":

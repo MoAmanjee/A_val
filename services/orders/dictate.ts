@@ -122,7 +122,62 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
     mergeSelections(previous, extras.selections);
   }
 
+  const shared = sharedChoice(trimmed, catalog);
+  if (shared) {
+    for (const line of lines) applySharedToLine(line, shared);
+  }
+
   return { lines, fulfilment: peeled.fulfilment, deliveryAddress: peeled.deliveryAddress, ignoredAsQuestion: false };
+}
+
+/** "all hot" / "both mild" names one spice for every item that does not already have one. */
+export function sharedChoice(raw: string, catalog: DictationItem[]): { groupId: string; optionName: string } | null {
+  if (!/\b(all|both|every|everything|same|the rest)\b/i.test(normalise(raw))) return null;
+  const byKey = new Map<string, DictationOption>();
+  for (const item of catalog) {
+    for (const option of item.options) {
+      const key = `${option.groupId}:${normaliseMenuText(option.name)}`;
+      if (!byKey.has(key)) byKey.set(key, option);
+    }
+  }
+  const virtual: DictationItem = {
+    id: "shared",
+    name: "shared",
+    shortName: null,
+    canBeMeal: false,
+    options: [...byKey.values()],
+  };
+  const selections = matchOptions(withoutNamedItems(raw, catalog), virtual, []);
+  const ranked = selections
+    .map((selection) => ({ selection, option: virtual.options.find((option) => selection.optionIds.includes(option.id)) }))
+    .filter((hit): hit is { selection: ParsedSelection; option: DictationOption } => Boolean(hit.option));
+  const picked = ranked.find((hit) => hit.option.scope !== "MEAL_ONLY") ?? ranked[0];
+  if (!picked) return null;
+  return { groupId: picked.option.groupId, optionName: picked.option.name };
+}
+
+/** Drop item names so "all hot" is the spice, not the word chicken inside the order. */
+function withoutNamedItems(raw: string, catalog: DictationItem[]): string {
+  let text = ` ${normaliseMenuText(raw)} `;
+  const phrases = catalog
+    .flatMap((item) => [item.name, item.shortName ?? ""])
+    .map((name) => normaliseMenuText(name))
+    .filter((name) => name.length >= 3)
+    .sort((a, b) => b.length - a.length);
+  for (const phrase of phrases) {
+    text = text.split(` ${phrase} `).join(" ");
+  }
+  return text.replace(/\s+/g, " ").trim();
+}
+
+function applySharedToLine(line: ParsedLine, shared: { groupId: string; optionName: string }) {
+  if (line.selections.some((selection) => selection.groupId === shared.groupId)) return;
+  const option = line.item.options.find(
+    (candidate) => candidate.groupId === shared.groupId && normaliseMenuText(candidate.name) === normaliseMenuText(shared.optionName),
+  );
+  if (!option) return;
+  if (option.scope === "MEAL_ONLY" && line.isMeal !== true) return;
+  line.selections.push({ groupId: option.groupId, optionIds: [option.id], mealOnly: option.scope === "MEAL_ONLY" });
 }
 
 /** Options and the meal answer inside a fragment, for the item the customer is already on. */
@@ -140,10 +195,20 @@ export async function applyDictation(conversationId: string, text: string): Prom
   if (parsed.ignoredAsQuestion) return { changed: false };
 
   const existing = await findDraft(conversationId);
+  const namesAFood = parsed.lines.some((line) => !isDrinkVessel(line.item));
+  const shared = sharedChoice(text, catalog);
+  if (shared && existing?.items.length && !namesAFood) {
+    const spread = await applySharedToBasket(existing, catalog, shared);
+    if (spread) {
+      const current = await loadOrder(existing.id);
+      await writeFulfilment(current, parsed);
+      await noteAdding(conversationId, existing.id, parsed);
+      return { changed: true };
+    }
+  }
 
   // "extra hot meal with a coke" names no new menu row. Fold it into the item
   // already being built instead of adding a can of Coke beside it.
-  const namesAFood = parsed.lines.some((line) => !isDrinkVessel(line.item));
   if (!namesAFood && existing?.items.length) {
     const target = pickLooseTarget(existing, catalog, text);
     const entry = target ? catalog.find((item) => item.id === target.menuItemId) : undefined;
@@ -314,6 +379,26 @@ async function writeFulfilment(order: FullOrder, parsed: ParsedUtterance): Promi
  * Collection or delivery means they are wrapping up, so the menu step can be
  * skipped. Naming more food keeps the menu open for the next tap.
  */
+async function applySharedToBasket(
+  order: FullOrder,
+  catalog: DictationItem[],
+  shared: { groupId: string; optionName: string },
+): Promise<boolean> {
+  let changed = false;
+  for (const item of order.items) {
+    if (item.modifiers.some((modifier) => modifier.groupId === shared.groupId)) continue;
+    const entry = catalog.find((candidate) => candidate.id === item.menuItemId);
+    const option = entry?.options.find(
+      (candidate) => candidate.groupId === shared.groupId && normaliseMenuText(candidate.name) === normaliseMenuText(shared.optionName),
+    );
+    if (!option) continue;
+    if (option.scope === "MEAL_ONLY" && item.isMeal !== true) continue;
+    await setModifierSelection(order.id, item.id, option.groupId, [option.id]);
+    changed = true;
+  }
+  return changed;
+}
+
 async function noteAdding(conversationId: string, orderId: string, parsed: ParsedUtterance) {
   if (!parsed.fulfilment) {
     if (parsed.lines.length) {

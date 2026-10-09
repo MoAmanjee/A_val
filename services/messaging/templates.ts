@@ -93,24 +93,37 @@ export function orderSummaryText(order: FullOrder, store: Store): string {
 export function welcomeMessage(
   store: Store,
   name: string | null,
-  categories: Pick<MenuCategory, "id" | "name" | "description">[],
   opts: { returning?: boolean; openNote?: string } = {},
 ): OutboundMessage {
   const hello = name ? `Hi ${name}!` : "Hi there!";
   const intro = opts.returning
     ? `${hello} 👋 Welcome back to ${storeName(store)}.`
     : `${hello} 👋 Welcome to ${storeName(store)} in ${store.city}.`;
-  const body = `${intro}\n\nWhat would you like to order today? Tap below to browse the menu, or type the whole order in one message \u2014 for example "hot quarter chicken meal with a Coke, delivery to 14 Kock Street".`;
+  const body = `${intro}\n\nType the whole order in one message, or tap through the menu. If you leave a spice out, I ask for that item on its own.`;
 
   return {
-    kind: "list",
-    header: storeName(store),
+    kind: "buttons",
     body,
     footer: opts.openNote,
-    buttonLabel: "See the menu",
-    sections: [{ title: "Menu", rows: categoryListRows(categories) }],
+    buttons: [
+      { id: encodeReplyId({ kind: "typeOrder" }), title: "Type my order" },
+      { id: encodeReplyId({ kind: "categories" }), title: "Browse the menu" },
+      { id: encodeReplyId({ kind: "menuPhotos" }), title: "Menu pictures" },
+    ],
   };
 }
+
+export const TYPE_ORDER_MESSAGE: OutboundMessage = {
+  kind: "text",
+  text: [
+    "Type the whole order in one message.",
+    "",
+    "Put the spice with each item when they differ:",
+    "quarter chicken hot meal with a coke, and a chicken burger mild",
+    "",
+    "If you leave a spice out, I will show a list for that item only. Type all hot if every item still waiting should be the same.",
+  ].join("\n"),
+};
 
 function categoryRow(category: Pick<MenuCategory, "id" | "name" | "description">): ListRow {
   return {
@@ -273,10 +286,37 @@ function forItem(order: FullOrder, item: FullOrderItem): string {
   return order.items.length > 1 ? `For your ${item.nameSnapshot}: ` : "";
 }
 
+function stillNeedsGroup(order: FullOrder, groupId: string): FullOrderItem[] {
+  return order.items.filter((item) => {
+    const itemLink = item.menuItem.modifierLinks.find((link) => link.modifierGroupId === groupId && link.required);
+    if (!itemLink) return false;
+    if (itemLink.scope === "MEAL_ONLY" && item.isMeal !== true) return false;
+    return !item.modifiers.some((modifier) => modifier.groupId === groupId);
+  });
+}
+
+/** Name the item, and when several items still need a spice, say which one this list is for. */
+function modifierPrompt(order: FullOrder, item: FullOrderItem, link: ItemModifierLink, prompt: string): string {
+  const waiting = stillNeedsGroup(order, link.modifierGroupId);
+  const spice = link.group.options.some((option) => /lemon|mild|hot|dynamite/i.test(option.name));
+  if (waiting.length < 2) return `${forItem(order, item)}${prompt}`;
+  const place = Math.max(1, waiting.findIndex((candidate) => candidate.id === item.id) + 1);
+  const which = `For your ${item.nameSnapshot} (${place} of ${waiting.length}): ${prompt}`;
+  if (!spice) return which;
+  return `${which}\n\nTap a spice for this item only. Type all hot if every item still waiting should be the same.`;
+}
+
+function spiceListLabel(groupName: string): string {
+  if (/flavour/i.test(groupName)) return "Choose spice";
+  if (/drink/i.test(groupName)) return "Choose a drink";
+  const label = `Choose ${groupName.toLowerCase()}`;
+  return label.length <= WA_LIMITS.listButtonLabel ? label : "Choose";
+}
+
 export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, link: ItemModifierLink, store: Store): OutboundMessage {
   const group = link.group;
   const options = group.options.filter((o) => o.available);
-  const body = `${forItem(order, item)}${group.prompt}`;
+  const body = modifierPrompt(order, item, link, group.prompt);
 
   const label = (name: string, delta: number) => (delta > 0 ? `${name} (+${money(store, delta)})` : name);
 
@@ -305,7 +345,7 @@ export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, l
     kind: "list",
     body,
     footer: TYPE_THE_REST,
-    buttonLabel: group.name.length <= WA_LIMITS.listButtonLabel ? `Choose ${group.name.toLowerCase()}`.slice(0, WA_LIMITS.listButtonLabel) : "Choose",
+    buttonLabel: spiceListLabel(group.name),
     sections: [{ title: group.name, rows: rows.slice(0, WA_LIMITS.maxListRows) }],
   };
 }

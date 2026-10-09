@@ -252,7 +252,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       await sendToCustomer(
         conv.id,
         isGreeting(text)
-          ? welcomeMessage(conv.store, name, categories, {
+          ? welcomeMessage(conv.store, name, {
               returning: customer.orderCount > 0,
               openNote: openState.closesAt ? `Open until ${openState.closesAt} today` : undefined,
             })

@@ -43,8 +43,8 @@ export default async function HomePage() {
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 text-sm leading-relaxed text-neutral-700">
         <p className="font-semibold text-neutral-900">How a message is handled</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>A greeting sends the menu pictures and the sections to tap. Each tap adds one item, then the same list comes straight back for the next one. Type several items in one message to add them all.</li>
-          <li>The bot only asks for the flavour, meal, drink, or address that was left out. Tap That&apos;s everything when the order is complete, or type the rest before you confirm.</li>
+          <li>A greeting offers two ways in: type the whole order, or browse the menu. Each tap adds one item, then the same list comes straight back for the next one.</li>
+          <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Tap That&apos;s everything when the order is complete.</li>
           <li>The customer confirms the total before anything reaches the kitchen.</li>
           <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer.</li>
         </ol>

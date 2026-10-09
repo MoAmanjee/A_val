@@ -3,8 +3,8 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage } from "@/services/messaging/templates";
-import { catalogFromMenu, parseUtterance, type ParsedLine } from "@/services/orders/dictate";
+import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, welcomeMessage } from "@/services/messaging/templates";
+import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { lineTotalCents, orderTotals } from "@/services/orders/pricing";
 import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/orders/requirements";
@@ -149,6 +149,22 @@ describe("typed orders", () => {
     expect(chosen(parsed.lines[1])).toContain("Mild");
   });
 
+  it("uses one spice for every item when the customer says all hot", () => {
+    const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
+    expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });
+    expect(parsed.lines.map((line) => line.item.name)).toEqual(["1/4 Chicken", "Chicken Burger"]);
+    expect(chosen(parsed.lines[0])).toContain("Hot");
+    expect(chosen(parsed.lines[0])).not.toContain("Extra Hot");
+    expect(chosen(parsed.lines[1])).toContain("Hot");
+  });
+
+  it("does not overwrite a spice that was named on its own item", () => {
+    const parsed = parseUtterance("quarter chicken hot and a chicken burger all mild", catalog);
+    expect(chosen(parsed.lines[0])).toContain("Hot");
+    expect(chosen(parsed.lines[0])).not.toContain("Mild");
+    expect(chosen(parsed.lines[1])).toContain("Mild");
+  });
+
   it("does not treat extra hot as hot", () => {
     const parsed = parseUtterance("extra hot quarter chicken", catalog);
     expect(parsed.lines[0].item.name).toBe("1/4 Chicken");
@@ -203,6 +219,7 @@ describe("reply ids", () => {
       { kind: "category" as const, categoryId: "cat_1", page: 2 },
       { kind: "categories" as const },
       { kind: "menuPhotos" as const },
+      { kind: "typeOrder" as const },
       { kind: "item" as const, menuItemId: "item_1" },
       { kind: "modifier" as const, orderItemId: "line_1", optionId: "opt_1" },
       { kind: "meal" as const, orderItemId: "line_1", yes: false },
@@ -264,6 +281,15 @@ describe("whatsapp messages", () => {
     if (second.kind !== "list") throw new Error("expected a list");
     const secondTitles = second.sections.flatMap((s) => s.rows.map((r) => r.title));
     expect(secondTitles).toEqual(["Burger 9", "Burger 10", "Burger 11", "Burger 12", "← Back to menu"]);
+  });
+
+  it("offers typing or browsing as the first choice", () => {
+    const message = welcomeMessage(store, "Thabo");
+    expect(message.kind).toBe("buttons");
+    if (message.kind !== "buttons") return;
+    expect(message.buttons.map((button) => button.title)).toEqual(["Type my order", "Browse the menu", "Menu pictures"]);
+    expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "typeOrder" });
+    expect(message.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
   });
 
   it("puts menu pictures on the category list without exceeding 10 rows", () => {

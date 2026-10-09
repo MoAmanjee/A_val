@@ -277,6 +277,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
+    // Hi, or "menu", while a basket is already open. Show Confirm order, Add to
+    // order, and Cancel order instead of a list whose only visible control is
+    // See the menu.
+    if (draft?.items.length && (isGreeting(text) || wantsMenu(text))) {
+      await advanceFlow(conv.id);
+      return;
+    }
+
     if (wantsMenuPictures(text)) {
       await sendMenuPictures(conv.id, { includePdf: /\bpdf\b/i.test(text), force: true });
       if (text.length < 80) {
@@ -335,6 +343,12 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
  * the bot cannot read still gets the menu, so the customer can tap it.
  */
 async function handleWithoutAI(conversationId: string, storeId: string, text: string) {
+  const openBasket = await findDraft(conversationId);
+  if (openBasket?.items.length) {
+    await advanceFlow(conversationId);
+    return;
+  }
+
   if (wantsMenu(text) || isGreeting(text) || wantsMenuPictures(text)) {
     await sendMenuToCustomer(conversationId, storeId, { text, body: "Here is our menu. What can we get you?" });
     return;

@@ -105,6 +105,7 @@ function orderView(order: FullOrder) {
     status: order.status,
     items: order.items.map((i) => itemView(i, symbol)),
     total: money(order.totalCents, symbol),
+    delivery_fee: order.fulfilment === "DELIVERY" ? (order.deliveryFeeCents > 0 ? money(order.deliveryFeeCents, symbol) : "free") : null,
     notes: order.notes,
     fulfilment: order.fulfilment,
     delivery_address: order.deliveryAddress,
@@ -620,7 +621,7 @@ const TOOLS: Record<string, ToolSpec> = {
           typical_prep_minutes: s.defaultPrepMinutes,
           accepting_whatsapp_orders: s.acceptingOrders,
           fulfilment:
-            "Collection from the shop, or delivery in Potchefstroom when the customer gives a street address. Do not quote a delivery fee.",
+            `Collection from the shop, or delivery in Potchefstroom. The shop's delivery amount is ${s.deliveryFeeCents > 0 ? money(s.deliveryFeeCents, s.currencySymbol) : "free"}. Do not quote a different fee.`,
           answers: faqs.map((f) => ({ question: f.question, answer: f.answer })),
         },
       };

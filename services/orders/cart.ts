@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { InvalidStateError, NotFoundError } from "@/lib/errors";
-import { lineTotalCents, orderTotals, type LineInput } from "@/services/orders/pricing";
+import { clampDeliveryFeeCents, lineTotalCents, orderTotals, type LineInput } from "@/services/orders/pricing";
 import { ORDER_INCLUDE, type FullOrder, type FullOrderItem } from "@/services/orders/query";
 
 /** Statuses where the basket is still the customer's to change. */
@@ -61,8 +61,10 @@ export async function recalculate(orderId: string): Promise<FullOrder> {
       await db.orderItem.update({ where: { id: item.id }, data: { lineTotalCents: total } });
     }
   }
-  const totals = orderTotals(order.items.map(toLineInput));
-  await db.order.update({ where: { id: orderId }, data: totals });
+  const deliveryFeeCents =
+    order.fulfilment === "DELIVERY" ? (order.status === "DRAFT" ? order.store.deliveryFeeCents : order.deliveryFeeCents) : 0;
+  const totals = orderTotals(order.items.map(toLineInput), deliveryFeeCents);
+  await db.order.update({ where: { id: orderId }, data: { ...totals, deliveryFeeCents } });
   return loadOrder(orderId);
 }
 
@@ -237,10 +239,22 @@ export async function setFulfilment(
   const order = await loadOrder(orderId);
   assertEditable(order);
   if (fulfilment === "COLLECTION") {
-    await db.order.update({ where: { id: orderId }, data: { fulfilment: "COLLECTION", deliveryAddress: null } });
-    return loadOrder(orderId);
+    await db.order.update({ where: { id: orderId }, data: { fulfilment: "COLLECTION", deliveryAddress: null, deliveryFeeCents: 0 } });
+    return recalculate(orderId);
   }
   const deliveryAddress = address === undefined ? order.deliveryAddress : address?.trim().slice(0, 240) || null;
   await db.order.update({ where: { id: orderId }, data: { fulfilment: "DELIVERY", deliveryAddress } });
-  return loadOrder(orderId);
+  return recalculate(orderId);
+}
+
+/** The kitchen sets what delivery costs. Open baskets pick the new amount up. */
+export async function setStoreDeliveryFee(storeId: string, cents: number): Promise<number> {
+  const deliveryFeeCents = clampDeliveryFeeCents(cents);
+  await db.store.update({ where: { id: storeId }, data: { deliveryFeeCents } });
+  const drafts = await db.order.findMany({
+    where: { storeId, status: "DRAFT", fulfilment: "DELIVERY" },
+    select: { id: true },
+  });
+  for (const draft of drafts) await recalculate(draft.id);
+  return deliveryFeeCents;
 }

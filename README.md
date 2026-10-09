@@ -15,7 +15,7 @@ The menu is the 2026 Mochachos RSA board, stored in Postgres. Change a price or 
 - Ask when it will be ready, or cancel while the kitchen has not started (and for a few minutes after it accepts).
 - Ask for a person. The chat is then left for staff.
 
-Collection from 17 Nelson Mandela Drive, or delivery in Potchefstroom when the customer sends a street address. Pay at the till for collection, or pay the driver for delivery. The chat does not take payment and does not quote a delivery fee.
+Collection from 17 Nelson Mandela Drive, or delivery in Potchefstroom when the customer sends a street address. The kitchen sets the delivery price, including free. That amount is added to a delivery total before the customer confirms. Pay at the till for collection, or pay the driver for delivery. The chat does not take payment.
 
 ## Kitchen screen
 

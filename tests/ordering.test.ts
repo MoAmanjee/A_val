@@ -6,7 +6,8 @@ import { resolveStorePhoneId } from "@/db/seed";
 import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
-import { lineTotalCents, orderTotals } from "@/services/orders/pricing";
+import { clampDeliveryFeeCents, lineTotalCents, orderTotals } from "@/services/orders/pricing";
+import { deliveryFeeLine } from "@/services/messaging/templates";
 import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 import { toGraphMessage } from "@/services/whatsapp/cloud";
@@ -82,6 +83,16 @@ describe("pricing", () => {
     });
     expect(line).toBe((5990 + 4000 + 1000) * 2);
     expect(orderTotals([{ unitPriceCents: 4990, quantity: 1, isMeal: false, mealUpgradeCents: 4600, modifierDeltaCents: [] }]).totalCents).toBe(4990);
+  });
+
+  it("adds the shop delivery price, and treats zero as free", () => {
+    const food = [{ unitPriceCents: 9590, quantity: 1, isMeal: false, mealUpgradeCents: 0, modifierDeltaCents: [] }];
+    expect(orderTotals(food, 2000).totalCents).toBe(11590);
+    expect(orderTotals(food, 0).totalCents).toBe(9590);
+    expect(clampDeliveryFeeCents(-500)).toBe(0);
+    expect(clampDeliveryFeeCents(20_500)).toBe(20_000);
+    expect(deliveryFeeLine(2000, store)).toBe("Delivery R20.00");
+    expect(deliveryFeeLine(0, store)).toBe("Delivery free");
   });
 });
 

@@ -28,9 +28,17 @@ export interface OrderTotals {
   totalCents: number;
 }
 
-export function orderTotals(lines: LineInput[]): OrderTotals {
+/** Shop delivery prices stay inside a range a till can actually charge. */
+export const DELIVERY_FEE_STEP_CENTS = 500;
+export const DELIVERY_FEE_MAX_CENTS = 20_000;
+
+export function clampDeliveryFeeCents(cents: number): number {
+  if (!Number.isFinite(cents)) return 0;
+  return Math.max(0, Math.min(DELIVERY_FEE_MAX_CENTS, Math.round(cents)));
+}
+
+export function orderTotals(lines: LineInput[], deliveryFeeCents = 0): OrderTotals {
   const subtotalCents = lines.reduce((sum, l) => sum + lineTotalCents(l), 0);
-  // Kept separate from the subtotal so discounts or a collection fee can be
-  // introduced later without rewriting every caller.
-  return { subtotalCents, totalCents: subtotalCents };
+  const fee = clampDeliveryFeeCents(deliveryFeeCents);
+  return { subtotalCents, totalCents: subtotalCents + fee };
 }

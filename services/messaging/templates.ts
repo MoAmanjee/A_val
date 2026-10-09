@@ -80,12 +80,17 @@ export function fulfilmentSummary(
   return null;
 }
 
+export function deliveryFeeLine(cents: number, store: Store): string {
+  return cents > 0 ? `Delivery ${money(store, cents)}` : "Delivery free";
+}
+
 export function orderSummaryText(order: FullOrder, store: Store): string {
   const lines = orderLines(order, store);
+  const fee = order.fulfilment === "DELIVERY" ? deliveryFeeLine(order.deliveryFeeCents, store) : null;
   const total = `*Total: ${money(store, order.totalCents)}*`;
   const going = fulfilmentSummary(order, store);
   const notes = order.notes ? `\nNote for the kitchen: ${order.notes}` : "";
-  return `${lines}\n\n${total}${going ? `\n${going}` : ""}${notes}`;
+  return `${lines}${fee ? `\n${fee}` : ""}\n\n${total}${going ? `\n${going}` : ""}${notes}`;
 }
 
 // ---------------------------------------------------------------- Greeting & menu
@@ -388,9 +393,10 @@ export function fulfilmentMessage(store: Store): OutboundMessage {
 }
 
 export function deliveryAddressMessage(store: Store): OutboundMessage {
+  const fee = store.deliveryFeeCents > 0 ? `Delivery is ${money(store, store.deliveryFeeCents)}.` : "Delivery is free.";
   return {
     kind: "text",
-    text: `Where in ${store.city} should we deliver it? Send the street address, for example 14 Kock Street.`,
+    text: `${fee} Where in ${store.city} should we deliver it? Send the street address, for example 14 Kock Street.`,
   };
 }
 

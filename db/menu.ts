@@ -882,13 +882,13 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "Do you deliver?",
       answer:
-        "Yes. We deliver in Potchefstroom. Send your order and the street address and the kitchen will see it. Pay the driver when it arrives, or pay at the till if you collect from 17 Nelson Mandela Drive. The chat does not quote a delivery fee — the shop confirms that.",
+        "Yes. We deliver in Potchefstroom. The delivery amount is set by the shop and added to your total before you confirm. It can be free. Pay the driver when it arrives, or pay at the till if you collect from 17 Nelson Mandela Drive.",
       keywords: ["deliver", "delivery", "do you deliver", "drop off", "uber eats", "mr d", "bolt food"],
     },
     {
       question: "How do I pay?",
       answer:
-        "Collection is paid at the till — cash, card or SnapScan. Delivery is paid to the driver. There is no payment in the chat, and the chat does not quote a delivery fee.",
+        "Collection is paid at the till — cash, card or SnapScan. Delivery is paid to the driver, including the delivery amount shown on your total. There is no payment in the chat.",
       keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint"],
     },
     {

@@ -11,6 +11,7 @@ type Ticket = {
   notes: string | null;
   fulfilment: "COLLECTION" | "DELIVERY" | null;
   deliveryAddress: string | null;
+  deliveryFeeCents: number;
   confirmedAt: string | null;
   promisedReadyAt: string | null;
   customerName: string;
@@ -18,7 +19,7 @@ type Ticket = {
 };
 
 type Board = {
-  store: { name: string; defaultPrepMinutes: number; currencySymbol: string };
+  store: { name: string; defaultPrepMinutes: number; currencySymbol: string; deliveryFeeCents: number };
   orders: Ticket[];
 };
 
@@ -46,6 +47,7 @@ export default function KitchenPage() {
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [prep, setPrep] = useState<Record<string, string>>({});
+  const [feeBusy, setFeeBusy] = useState(false);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/kitchen/orders", { cache: "no-store" });
@@ -84,6 +86,23 @@ export default function KitchenPage() {
       return;
     }
     setPin("");
+    await load();
+  }
+
+  async function changeDeliveryFee(change: { free: true } | { deltaCents: number }) {
+    setFeeBusy(true);
+    setError("");
+    const res = await fetch("/api/kitchen/delivery-fee", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(change),
+    });
+    const data = await res.json().catch(() => ({}));
+    setFeeBusy(false);
+    if (!res.ok) {
+      setError(data.error ?? "Could not change the delivery price");
+      return;
+    }
     await load();
   }
 
@@ -162,6 +181,40 @@ export default function KitchenPage() {
         </div>
       </header>
       {error ? <p className="mb-4 rounded-xl bg-red-950 px-4 py-3 text-red-200">{error}</p> : null}
+      <section className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-700 bg-neutral-900 px-4 py-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">Delivery price</p>
+          <p className="text-2xl font-black">
+            {board.store.deliveryFeeCents > 0 ? money(board.store.deliveryFeeCents, board.store.currencySymbol) : "Free"}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={feeBusy || board.store.deliveryFeeCents === 0}
+            className="rounded-lg border border-neutral-600 px-3 py-2 text-sm font-semibold disabled:opacity-40"
+            onClick={() => changeDeliveryFee({ deltaCents: -500 })}
+          >
+            − R5
+          </button>
+          <button
+            type="button"
+            disabled={feeBusy}
+            className="rounded-lg border border-neutral-600 px-3 py-2 text-sm font-semibold disabled:opacity-40"
+            onClick={() => changeDeliveryFee({ deltaCents: 500 })}
+          >
+            + R5
+          </button>
+          <button
+            type="button"
+            disabled={feeBusy || board.store.deliveryFeeCents === 0}
+            className="rounded-lg bg-amber-400 px-3 py-2 text-sm font-semibold text-black disabled:opacity-40"
+            onClick={() => changeDeliveryFee({ free: true })}
+          >
+            Make free
+          </button>
+        </div>
+      </section>
       <div className="grid gap-4 lg:grid-cols-3">
         {columns.map((column) => (
           <section key={column.title}>
@@ -180,7 +233,11 @@ export default function KitchenPage() {
                         {ticket.customerName} · {ago(ticket.confirmedAt)}
                       </p>
                       {ticket.fulfilment === "DELIVERY" ? (
-                        <p className="text-sm text-amber-200">Delivery{ticket.deliveryAddress ? ` · ${ticket.deliveryAddress}` : ""}</p>
+                        <p className="text-sm text-amber-200">
+                          Delivery
+                          {ticket.deliveryFeeCents > 0 ? ` ${money(ticket.deliveryFeeCents, board.store.currencySymbol)}` : " · free"}
+                          {ticket.deliveryAddress ? ` · ${ticket.deliveryAddress}` : ""}
+                        </p>
                       ) : ticket.fulfilment === "COLLECTION" ? (
                         <p className="text-sm text-amber-200">Collection</p>
                       ) : null}

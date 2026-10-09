@@ -35,6 +35,8 @@ model Store {
   /// AES-256-GCM ciphertext. Falls back to WHATSAPP_ACCESS_TOKEN when unset.
   whatsappAccessTokenEnc String?
 
+  /// Added to a delivery order. 0 means delivery is free. The kitchen can change it.
+  deliveryFeeCents   Int     @default(0)
   /// Minutes the kitchen normally needs, quoted to customers before the kitchen
   /// accepts the order. Once accepted the kitchen's own estimate is used.
   defaultPrepMinutes Int     @default(20)
@@ -473,6 +475,8 @@ model Order {
 
   subtotalCents Int @default(0)
   totalCents    Int @default(0)
+  /// Copied from the shop when the customer is shown the total. 0 means free.
+  deliveryFeeCents Int @default(0)
 
   /// Free-text notes from the customer ("no mayo please").
   notes String?

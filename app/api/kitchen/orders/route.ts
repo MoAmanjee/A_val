@@ -24,6 +24,7 @@ export async function GET() {
       name: store.tradingName || store.name,
       defaultPrepMinutes: store.defaultPrepMinutes,
       currencySymbol: store.currencySymbol,
+      deliveryFeeCents: store.deliveryFeeCents,
     },
     orders: orders.map((order) => ({
       id: order.id,
@@ -33,6 +34,7 @@ export async function GET() {
       notes: order.notes,
       fulfilment: order.fulfilment,
       deliveryAddress: order.deliveryAddress,
+      deliveryFeeCents: order.deliveryFeeCents,
       confirmedAt: order.confirmedAt,
       promisedReadyAt: order.promisedReadyAt,
       customerName: order.customer.name || order.customer.whatsappProfileName || order.customer.phone,

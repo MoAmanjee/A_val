@@ -34,7 +34,9 @@ export type ReplyAction =
   /** Answer "are you sure you want to cancel?". */
   | { kind: "cancelOrder"; yes: boolean }
   /** Ask for a staff member. */
-  | { kind: "human" };
+  | { kind: "human" }
+  /** Back to Confirm order, Add to order, and Cancel order. */
+  | { kind: "basket" };
 
 export function encodeReplyId(action: ReplyAction): string {
   switch (action.kind) {
@@ -64,6 +66,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return `cancel:${action.yes ? "y" : "n"}`;
     case "human":
       return "human";
+    case "basket":
+      return "basket";
   }
 }
 
@@ -104,6 +108,8 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       return a === "y" || a === "n" ? { kind: "cancelOrder", yes: a === "y" } : null;
     case "human":
       return { kind: "human" };
+    case "basket":
+      return { kind: "basket" };
     default:
       return null;
   }

@@ -2,7 +2,7 @@ import { Prisma, type Conversation } from "@prisma/client";
 import { db } from "@/lib/db";
 import { errorMessage } from "@/lib/errors";
 import { handOverToHuman, sendToCustomer, setPendingQuestion } from "@/services/conversations";
-import { readAnythingElse, readConfirmation, readFulfilment } from "@/services/conversations/understanding";
+import { readAnythingElse, readConfirmation, readFulfilment, wantsCancel } from "@/services/conversations/understanding";
 import { getCategories, getCategoryItems, isDecisive, rankByName } from "@/services/menu";
 import { sendMenuPictures } from "@/services/menu/images";
 import type { ReplyAction } from "@/services/messaging/reply-ids";
@@ -19,6 +19,7 @@ import {
   KEEP_ORDER_MESSAGE,
   keepAddingBody,
   mealUpgradeMessage,
+  orderActionsMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
@@ -133,12 +134,13 @@ async function sendMenu(conversationId: string, storeId: string, body?: string, 
 }
 
 /**
- * After an item is complete, show every section. Collect and Delivery sit at
- * the bottom of that list, so the next tap can add a burger, then chicken,
- * then a drink, instead of checking out.
+ * After an item is complete, show Confirm order, Add to order, and Cancel order.
+ * Add to order opens the sections. Confirm order asks about delivery, then the receipt.
  */
 async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
-  await sendAddingSections(conversationId, order, 0);
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
+  await sendToCustomer(conversationId, orderActionsMessage(order, conv.store), "AI");
+  await setPendingQuestion(conversationId, "ANYTHING_ELSE");
 }
 
 async function sendAddingSections(
@@ -248,11 +250,22 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       return advanceFlow(conversationId);
     }
 
+    case "basket": {
+      const draft = await findDraft(conversationId);
+      if (!draft?.items.length) {
+        await sendMenu(conversationId, conversation.storeId, "What can we get you?");
+        return { sent: true };
+      }
+      if (nextRequirement(draft)) return advanceFlow(conversationId);
+      await sendKeepAdding(conversationId, draft);
+      return { sent: true };
+    }
+
     case "anythingElse": {
       if (!action.done) {
         const draft = await findDraft(conversationId);
         if (draft?.items.length) {
-          await sendKeepAdding(conversationId, draft);
+          await sendAddingSections(conversationId, draft, 0);
           return { sent: true };
         }
         await sendMenu(conversationId, conversation.storeId, "What else can I get you?");
@@ -339,12 +352,14 @@ export async function handlePendingText(conversation: Conversation, text: string
 
   switch (conversation.pendingQuestion) {
     case "ORDER_CONFIRMATION": {
+      if (wantsCancel(text)) return applyConfirmation(conversation, "cancel");
       const answer = readConfirmation(text);
       if (answer === "unclear") return null;
-      return applyConfirmation(conversation, answer === "yes" ? "yes" : "change");
+      return applyConfirmation(conversation, answer === "yes" ? "yes" : "cancel");
     }
 
     case "ANYTHING_ELSE": {
+      if (wantsCancel(text) || /^\s*declined?[.!]?\s*$/i.test(text)) return applyConfirmation(conversation, "cancel");
       const answer = readAnythingElse(text);
       if (answer === "unclear") return null;
       return applyReplyAction(conversation, { kind: "anythingElse", done: answer === "done" });
@@ -376,8 +391,11 @@ export async function handlePendingText(conversation: Conversation, text: string
 
     case "FULFILMENT": {
       const mode = readFulfilment(text);
-      if (mode === "unclear") return null;
-      return applyReplyAction(conversation, { kind: "fulfilment", mode });
+      if (mode !== "unclear") return applyReplyAction(conversation, { kind: "fulfilment", mode });
+      const answer = readConfirmation(text);
+      if (answer === "yes") return applyReplyAction(conversation, { kind: "fulfilment", mode: "DELIVERY" });
+      if (answer === "no") return applyReplyAction(conversation, { kind: "fulfilment", mode: "COLLECTION" });
+      return null;
     }
 
     case "DELIVERY_ADDRESS": {

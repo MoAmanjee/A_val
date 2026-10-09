@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, fulfilmentMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { clampDeliveryFeeCents, lineTotalCents, orderTotals } from "@/services/orders/pricing";
@@ -211,6 +211,24 @@ describe("typed orders", () => {
     expect(chosen(parsed.lines[1])).toContain("Mild");
   });
 
+  it("reads a misspelled item instead of dropping it", () => {
+    const parsed = parseUtterance("quarter chicken hot meal with a coke, burito hot, and a chicken burger mild", catalog);
+    expect(parsed.lines.map((line) => line.item.name)).toEqual(["1/4 Chicken", "Burrito", "Chicken Burger"]);
+    expect(parsed.unmatched).toEqual([]);
+    expect(chosen(parsed.lines[0])).toEqual(expect.arrayContaining(["Hot", "Coke"]));
+    expect(chosen(parsed.lines[2])).toContain("Mild");
+
+    expect(parseUtterance("schwama hot", catalog).lines.map((line) => line.item.name)).toEqual(["Schwarma"]);
+    expect(chosen(parseUtterance("schwama hot", catalog).lines[0])).toContain("Hot");
+    expect(parseUtterance("burrto", catalog).lines[0]?.item.name).toBe("Burrito");
+    expect(parseUtterance("chicken burito", catalog).lines.map((line) => line.item.name)).toEqual(["Burrito"]);
+    expect(chosen(parseUtterance("chicken burito", catalog).lines[0])).toContain("Chicken");
+
+    const missed = parseUtterance("a platter of mystery", catalog);
+    expect(missed.lines).toHaveLength(0);
+    expect(missed.unmatched.join(" ")).toMatch(/mystery|platter/i);
+  });
+
   it("uses one spice for every item when the customer says all hot", () => {
     const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
     expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });
@@ -405,23 +423,21 @@ describe("whatsapp messages", () => {
     const sectionRows = addingSectionRows(categories);
     expect(sectionRows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
     expect(sectionRows[0]?.title).not.toBe("Collect");
-    expect(sectionRows.at(-3)?.title).toBe("Type my order");
-    expect(sectionRows.at(-2)?.title).toBe("Collect");
-    expect(sectionRows.at(-1)?.title).toBe("Delivery");
-    expect(decodeReplyId(sectionRows.at(-2)?.id)).toEqual({ kind: "fulfilment", mode: "COLLECTION" });
+    expect(sectionRows.at(-1)?.title).toBe("Back to my order");
+    expect(decodeReplyId(sectionRows.at(-1)?.id)).toEqual({ kind: "basket" });
     expect(sectionRows.some((row) => row.title.startsWith("Burger"))).toBe(true);
     expect(sectionRows.some((row) => row.title.startsWith("Pollo"))).toBe(true);
     const pageTwo = addingSectionRows(categories, 1);
     expect(pageTwo.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
-    expect(pageTwo.at(-1)?.title).toBe("Delivery");
+    expect(pageTwo.at(-1)?.title).toBe("Back to my order");
 
     const picker = categoryPickerMessage(store, categories, "So far:\n• 1/4 Chicken\n\n*Total: R95.90*", { checkout: true });
     if (picker.kind !== "list") throw new Error("expected a list");
-    expect(picker.buttonLabel).toBe("Add another");
+    expect(picker.buttonLabel).toBe("Add to order");
     expect((picker.footer ?? "").length).toBeLessThanOrEqual(WA_LIMITS.footerText);
     const pickerRows = picker.sections.flatMap((section) => section.rows);
     expect(pickerRows[0]?.title).not.toBe("Collect");
-    expect(pickerRows.at(-1)?.title).toBe("Delivery");
+    expect(pickerRows.at(-1)?.title).toBe("Back to my order");
     expect(pickerRows.some((row) => row.title.startsWith("Burger"))).toBe(true);
   });
 
@@ -442,9 +458,19 @@ describe("whatsapp messages", () => {
     const actions = orderActionsMessage(order, store);
     expect(actions.kind).toBe("buttons");
     if (actions.kind !== "buttons") return;
-    expect(actions.buttons.map((button) => button.title)).toEqual(["Type order", "Collect", "Delivery"]);
+    expect(actions.buttons.map((button) => button.title)).toEqual(["Confirm order", "Add to order", "Cancel order"]);
     expect(actions.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
-    expect(decodeReplyId(actions.buttons[2]?.id)).toEqual({ kind: "fulfilment", mode: "DELIVERY" });
+    expect(decodeReplyId(actions.buttons[0]?.id)).toEqual({ kind: "anythingElse", done: true });
+    expect(decodeReplyId(actions.buttons[1]?.id)).toEqual({ kind: "anythingElse", done: false });
+    expect(decodeReplyId(actions.buttons[2]?.id)).toEqual({ kind: "confirm", answer: "cancel" });
+
+    const delivery = fulfilmentMessage({ ...store, deliveryFeeCents: 1500 } as Store);
+    expect(delivery.kind).toBe("buttons");
+    if (delivery.kind === "buttons") {
+      expect(delivery.body).toContain("Would you like delivery?");
+      expect(delivery.body).toContain("R15.00");
+      expect(delivery.buttons.map((button) => button.title)).toEqual(["Yes, deliver", "I'll collect"]);
+    }
   });
 });
 

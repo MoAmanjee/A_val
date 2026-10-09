@@ -53,7 +53,7 @@ const YES_WORDS = [
   "sure", "ok", "oki", "okay", "okey", "oke", "kk", "k", "cool", "cool cool",
   "sharp", "shap", "sharp sharp", "shap shap", "lekker", "kwaai", "aweh",
   "correct", "korrek", "dis reg", "is reg", "right", "thats right", "thats correct", "thats it",
-  "confirm", "confirmed", "confirm it", "approved", "approve",
+  "confirm", "confirmed", "confirm it", "approved", "approve", "accept", "accepted",
   "go ahead", "go for it", "send it", "send it through", "place it", "place the order", "order it", "make it",
   "all good", "its good", "looks good", "sounds good", "looks right", "perfect", "great", "lovely",
   "100", "100%", "yes 100", "fine", "indeed", "definitely", "absolutely", "for sure", "no problem",
@@ -61,7 +61,7 @@ const YES_WORDS = [
 ];
 
 const NO_WORDS = [
-  "no", "nope", "nah", "naah", "na", "nee", "negative", "nay",
+  "no", "nope", "nah", "naah", "na", "nee", "negative", "nay", "decline", "declined",
   "no no", "no man", "ag no", "hayi", "cha",
   "wrong", "incorrect", "not right", "thats wrong", "thats not right", "thats incorrect", "not correct",
   "not quite", "not really", "not yet", "nog nie",
@@ -95,7 +95,7 @@ const DONE_WORDS = [
   "nothing else", "nothing more", "no more", "nothing thanks", "niks meer", "niks",
   "im good", "im fine", "im done", "done", "finished", "complete", "thats the lot",
   "no thats all", "no thats it", "nope thats all", "nee dis al", "dis al",
-  "place the order", "send it", "send it through", "confirm", "checkout", "thats my order", "order it",
+  "place the order", "send it", "send it through", "confirm", "confirm order", "checkout", "thats my order", "order it",
 ];
 
 const ADD_WORDS = [

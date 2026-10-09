@@ -25,6 +25,7 @@ import {
   FALLBACK_MESSAGE,
   HANDOVER_MESSAGE,
   MEDIA_MESSAGE,
+  missedItemsMessage,
   pausedMessage,
   welcomeMessage,
 } from "@/services/messaging/templates";
@@ -219,10 +220,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     // drink, collection or delivery) so we only ask for the rest.
     try {
       const dictated = await applyDictation(conv.id, text);
+      if (dictated.unmatched.length) {
+        await sendToCustomer(conv.id, missedItemsMessage(dictated.unmatched), "AI");
+      }
       if (dictated.changed) {
         await advanceFlow(conv.id);
         return;
       }
+      if (dictated.unmatched.length) return;
     } catch (e) {
       console.error("[flow] could not read the typed order", e);
       await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not add that \u2014 ${errorMessage(e)}` }, "AI");

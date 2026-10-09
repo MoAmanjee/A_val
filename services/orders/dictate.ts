@@ -1,7 +1,7 @@
 import type { Fulfilment } from "@prisma/client";
 import { db } from "@/lib/db";
 import { normalise } from "@/services/conversations/understanding";
-import { normaliseMenuText } from "@/services/menu/matching";
+import { normaliseMenuText, tokensRoughlyEqual } from "@/services/menu/matching";
 import type { MenuSeed } from "@/db/menu";
 import { addItem, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
 import { missingRequirements, nextRequirement } from "@/services/orders/requirements";
@@ -53,6 +53,8 @@ export interface ParsedUtterance {
   deliveryAddress: string | null;
   /** A question such as "do you deliver?" with no item in it. Not an order. */
   ignoredAsQuestion: boolean;
+  /** Clauses that named food the menu matcher could not place. */
+  unmatched: string[];
 }
 
 const QUESTION = /^(do|does|can|could|what|whats|where|wheres|when|how|is|are|wat|waar|wanneer|hoe)\b|\?/;
@@ -95,7 +97,7 @@ export function catalogFromMenu(menu: MenuSeed): DictationItem[] {
 }
 
 export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtterance {
-  const empty: ParsedUtterance = { lines: [], fulfilment: null, deliveryAddress: null, ignoredAsQuestion: false };
+  const empty: ParsedUtterance = { lines: [], fulfilment: null, deliveryAddress: null, ignoredAsQuestion: false, unmatched: [] };
   const trimmed = raw.trim();
   if (!trimmed) return empty;
   if (isQuestionWithoutItem(trimmed, catalog)) return { ...empty, ignoredAsQuestion: true };
@@ -103,6 +105,7 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
   const peeled = peelFulfilment(trimmed);
   const clauses = splitClauses(peeled.text, catalog);
   const lines: ParsedLine[] = [];
+  const unmatched: string[] = [];
 
   for (const clause of clauses) {
     const built = linesFromClause(clause, catalog);
@@ -114,12 +117,15 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
     if (!previous) {
       const drink = standaloneDrink(clause, catalog);
       if (drink) lines.push(drink);
+      else if (looksLikeMissedFood(clause)) unmatched.push(clause);
       continue;
     }
     const extras = choicesForItem(clause, previous.item);
+    const useful = extras.selections.length > 0 || extras.isMeal !== null;
     if (extras.isMeal === true) previous.isMeal = true;
     else if (extras.isMeal === false && previous.isMeal === null) previous.isMeal = false;
     mergeSelections(previous, extras.selections);
+    if (!useful && looksLikeMissedFood(clause)) unmatched.push(clause);
   }
 
   const shared = sharedChoice(trimmed, catalog);
@@ -127,7 +133,21 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
     for (const line of lines) applySharedToLine(line, shared);
   }
 
-  return { lines, fulfilment: peeled.fulfilment, deliveryAddress: peeled.deliveryAddress, ignoredAsQuestion: false };
+  return { lines, fulfilment: peeled.fulfilment, deliveryAddress: peeled.deliveryAddress, ignoredAsQuestion: false, unmatched };
+}
+
+const MISSED_SKIP = new Set([
+  "hot", "mild", "extra", "dynamite", "herb", "lemon", "peri", "meal", "meals", "combo",
+  "coke", "zero", "sprite", "fanta", "buddy", "chips", "chip", "please", "thanks",
+  "with", "and", "for", "the", "this", "that", "just", "also", "plus", "drink",
+  "large", "small", "single", "double", "sauce", "mayo", "cheese",
+]);
+
+/** A leftover clause that still looks like a menu item, not a spice or a drink. */
+function looksLikeMissedFood(clause: string): boolean {
+  return normaliseMenuText(clause)
+    .split(" ")
+    .some((token) => token.length >= 4 && !MISSED_SKIP.has(token));
 }
 
 /** "all hot" / "both mild" names one spice for every item that does not already have one. */
@@ -188,11 +208,12 @@ export function choicesForItem(raw: string, item: DictationItem): { selections: 
   return { selections, isMeal: readMeal(peeled.text, item, selections) };
 }
 
-export async function applyDictation(conversationId: string, text: string): Promise<{ changed: boolean }> {
+export async function applyDictation(conversationId: string, text: string): Promise<{ changed: boolean; unmatched: string[] }> {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
   const catalog = await loadCatalog(conv.storeId);
   const parsed = parseUtterance(text, catalog);
-  if (parsed.ignoredAsQuestion) return { changed: false };
+  const unmatched = parsed.unmatched;
+  if (parsed.ignoredAsQuestion) return { changed: false, unmatched };
 
   const existing = await findDraft(conversationId);
   const namesAFood = parsed.lines.some((line) => !isDrinkVessel(line.item));
@@ -203,7 +224,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
       const current = await loadOrder(existing.id);
       await writeFulfilment(current, parsed);
       await noteAdding(conversationId, existing.id, parsed);
-      return { changed: true };
+      return { changed: true, unmatched };
     }
   }
 
@@ -225,19 +246,19 @@ export async function applyDictation(conversationId: string, text: string): Prom
         const current = await loadOrder(existing.id);
         if (await writeFulfilment(current, parsed)) changed = true;
         if (changed) await noteAdding(conversationId, existing.id, parsed);
-        return { changed };
+        return { changed, unmatched };
       }
     }
   }
 
   if (!parsed.lines.length && !parsed.fulfilment) {
-    if (!existing?.items.length) return { changed: false };
+    if (!existing?.items.length) return { changed: false, unmatched };
     const target = pickLooseTarget(existing, catalog, text);
-    if (!target) return { changed: false };
+    if (!target) return { changed: false, unmatched };
     const item = catalog.find((entry) => entry.id === target.menuItemId);
-    if (!item) return { changed: false };
+    if (!item) return { changed: false, unmatched };
     const extras = choicesForItem(text, item);
-    if (!extras.selections.length && extras.isMeal === null) return { changed: false };
+    if (!extras.selections.length && extras.isMeal === null) return { changed: false, unmatched };
     const changed = await writeOnto(existing.id, target, {
       item,
       quantity: target.quantity,
@@ -246,14 +267,14 @@ export async function applyDictation(conversationId: string, text: string): Prom
       forceNew: false,
     });
     if (changed) await noteAdding(conversationId, existing.id, parsed);
-    return { changed };
+    return { changed, unmatched };
   }
 
   if (!parsed.lines.length) {
-    if (!existing) return { changed: false };
+    if (!existing) return { changed: false, unmatched };
     const changed = await writeFulfilment(existing, parsed);
     if (changed) await noteAdding(conversationId, existing.id, parsed);
-    return { changed };
+    return { changed, unmatched };
   }
 
   const draft = existing ?? (await getOrCreateDraft(conversationId));
@@ -266,7 +287,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
   }
   if (await writeFulfilment(current, parsed)) changed = true;
   if (changed) await noteAdding(conversationId, draft.id, parsed);
-  return { changed };
+  return { changed, unmatched };
 }
 
 async function loadCatalog(storeId: string): Promise<DictationItem[]> {
@@ -498,7 +519,7 @@ function linesFromClause(clause: string, catalog: DictationItem[]): ParsedLine[]
   const norm = normaliseMenuText(clause);
   const hits = itemHits(norm, clause, catalog);
   return hits.map((hit) => {
-    const selections = matchOptions(norm, hit.item, [{ start: hit.index, end: hit.index + hit.phrase.length }]);
+    const selections = matchOptions(norm, hit.item, [{ start: hit.index, end: hit.end }]);
     const isMeal = readMeal(clause, hit.item, selections);
     return {
       item: hit.item,
@@ -514,31 +535,85 @@ interface ItemHit {
   item: DictationItem;
   phrase: string;
   index: number;
+  end: number;
 }
 
 function itemHits(normalised: string, raw: string, catalog: DictationItem[]): ItemHit[] {
+  const exact = collectItemHits(normalised, raw, catalog, false);
+  const exactFood = exact.filter((hit) => !isDrinkVessel(hit.item));
+  if (exactFood.length) return orderHits(exactFood);
+  const fuzzy = collectItemHits(normalised, raw, catalog, true).filter((hit) => !isDrinkVessel(hit.item));
+  if (fuzzy.length) return orderHits(fuzzy);
+  return orderHits(exact);
+}
+
+function orderHits(hits: ItemHit[]): ItemHit[] {
+  return [...hits].sort((a, b) => a.index - b.index);
+}
+
+function collectItemHits(normalised: string, raw: string, catalog: DictationItem[], fuzzy: boolean): ItemHit[] {
+  const spans = fuzzy ? tokenSpans(normalised) : [];
   const hits: ItemHit[] = [];
   for (const item of catalog) {
     if (!itemAllowed(item, raw)) continue;
     let best: ItemHit | null = null;
     for (const phrase of itemPhrases(item)) {
-      const index = indexOfPhrase(normalised, phrase);
-      if (index < 0) continue;
-      if (!best || phrase.length > best.phrase.length) best = { item, phrase, index };
+      const found = fuzzy ? fuzzyPhraseSpan(spans, phrase) : exactPhraseSpan(normalised, phrase);
+      if (!found) continue;
+      if (!best || phrase.length > best.phrase.length) best = { item, phrase, index: found.start, end: found.end };
     }
     if (best) hits.push(best);
   }
   hits.sort((a, b) => b.phrase.length - a.phrase.length || a.index - b.index);
   const kept: ItemHit[] = [];
   for (const hit of hits) {
-    const end = hit.index + hit.phrase.length;
-    if (kept.some((other) => rangesOverlap(other.index, other.index + other.phrase.length, hit.index, end))) continue;
+    if (kept.some((other) => rangesOverlap(other.index, other.end, hit.index, hit.end))) continue;
     kept.push(hit);
   }
-  const food = kept.filter((hit) => !isDrinkVessel(hit.item));
-  const chosen = food.length ? food : kept;
-  chosen.sort((a, b) => a.index - b.index);
-  return chosen;
+  return kept;
+}
+
+function exactPhraseSpan(normalised: string, phrase: string): { start: number; end: number } | null {
+  const index = indexOfPhrase(normalised, phrase);
+  if (index < 0) return null;
+  return { start: index, end: index + phrase.length };
+}
+
+function tokenSpans(normalised: string): { token: string; start: number; end: number }[] {
+  const spans: { token: string; start: number; end: number }[] = [];
+  const pattern = /\S+/g;
+  let match: RegExpExecArray | null;
+  while ((match = pattern.exec(normalised))) {
+    spans.push({ token: match[0], start: match.index, end: match.index + match[0].length });
+  }
+  return spans;
+}
+
+/** A close spelling of the whole item name, in order, such as "burito" for Burrito. */
+function fuzzyPhraseSpan(spans: { token: string; start: number; end: number }[], phrase: string): { start: number; end: number } | null {
+  const parts = phrase.split(" ").filter(Boolean);
+  if (!parts.length || spans.length < parts.length) return null;
+  if (parts.length === 1 && parts[0].length < 4) return null;
+  for (let i = 0; i <= spans.length - parts.length; i++) {
+    let ok = true;
+    for (let j = 0; j < parts.length; j++) {
+      if (!tokensRoughlyEqual(spans[i + j].token, parts[j])) {
+        ok = false;
+        break;
+      }
+    }
+    if (!ok) continue;
+    let adjacent = true;
+    for (let j = 1; j < parts.length; j++) {
+      if (spans[i + j].start - spans[i + j - 1].end > 1) {
+        adjacent = false;
+        break;
+      }
+    }
+    if (!adjacent) continue;
+    return { start: spans[i].start, end: spans[i + parts.length - 1].end };
+  }
+  return null;
 }
 
 function itemPhrases(item: DictationItem): string[] {
@@ -586,6 +661,21 @@ function matchOptions(normalised: string, item: DictationItem, occupied: { start
     if (hit.option.selection === "SINGLE" && picked.some((chosen) => chosen.option.groupId === hit.option.groupId)) continue;
     picked.push(hit);
     taken.push({ start: hit.index, end: hit.end });
+  }
+
+  const spans = tokenSpans(normalised).filter((span) => !taken.some((used) => rangesOverlap(used.start, used.end, span.start, span.end)));
+  for (const option of item.options) {
+    if (option.selection === "SINGLE" && picked.some((chosen) => chosen.option.groupId === option.groupId)) continue;
+    const phrase = normaliseMenuText(option.name);
+    if (phrase.length < 3) continue;
+    const found = fuzzyPhraseSpan(spans, phrase);
+    if (!found) continue;
+    if (taken.some((span) => rangesOverlap(span.start, span.end, found.start, found.end))) continue;
+    picked.push({ option, index: found.start, end: found.end, phrase });
+    taken.push({ start: found.start, end: found.end });
+    for (let i = spans.length - 1; i >= 0; i--) {
+      if (rangesOverlap(spans[i].start, spans[i].end, found.start, found.end)) spans.splice(i, 1);
+    }
   }
 
   const byGroup = new Map<string, ParsedSelection>();

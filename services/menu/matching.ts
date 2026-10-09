@@ -30,6 +30,16 @@ const SYNONYMS: Record<string, string> = {
   quartre: "quarter",
   brger: "burger",
   buger: "burger",
+  burito: "burrito",
+  buritto: "burrito",
+  burrtio: "burrito",
+  burritto: "burrito",
+  shawarma: "schwarma",
+  shwarma: "schwarma",
+  schwama: "schwarma",
+  quesadila: "quesadilla",
+  hott: "hot",
+  mildd: "mild",
   cheeze: "cheese",
   chease: "cheese",
   slap: "chips",
@@ -115,4 +125,38 @@ export function isDecisive<T>(ranked: Ranked<T>[], margin = 0.15): boolean {
   if (!ranked.length) return false;
   if (ranked.length === 1) return ranked[0].score >= 0.5;
   return ranked[0].score >= 0.5 && ranked[0].score - ranked[1].score >= margin;
+}
+
+/**
+ * True when two menu words are the same aside from a small typo.
+ * "burito" matches "burrito". "hot" does not match "hat".
+ */
+export function tokensRoughlyEqual(a: string, b: string): boolean {
+  if (a === b) return true;
+  const stem = (word: string) => (word.endsWith("s") && word.length > 4 ? word.slice(0, -1) : word);
+  if (stem(a).length >= 4 && stem(a) === stem(b)) return true;
+  const shorter = Math.min(a.length, b.length);
+  const longer = Math.max(a.length, b.length);
+  if (shorter < 3 || longer > 24 || longer - shorter > 2) return false;
+  const dist = damerau(a, b);
+  if (shorter <= 4) return dist === 1 && (a.startsWith(b) || b.startsWith(a));
+  return dist <= (shorter >= 8 ? 2 : 1);
+}
+
+function damerau(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) {
+        dp[i][j] = Math.min(dp[i][j], dp[i - 2][j - 2] + 1);
+      }
+    }
+  }
+  return dp[m][n];
 }

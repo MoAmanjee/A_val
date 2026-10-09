@@ -159,19 +159,9 @@ export function categoryListRows(categories: Pick<MenuCategory, "id" | "name" | 
 
 const FINISH_ROWS: ListRow[] = [
   {
-    id: encodeReplyId({ kind: "typeOrder" }),
-    title: "Type my order",
-    description: "Write the rest in one message",
-  },
-  {
-    id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }),
-    title: "Collect",
-    description: "Pay at the till",
-  },
-  {
-    id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }),
-    title: "Delivery",
-    description: "Pay the driver",
+    id: encodeReplyId({ kind: "basket" }),
+    title: "Back to my order",
+    description: "Confirm or cancel",
   },
 ];
 
@@ -222,8 +212,8 @@ export function categoryPickerMessage(
     kind: "list",
     header: storeName(store),
     body: clamp(body, WA_LIMITS.interactiveBody),
-    footer: opts.checkout ? "Add another item. Collect is at the bottom." : undefined,
-    buttonLabel: opts.checkout ? "Add another" : "See the menu",
+    footer: opts.checkout ? "Pick a section. Your order is at the bottom." : undefined,
+    buttonLabel: opts.checkout ? "Add to order" : "See the menu",
     sections: [{ title: "Menu", rows: opts.checkout ? addingSectionRows(categories, opts.page ?? 0) : categoryListRows(categories) }],
   };
 }
@@ -305,16 +295,25 @@ export function keepAddingBody(order: FullOrder, store: Store): string {
   return `So far:\n${shown.join("\n")}\n\n${total}`;
 }
 
-/** Type, collect, or delivery. Short button titles, no "That's everything" sentence. */
+/** Confirm, add another item, or cancel. These are buttons, so they are visible without opening a list. */
 export function orderActionsMessage(order: FullOrder, store: Store): OutboundMessage {
   return {
     kind: "buttons",
-    body: keepAddingBody(order, store),
+    body: clamp(`${keepAddingBody(order, store)}\n\nConfirm this order, add another item, or cancel.`, WA_LIMITS.interactiveBody),
     buttons: [
-      { id: encodeReplyId({ kind: "typeOrder" }), title: "Type order" },
-      { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
-      { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Delivery" },
+      { id: encodeReplyId({ kind: "anythingElse", done: true }), title: "Confirm order" },
+      { id: encodeReplyId({ kind: "anythingElse", done: false }), title: "Add to order" },
+      { id: encodeReplyId({ kind: "confirm", answer: "cancel" }), title: "Cancel order" },
     ],
+  };
+}
+
+export function missedItemsMessage(clauses: string[]): OutboundMessage {
+  const shown = clauses.map((clause) => clause.trim()).filter(Boolean).slice(0, 3);
+  const list = shown.map((clause) => `"${clause}"`).join(", ");
+  return {
+    kind: "text",
+    text: `I didn't catch ${list}, so that is not on the order. Type it again, or tap Add to order and pick it from the menu.`,
   };
 }
 
@@ -426,18 +425,23 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
 }
 
 export function fulfilmentMessage(store: Store): OutboundMessage {
+  const fee = store.deliveryFeeCents > 0
+    ? `Delivery is ${money(store, store.deliveryFeeCents)}, added to the total.`
+    : "Delivery is free.";
   return {
     kind: "buttons",
-    body: `Collect from the shop, or delivery in ${store.city}?`,
+    body: `Would you like delivery?\n\n${fee} Collection is from the shop, and you pay at the till.`,
     buttons: [
-      { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
-      { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Delivery" },
+      { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Yes, deliver" },
+      { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "I'll collect" },
     ],
   };
 }
 
 export function deliveryAddressMessage(store: Store): OutboundMessage {
-  const fee = store.deliveryFeeCents > 0 ? `Delivery is ${money(store, store.deliveryFeeCents)}.` : "Delivery is free.";
+  const fee = store.deliveryFeeCents > 0
+    ? `Delivery is ${money(store, store.deliveryFeeCents)}. That is added to the total.`
+    : "Delivery is free.";
   return {
     kind: "text",
     text: `${fee} Where in ${store.city} should we deliver it? Send the street address, for example 14 Kock Street.`,
@@ -460,28 +464,26 @@ export function anythingElseMessage(order: FullOrder, store: Store): OutboundMes
  * otherwise it is sent as its own message first so nothing is truncated away.
  */
 function confirmationQuestion(order: FullOrder, store: Store, prepMinutes: number): string {
-  const another = "Type another item if you want to add one.";
   if (order.fulfilment === "DELIVERY" && order.deliveryAddress?.trim()) {
-    return `Is that correct? Tap *Yes, order it* and I will send it to the kitchen — about ${prepMinutes} minutes, delivered to ${order.deliveryAddress.trim()}. Pay the driver when it arrives. ${another}`;
+    return `This is your receipt, including delivery. Accept it and I will send it to the kitchen — about ${prepMinutes} minutes, to ${order.deliveryAddress.trim()}. Pay the driver. Decline if you don't want it.`;
   }
-  return `Is that correct? Tap *Yes, order it* and I will send it straight to the kitchen — about ${prepMinutes} minutes for collection from ${store.addressLine}. Pay at the till. ${another}`;
+  return `This is your receipt. Accept it and I will send it to the kitchen — about ${prepMinutes} minutes, collect from ${store.addressLine}. Pay at the till. Decline if you don't want it.`;
 }
 
 export function confirmationMessages(order: FullOrder, store: Store, prepMinutes: number): OutboundMessage[] {
   const summary = orderSummaryText(order, store);
   const question = confirmationQuestion(order, store, prepMinutes);
   const buttons = [
-    { id: encodeReplyId({ kind: "confirm", answer: "yes" as const }), title: "Yes, order it" },
-    { id: encodeReplyId({ kind: "confirm", answer: "change" as const }), title: "Change something" },
-    { id: encodeReplyId({ kind: "confirm", answer: "cancel" as const }), title: "Cancel order" },
+    { id: encodeReplyId({ kind: "confirm", answer: "yes" as const }), title: "Accept" },
+    { id: encodeReplyId({ kind: "confirm", answer: "cancel" as const }), title: "Decline" },
   ];
 
-  const inline = `🧾 *Your order*\n\n${summary}\n\n${question}`;
+  const inline = `🧾 *Your receipt*\n\n${summary}\n\n${question}`;
   if (inline.length <= MAX_SUMMARY_IN_BODY) {
     return [{ kind: "buttons", body: inline, buttons }];
   }
   return [
-    { kind: "text", text: `🧾 *Your order*\n\n${summary}` },
+    { kind: "text", text: `🧾 *Your receipt*\n\n${summary}` },
     { kind: "buttons", body: question, buttons },
   ];
 }

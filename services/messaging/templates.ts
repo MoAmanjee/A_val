@@ -139,17 +139,30 @@ export function categoryListRows(categories: Pick<MenuCategory, "id" | "name" | 
   return kept;
 }
 
+/** Checkout row first, then every section that still fits. No photo row, so a big order can move on in one tap. */
+export function checkoutCategoryRows(categories: Pick<MenuCategory, "id" | "name" | "description">[]): ListRow[] {
+  return [DONE_ORDERING_ROW, ...categories.map(categoryRow)].slice(0, WA_LIMITS.maxListRows);
+}
+
+const DONE_ORDERING_ROW: ListRow = {
+  id: encodeReplyId({ kind: "anythingElse", done: true }),
+  title: "That's everything",
+  description: "No more items",
+};
+
 export function categoryPickerMessage(
   store: Store,
   categories: Pick<MenuCategory, "id" | "name" | "description">[],
   body = "Here is our menu. What can we get you?",
+  opts: { checkout?: boolean } = {},
 ): OutboundMessage {
   return {
     kind: "list",
     header: storeName(store),
-    body,
-    buttonLabel: "See the menu",
-    sections: [{ title: "Menu", rows: categoryListRows(categories) }],
+    body: clamp(body, WA_LIMITS.interactiveBody),
+    footer: opts.checkout ? TYPE_THE_REST : undefined,
+    buttonLabel: opts.checkout ? "Next item" : "See the menu",
+    sections: [{ title: "Menu", rows: opts.checkout ? checkoutCategoryRows(categories) : categoryListRows(categories) }],
   };
 }
 
@@ -157,25 +170,33 @@ type MenuItemRow = Pick<MenuItem, "id" | "name" | "shortName" | "description" | 
 
 /** Items per page once a More row and a Back row are reserved. */
 const ITEM_PAGE = WA_LIMITS.maxListRows - 2;
+/** Checkout also keeps a "That's everything" row, so one fewer item fits. */
+const CHECKOUT_ITEM_PAGE = WA_LIMITS.maxListRows - 3;
 
 export function categoryItemsMessage(
   store: Store,
   category: Pick<MenuCategory, "id" | "name" | "description">,
   items: MenuItemRow[],
   page = 0,
+  opts: { checkout?: boolean; body?: string } = {},
 ): OutboundMessage {
   const available = items.filter((i) => i.available);
   const soldOut = items.filter((i) => !i.available);
-  const pages = Math.max(1, Math.ceil(available.length / ITEM_PAGE));
+  const pageSize = opts.checkout ? CHECKOUT_ITEM_PAGE : ITEM_PAGE;
+  const pages = Math.max(1, Math.ceil(available.length / pageSize));
   const safePage = Math.min(Math.max(0, page), pages - 1);
-  const slice = available.slice(safePage * ITEM_PAGE, safePage * ITEM_PAGE + ITEM_PAGE);
-  const hasMore = (safePage + 1) * ITEM_PAGE < available.length;
+  const slice = available.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const hasMore = (safePage + 1) * pageSize < available.length;
 
-  const rows: ListRow[] = slice.map((item) => ({
-    id: encodeReplyId({ kind: "item", menuItemId: item.id }),
-    title: clamp(item.shortName?.trim() || item.name, WA_LIMITS.rowTitle),
-    description: itemPriceLine(store, item),
-  }));
+  const rows: ListRow[] = [];
+  if (opts.checkout) rows.push(DONE_ORDERING_ROW);
+  rows.push(
+    ...slice.map((item) => ({
+      id: encodeReplyId({ kind: "item", menuItemId: item.id }),
+      title: clamp(item.shortName?.trim() || item.name, WA_LIMITS.rowTitle),
+      description: itemPriceLine(store, item),
+    })),
+  );
   if (hasMore) {
     rows.push({
       id: encodeReplyId({ kind: "category", categoryId: category.id, page: safePage + 1 }),
@@ -183,18 +204,44 @@ export function categoryItemsMessage(
       description: `Page ${safePage + 2} of ${pages}`,
     });
   }
-  rows.push({ id: encodeReplyId({ kind: "categories" }), title: "\u2190 Back to menu" });
+  rows.push({
+    id: encodeReplyId({ kind: "categories" }),
+    title: opts.checkout ? "Other sections" : "\u2190 Back to menu",
+    description: opts.checkout ? "Burgers, sides, drinks" : undefined,
+  });
 
   const header = category.description ? `${category.name} \u2014 ${category.description}` : category.name;
   const pageNote = pages > 1 ? ` (page ${safePage + 1} of ${pages})` : "";
   const soldOutNote = soldOut.length ? `\n\nSold out tonight: ${soldOut.map((i) => i.name).join(", ")}.` : "";
+  const body = opts.body?.trim() || `${header}${pageNote}${soldOutNote}`;
 
   return {
     kind: "list",
-    body: `${header}${pageNote}${soldOutNote}`,
-    buttonLabel: "Choose an item",
+    body: clamp(body, WA_LIMITS.interactiveBody),
+    footer: opts.checkout ? TYPE_THE_REST : undefined,
+    buttonLabel: opts.checkout ? "Next item" : "Choose an item",
     sections: [{ title: clamp(category.name, WA_LIMITS.sectionTitle), rows }],
   };
+}
+
+/** Running basket while the customer is still tapping items on. */
+export function keepAddingBody(order: FullOrder, store: Store): string {
+  const total = `*Total: ${money(store, order.totalCents)}*`;
+  const hint = "Tap the next item, or That's everything when you are done. You can also type several items in one message.";
+  const lines = order.items.map((item) => {
+    const choices = describeItemChoices(item);
+    const qty = item.quantity > 1 ? `${item.quantity} × ` : "";
+    return `• ${qty}${item.nameSnapshot}${choices ? ` (${choices})` : ""}`;
+  });
+  let shown = lines;
+  while (shown.length > 1) {
+    const extra = lines.length - shown.length;
+    const lead = extra > 0 ? `So far, plus ${extra} earlier:\n` : "So far:\n";
+    const body = `${lead}${shown.join("\n")}\n\n${total}\n\n${hint}`;
+    if (body.length <= 900) return body;
+    shown = shown.slice(1);
+  }
+  return `So far:\n${shown.join("\n")}\n\n${total}\n\n${hint}`;
 }
 
 export function itemPriceLine(store: Store, item: Pick<MenuItem, "priceCents" | "mealUpgradeCents" | "description">): string {

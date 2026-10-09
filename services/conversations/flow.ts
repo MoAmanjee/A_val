@@ -7,8 +7,6 @@ import { getCategories, getCategoryItems, isDecisive, rankByName } from "@/servi
 import { sendMenuPictures } from "@/services/menu/images";
 import type { ReplyAction } from "@/services/messaging/reply-ids";
 import {
-  ADD_MORE_MESSAGE,
-  anythingElseMessage,
   categoryItemsMessage,
   categoryPickerMessage,
   cancelConfirmMessage,
@@ -19,6 +17,7 @@ import {
   fulfilmentMessage,
   HANDOVER_MESSAGE,
   KEEP_ORDER_MESSAGE,
+  keepAddingBody,
   mealUpgradeMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
@@ -50,7 +49,7 @@ export interface FlowResult {
 
 /**
  * Send the next thing the order needs: a modifier question, the meal upgrade,
- * "anything else?", or the confirmation summary.
+ * the same section again so they can tap the next item, or the confirmation summary.
  */
 export async function advanceFlow(conversationId: string): Promise<FlowResult> {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
@@ -77,9 +76,7 @@ export async function advanceFlow(conversationId: string): Promise<FlowResult> {
   }
 
   if (!conv.askedAnythingElse) {
-    await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });
-    await sendToCustomer(conversationId, anythingElseMessage(order, conv.store), "AI");
-    await setPendingQuestion(conversationId, "ANYTHING_ELSE");
+    await sendKeepAdding(conversationId, order);
     return { sent: true };
   }
 
@@ -116,11 +113,42 @@ async function resetConversation(conversationId: string) {
   });
 }
 
-async function sendMenu(conversationId: string, storeId: string, body?: string) {
+/** Section list. While a basket is open, include "That's everything" so they can stop without a separate question. */
+async function sendSectionList(conversationId: string, storeId: string, fallbackBody?: string) {
+  const draft = await findDraft(conversationId);
+  const checkout = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
+  const body = checkout && draft ? keepAddingBody(draft, conv.store) : fallbackBody;
+  await sendMenu(conversationId, storeId, body, checkout);
+}
+
+async function sendMenu(conversationId: string, storeId: string, body?: string, checkout = false) {
   const categories = await getCategories(storeId);
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  await sendToCustomer(conversationId, categoryPickerMessage(conv.store, categories, body), "AI");
-  await setPendingQuestion(conversationId, "NONE");
+  await sendToCustomer(conversationId, categoryPickerMessage(conv.store, categories, body, { checkout }), "AI");
+  await setPendingQuestion(conversationId, checkout ? "ANYTHING_ELSE" : "NONE");
+}
+
+/**
+ * After an item is complete, put the same section back on screen with the
+ * running total. The next item is one tap. "That's everything" is the only
+ * extra step, instead of an "add something?" question between every item.
+ */
+async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
+  const body = keepAddingBody(order, conv.store);
+  const last = order.items[order.items.length - 1];
+  const found = last ? await getCategoryItems(conv.storeId, last.menuItem.categoryId) : null;
+  if (found?.items.some((item) => item.available)) {
+    await sendToCustomer(
+      conversationId,
+      categoryItemsMessage(conv.store, found.category, found.items, 0, { checkout: true, body }),
+      "AI",
+    );
+    await setPendingQuestion(conversationId, "ANYTHING_ELSE");
+    return;
+  }
+  await sendMenu(conversationId, conv.storeId, body, true);
 }
 
 // ---------------------------------------------------------------- Tapped replies
@@ -136,7 +164,7 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
 
   switch (action.kind) {
     case "categories":
-      await sendMenu(conversationId, conversation.storeId);
+      await sendSectionList(conversationId, conversation.storeId);
       return { sent: true };
 
     case "category": {
@@ -146,8 +174,17 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
         return { sent: true };
       }
       const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-      await sendToCustomer(conversationId, categoryItemsMessage(conv.store, found.category, found.items, action.page ?? 0), "AI");
-      await setPendingQuestion(conversationId, "NONE");
+      const draft = await findDraft(conversationId);
+      const checkout = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
+      await sendToCustomer(
+        conversationId,
+        categoryItemsMessage(conv.store, found.category, found.items, action.page ?? 0, {
+          checkout,
+          body: checkout && draft ? keepAddingBody(draft, conv.store) : undefined,
+        }),
+        "AI",
+      );
+      await setPendingQuestion(conversationId, checkout ? "ANYTHING_ELSE" : "NONE");
       return { sent: true };
     }
 
@@ -156,13 +193,15 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       if (!sent) {
         await sendToCustomer(conversationId, { kind: "text", text: "I cannot load the menu pictures right now, but you can still tap through the menu." }, "AI");
       }
-      await sendMenu(conversationId, conversation.storeId, "Tap a section if you would rather order from the list:");
+      await sendSectionList(conversationId, conversation.storeId, "Tap a section if you would rather order from the list:");
       return { sent: true };
     }
 
     case "item": {
       const draft = await getOrCreateDraft(conversationId);
       await addItem(draft.id, { menuItemId: action.menuItemId });
+      // A new item reopens the menu after its questions, even if they had already said they were finished.
+      await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: false } });
       return advanceFlow(conversationId);
     }
 
@@ -197,7 +236,11 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
 
     case "anythingElse": {
       if (!action.done) {
-        await sendToCustomer(conversationId, ADD_MORE_MESSAGE, "AI");
+        const draft = await findDraft(conversationId);
+        if (draft?.items.length) {
+          await sendKeepAdding(conversationId, draft);
+          return { sent: true };
+        }
         await sendMenu(conversationId, conversation.storeId, "What else can I get you?");
         return { sent: true };
       }

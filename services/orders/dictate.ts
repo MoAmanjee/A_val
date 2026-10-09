@@ -159,7 +159,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
         });
         const current = await loadOrder(existing.id);
         if (await writeFulfilment(current, parsed)) changed = true;
-        if (changed) await skipAnythingElseWhenComplete(conversationId, existing.id);
+        if (changed) await noteAdding(conversationId, existing.id, parsed);
         return { changed };
       }
     }
@@ -180,13 +180,14 @@ export async function applyDictation(conversationId: string, text: string): Prom
       selections: extras.selections,
       forceNew: false,
     });
-    if (changed) await skipAnythingElseWhenComplete(conversationId, existing.id);
+    if (changed) await noteAdding(conversationId, existing.id, parsed);
     return { changed };
   }
 
   if (!parsed.lines.length) {
     if (!existing) return { changed: false };
     const changed = await writeFulfilment(existing, parsed);
+    if (changed) await noteAdding(conversationId, existing.id, parsed);
     return { changed };
   }
 
@@ -199,7 +200,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
     current = await loadOrder(draft.id);
   }
   if (await writeFulfilment(current, parsed)) changed = true;
-  if (changed) await skipAnythingElseWhenComplete(conversationId, draft.id);
+  if (changed) await noteAdding(conversationId, draft.id, parsed);
   return { changed };
 }
 
@@ -309,7 +310,17 @@ async function writeFulfilment(order: FullOrder, parsed: ParsedUtterance): Promi
   return true;
 }
 
-async function skipAnythingElseWhenComplete(conversationId: string, orderId: string) {
+/**
+ * Collection or delivery means they are wrapping up, so the menu step can be
+ * skipped. Naming more food keeps the menu open for the next tap.
+ */
+async function noteAdding(conversationId: string, orderId: string, parsed: ParsedUtterance) {
+  if (!parsed.fulfilment) {
+    if (parsed.lines.length) {
+      await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: false } });
+    }
+    return;
+  }
   const order = await loadOrder(orderId);
   if (order.items.length && !nextRequirement(order)) {
     await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });

@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { categoryItemsMessage, categoryListRows, fulfilmentSummary, mealUpgradeMessage } from "@/services/messaging/templates";
+import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { lineTotalCents, orderTotals } from "@/services/orders/pricing";
@@ -272,6 +272,54 @@ describe("whatsapp messages", () => {
     expect(rows[0].title).toBe("Menu pictures");
     expect(rows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
     expect(rows.some((r) => r.title.startsWith("Burger"))).toBe(true);
+  });
+
+  it("keeps the item list open and puts That's everything on the first row", () => {
+    const items = Array.from({ length: 12 }, (_, i) => ({
+      id: `item-${i}`,
+      name: `Burger ${i + 1}`,
+      shortName: `Burger ${i + 1}`,
+      description: null,
+      priceCents: 5990,
+      mealUpgradeCents: null,
+      available: true,
+      soldOutNote: null,
+    })) as unknown as Pick<MenuItem, "id" | "name" | "shortName" | "description" | "priceCents" | "mealUpgradeCents" | "available" | "soldOutNote">[];
+
+    const list = categoryItemsMessage(store, { id: "burgers", name: "Burger El' Supremo", description: null }, items, 0, {
+      checkout: true,
+      body: "So far:\n• 1/4 Chicken\n\n*Total: R95.90*\n\nTap the next item, or That's everything when you are done.",
+    });
+    if (list.kind !== "list") throw new Error("expected a list");
+    const rows = list.sections.flatMap((section) => section.rows);
+    expect(rows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
+    expect(rows[0]?.title).toBe("That's everything");
+    expect(decodeReplyId(rows[0]?.id)).toEqual({ kind: "anythingElse", done: true });
+    expect(rows.map((row) => row.title)).toContain("Burger 1");
+    expect(rows.map((row) => row.title)).toContain("Other sections");
+    expect(list.buttonLabel).toBe("Next item");
+
+    const categories = MOCHACHOS_MENU.categories.map((c, i) => ({ id: `c${i}`, name: c.name, description: c.description ?? null }));
+    const sectionRows = checkoutCategoryRows(categories);
+    expect(sectionRows[0]?.title).toBe("That's everything");
+    expect(sectionRows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
+    expect(sectionRows.some((row) => row.title === "Menu pictures")).toBe(false);
+    expect(sectionRows.some((row) => row.title.startsWith("Burger"))).toBe(true);
+  });
+
+  it("fits a running total into one WhatsApp list body", () => {
+    const order = {
+      totalCents: 19180,
+      items: [
+        { quantity: 1, nameSnapshot: "1/4 Chicken", modifiers: [], menuItem: { modifierLinks: [] }, isMeal: true, notes: null },
+        { quantity: 1, nameSnapshot: "Chicken Burger", modifiers: [], menuItem: { modifierLinks: [] }, isMeal: false, notes: null },
+      ],
+    } as unknown as Parameters<typeof keepAddingBody>[0];
+    const body = keepAddingBody(order, store);
+    expect(body).toContain("1/4 Chicken");
+    expect(body).toContain("Chicken Burger");
+    expect(body).toContain("That's everything");
+    expect(body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
   });
 });
 

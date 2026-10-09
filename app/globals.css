@@ -1,0 +1,38 @@
+@import "tailwindcss";
+
+:root {
+  --flame: #e10600;
+  --flame-dark: #9b0400;
+  --gold: #f5c518;
+  --ink: #141414;
+  --paper: #fff8ef;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+.kitchen-shell {
+  min-height: 100vh;
+  background: #121212;
+  color: #f6f1e7;
+}
+
+.ticket {
+  background: #1c1c1c;
+  border: 1px solid #2e2e2e;
+  border-top: 4px solid var(--gold);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.ticket.new {
+  border-top-color: var(--flame);
+}
+
+.ticket.ready {
+  border-top-color: #3ddc84;
+}

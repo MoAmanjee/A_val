@@ -59,7 +59,10 @@ export interface MenuSearchResult {
 
 /** Find menu items by whatever the customer typed. */
 export async function searchMenuItems(storeId: string, query: string, limit = 5): Promise<MenuSearchResult> {
-  const items = await db.menuItem.findMany({ where: { storeId, active: true }, select: MENU_ITEM_SELECT });
+  const items = await db.menuItem.findMany({
+    where: { storeId, active: true, category: { active: true } },
+    select: MENU_ITEM_SELECT,
+  });
   const ranked = rankByName(query, items, (i) => i.name);
   // An exact-ish match on a sold-out item is still the right match to report:
   // the customer needs to be told it is sold out, not offered something else.

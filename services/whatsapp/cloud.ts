@@ -135,11 +135,19 @@ export function toGraphMessage(message: OutboundMessage): Record<string, unknown
   const footer = message.footer ? { footer: { text: clamp(message.footer, WA_LIMITS.footerText) } } : {};
 
   if (message.kind === "buttons") {
+    const imageHeader = message.image
+      ? {
+          header: {
+            type: "image",
+            image: "mediaId" in message.image ? { id: message.image.mediaId } : { link: message.image.link },
+          },
+        }
+      : header;
     return {
       type: "interactive",
       interactive: {
         type: "button",
-        ...header,
+        ...imageHeader,
         body: { text: clamp(message.body, WA_LIMITS.interactiveBody) },
         ...footer,
         action: {

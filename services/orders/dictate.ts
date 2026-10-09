@@ -271,7 +271,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
 
 async function loadCatalog(storeId: string): Promise<DictationItem[]> {
   const rows = await db.menuItem.findMany({
-    where: { storeId, active: true, available: true },
+    where: { storeId, active: true, available: true, category: { active: true } },
     include: {
       modifierLinks: {
         orderBy: { sortOrder: "asc" },

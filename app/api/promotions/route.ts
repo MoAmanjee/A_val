@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { readKitchenSession } from "@/lib/session";
-import { describeWhatsApp, promotionAudience, sendPromotion } from "@/services/promotions/broadcast";
+import { describeWhatsApp, parsePromoPrice, promotionAudience, sendPromotion } from "@/services/promotions/broadcast";
 
 export const runtime = "nodejs";
 
@@ -31,6 +31,7 @@ export async function GET() {
     promotions: promotions.map((promotion) => ({
       id: promotion.id,
       body: promotion.body,
+      priceCents: promotion.priceCents,
       imageUrl: promotion.imagePath ? `/${promotion.imagePath}` : null,
       createdAt: promotion.createdAt,
       sent: promotion.deliveries.filter((row) => row.status === "SENT").length,
@@ -49,6 +50,14 @@ export async function POST(req: Request) {
 
   const textValue = form.get("text");
   const text = typeof textValue === "string" ? textValue : null;
+  const priceValue = form.get("price");
+  let priceCents: number | null = null;
+  try {
+    priceCents = parsePromoPrice(typeof priceValue === "string" ? priceValue : null);
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "That price is not valid.";
+    return Response.json({ error: message }, { status: 400 });
+  }
   const file = form.get("image");
   let image: { bytes: Buffer; mimeType: string } | null = null;
   if (file instanceof File && file.size > 0) {
@@ -56,7 +65,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const result = await sendPromotion({ storeId: store.id, text, image });
+    const result = await sendPromotion({ storeId: store.id, text, image, priceCents });
     return Response.json(result);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Could not send that promotion.";

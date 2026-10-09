@@ -7,6 +7,7 @@ type WhatsAppStatus = { live: boolean; detail: string };
 type PromotionRow = {
   id: string;
   body: string | null;
+  priceCents: number | null;
   imageUrl: string | null;
   createdAt: string;
   sent: number;
@@ -25,6 +26,7 @@ export default function PromotionsPage() {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
   const [text, setText] = useState("");
+  const [price, setPrice] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -93,13 +95,14 @@ export default function PromotionsPage() {
     e.preventDefault();
     setError("");
     setResult("");
-    if (!text.trim() && !file) {
-      setError("Add a picture, some text, or both.");
+    if (!text.trim() && !file && !price.trim()) {
+      setError("Add a picture, some text, or a price.");
       return;
     }
     setBusy(true);
     const body = new FormData();
     if (text.trim()) body.set("text", text.trim());
+    if (price.trim()) body.set("price", price.trim());
     if (file) body.set("image", file);
     const res = await fetch("/api/promotions", { method: "POST", body });
     const data = await res.json().catch(() => ({}));
@@ -110,6 +113,7 @@ export default function PromotionsPage() {
     }
     setResult(data.detail ?? "Saved.");
     setText("");
+    setPrice("");
     setFile(null);
     if (fileInput.current) fileInput.current.value = "";
     await load();
@@ -159,7 +163,7 @@ export default function PromotionsPage() {
       <p className="mb-5 text-sm text-neutral-400">
         {board.audience.messaged} {board.audience.messaged === 1 ? "person has" : "people have"} messaged the shop.
         {" "}
-        {board.audience.insideWindow} can receive a picture or note right now. WhatsApp only allows that for 24 hours after their last message.
+        {board.audience.insideWindow} can receive a picture or note right now. WhatsApp only allows that for 24 hours after their last message. Add a price and they can tap Order this. It joins the basket and checks out like any other item.
       </p>
 
       <form onSubmit={send} className="max-w-xl rounded-2xl bg-neutral-900 p-5">
@@ -175,6 +179,19 @@ export default function PromotionsPage() {
           placeholder="Half-price wings today until 8."
           className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
         />
+        <label className="mt-4 block text-sm font-semibold" htmlFor="promo-price">
+          Price, if they can order it
+        </label>
+        <input
+          id="promo-price"
+          inputMode="decimal"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="49.90"
+          aria-label="Promotion price in rands"
+          className="mt-2 w-40 rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+        />
+        <p className="mt-2 text-xs text-neutral-500">Leave this blank for a note with no order button. Rands, for example 49.90.</p>
         <label
           className="mt-4 block cursor-pointer rounded-xl border border-dashed border-neutral-600 px-4 py-8 text-center text-sm text-neutral-300"
           onPaste={(e) => {
@@ -219,6 +236,9 @@ export default function PromotionsPage() {
                 <img src={promotion.imageUrl} alt="" className="mb-3 max-h-40 rounded-lg object-contain" />
               ) : null}
               {promotion.body ? <p>{promotion.body}</p> : <p className="text-neutral-500">Picture only</p>}
+              {promotion.priceCents != null ? (
+                <p className="mt-1 font-semibold">R{(promotion.priceCents / 100).toFixed(2)} · customers can order it</p>
+              ) : null}
               <p className="mt-2 text-xs text-neutral-400">
                 {new Date(promotion.createdAt).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" })}
                 {" · "}

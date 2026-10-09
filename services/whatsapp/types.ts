@@ -38,7 +38,7 @@ export type MediaRef = { mediaId: string } | { link: string };
  */
 export type OutboundMessage =
   | { kind: "text"; text: string }
-  | { kind: "buttons"; body: string; buttons: ReplyButton[]; header?: string; footer?: string }
+  | { kind: "buttons"; body: string; buttons: ReplyButton[]; header?: string; footer?: string; image?: MediaRef }
   | { kind: "list"; body: string; buttonLabel: string; sections: ListSection[]; header?: string; footer?: string }
   | { kind: "image"; media: MediaRef; caption?: string }
   | { kind: "document"; media: MediaRef; filename: string; caption?: string };

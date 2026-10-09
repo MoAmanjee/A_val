@@ -4,7 +4,9 @@ import type { Store } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { sendToCustomer } from "@/services/conversations";
+import { encodeReplyId } from "@/services/messaging/reply-ids";
 import { CloudApiWhatsAppService, getCredentials, getWhatsAppService, type MediaRef, type OutboundMessage } from "@/services/whatsapp";
+import { formatCents, parsePriceToCents } from "@/utils/money";
 
 /** WhatsApp only allows a free-form picture or text inside this window. */
 export const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -26,12 +28,53 @@ export function classifyRecipient(lastInboundAt: Date | null, now: Date): Recipi
   return now.getTime() - lastInboundAt.getTime() < SESSION_WINDOW_MS ? "open" : "closed";
 }
 
-export function promotionOutbound(input: { text: string | null; media: MediaRef | null }): OutboundMessage {
+/** A special the customer can tap stays under R2000. */
+export const PROMO_PRICE_MAX_CENTS = 200_000;
+
+const PROMO_CATEGORY = "Promotions";
+
+/** Blank means this is an announcement. A number means they can order it. */
+export function parsePromoPrice(raw: string | null | undefined): number | null {
+  if (!raw?.trim()) return null;
+  const cents = parsePriceToCents(raw);
+  if (cents < 0) throw new Error("The price cannot be negative.");
+  if (cents > PROMO_PRICE_MAX_CENTS) throw new Error("Keep the promotion price at R2000 or less.");
+  return cents;
+}
+
+/** First line of the note, used as the kitchen ticket name. */
+export function promoItemName(text: string | null): string {
+  const line = (text ?? "").split(/\n/)[0]?.replace(/\s+/g, " ").trim() ?? "";
+  const cleaned = line.replace(/[^\p{L}\p{N}&'.,\- ]/gu, "").trim();
+  return (cleaned || "Today's special").slice(0, 80);
+}
+
+export function promotionOutbound(input: {
+  text: string | null;
+  media: MediaRef | null;
+  priceCents?: number | null;
+  menuItemId?: string | null;
+  currencySymbol?: string;
+}): OutboundMessage {
   const text = input.text?.trim() || null;
+  if (input.priceCents != null && input.menuItemId) {
+    const price = input.priceCents === 0 ? "Free" : formatCents(input.priceCents, input.currencySymbol ?? "R");
+    const words = text || promoItemName(text);
+    return {
+      kind: "buttons",
+      image: input.media ?? undefined,
+      body: `${words}\n\n*${price}*\n\nTap Order this and I'll add it. You can add other items, then collect or get it delivered.`,
+      buttons: [
+        { id: encodeReplyId({ kind: "item", menuItemId: input.menuItemId }), title: "Order this" },
+        { id: encodeReplyId({ kind: "categories" }), title: "Browse the menu" },
+        { id: encodeReplyId({ kind: "typeOrder" }), title: "Type order" },
+      ],
+    };
+  }
   if (input.media && text) return { kind: "image", media: input.media, caption: text };
   if (input.media) return { kind: "image", media: input.media };
   if (text) return { kind: "text", text };
-  throw new Error("Add a picture, some text, or both.");
+  throw new Error("Add a picture, some text, or a price.");
 }
 
 export interface WhatsAppStatus {
@@ -85,6 +128,7 @@ export interface PromotionInput {
   storeId: string;
   text: string | null;
   image: { bytes: Buffer; mimeType: string } | null;
+  priceCents?: number | null;
 }
 
 export interface PromotionResult {
@@ -98,8 +142,9 @@ export interface PromotionResult {
 
 export async function sendPromotion(input: PromotionInput, now = new Date()): Promise<PromotionResult> {
   const text = input.text?.trim() || null;
+  const priceCents = input.priceCents ?? null;
   if (text && text.length > MAX_TEXT) throw new Error(`Keep the text under ${MAX_TEXT} characters.`);
-  if (!text && !input.image) throw new Error("Add a picture, some text, or both.");
+  if (!text && !input.image && priceCents == null) throw new Error("Add a picture, some text, or a price.");
   if (input.image) {
     if (!IMAGE_TYPES[input.image.mimeType]) throw new Error("Use a JPEG, PNG, or WebP picture.");
     if (input.image.bytes.length > MAX_IMAGE_BYTES) throw new Error("That picture is over 5 MB. Use a smaller one.");
@@ -109,7 +154,7 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const status = describeWhatsApp(store);
   const promotion = await db.promotion.create({
-    data: { storeId: store.id, body: text },
+    data: { storeId: store.id, body: text, priceCents },
   });
 
   let imagePath: string | null = null;
@@ -120,6 +165,12 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
     await mkdir(path.dirname(disk), { recursive: true });
     await writeFile(disk, input.image.bytes);
     await db.promotion.update({ where: { id: promotion.id }, data: { imagePath } });
+  }
+
+  let menuItemId: string | null = null;
+  if (priceCents != null) {
+    menuItemId = await createPromoItem(store.id, promoItemName(text), priceCents);
+    await db.promotion.update({ where: { id: promotion.id }, data: { menuItemId } });
   }
 
   const recipients = await loadRecipients(store.id);
@@ -145,7 +196,7 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
   }
 
   const media = input.image && imagePath ? await resolvePromotionMedia(store, input.image, imagePath) : null;
-  const message = promotionOutbound({ text, media });
+  const message = promotionOutbound({ text, media, priceCents, menuItemId, currencySymbol: store.currencySymbol });
   let sent = 0;
   let skipped = 0;
   let failed = 0;
@@ -217,6 +268,47 @@ async function loadRecipients(storeId: string): Promise<{ customerId: string; co
     });
   }
   return rows;
+}
+
+async function createPromoItem(storeId: string, name: string, priceCents: number): Promise<string> {
+  let category = await db.menuCategory.findFirst({ where: { storeId, name: PROMO_CATEGORY } });
+  if (!category) {
+    category = await db.menuCategory.create({
+      data: {
+        storeId,
+        name: PROMO_CATEGORY,
+        description: "Specials sent on WhatsApp. Hidden from the regular menu.",
+        active: false,
+        sortOrder: 999,
+      },
+    });
+  } else if (category.active) {
+    category = await db.menuCategory.update({ where: { id: category.id }, data: { active: false } });
+  }
+
+  const item = await db.menuItem.create({
+    data: {
+      storeId,
+      categoryId: category.id,
+      name: await unusedItemName(storeId, name),
+      priceCents,
+      available: true,
+      active: true,
+    },
+  });
+  return item.id;
+}
+
+async function unusedItemName(storeId: string, name: string): Promise<string> {
+  const taken = async (candidate: string) =>
+    Boolean(await db.menuItem.findFirst({ where: { storeId, name: candidate }, select: { id: true } }));
+  if (!(await taken(name))) return name;
+  for (let n = 2; n < 50; n += 1) {
+    const suffix = ` (${n})`;
+    const candidate = `${name.slice(0, 80 - suffix.length)}${suffix}`;
+    if (!(await taken(candidate))) return candidate;
+  }
+  return `${name.slice(0, 60)} ${Date.now().toString().slice(-6)}`;
 }
 
 async function resolvePromotionMedia(

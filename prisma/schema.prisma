@@ -179,6 +179,7 @@ model MenuItem {
   category      MenuCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   modifierLinks MenuItemModifierGroup[]
   orderItems    OrderItem[]
+  promotions    Promotion[]
 
   @@unique([storeId, name])
   @@index([storeId, active, available])
@@ -432,9 +433,13 @@ model Promotion {
   body      String?
   /// Public path such as promotions/abc.jpg, served from /public.
   imagePath String?
+  /// When set, the message includes Order this and the special joins a normal basket.
+  priceCents Int?
+  menuItemId String?
   createdAt DateTime @default(now())
 
   store      Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?           @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
   deliveries PromotionDelivery[]
 
   @@index([storeId, createdAt])

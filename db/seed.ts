@@ -170,25 +170,47 @@ export async function applyMenu(
   return { categoryIds, itemIds, groupIds, optionIds };
 }
 
-export async function seedStore(prisma: PrismaClient, opts: { phoneNumberId?: string } = {}): Promise<SeedResult> {
-  const phoneNumberId = opts.phoneNumberId ?? STORE_DEFAULTS.whatsappPhoneNumberId;
-  const kitchenPinHash = await bcrypt.hash(env.kitchenPin, 10);
+/**
+ * The phone number id that should sit on the one shop row.
+ * A value passed in wins, then a real id from the environment, then the id
+ * already on the shop, then the placeholder. Re-seeding must not create a
+ * second shop just because the placeholder was replaced.
+ */
+export function resolveStorePhoneId(input: { requested?: string; fromEnv?: string; existing?: string | null }): string {
+  const requested = input.requested?.trim();
+  if (requested) return requested;
+  const fromEnv = input.fromEnv?.trim();
+  if (fromEnv && fromEnv !== STORE_DEFAULTS.whatsappPhoneNumberId) return fromEnv;
+  return input.existing?.trim() || STORE_DEFAULTS.whatsappPhoneNumberId;
+}
 
-  const store = await prisma.store.upsert({
-    where: { whatsappPhoneNumberId: phoneNumberId },
-    create: {
-      name: STORE_DEFAULTS.name,
-      tradingName: STORE_DEFAULTS.tradingName,
-      phone: STORE_DEFAULTS.phone,
-      addressLine: STORE_DEFAULTS.addressLine,
-      suburb: STORE_DEFAULTS.suburb,
-      city: STORE_DEFAULTS.city,
-      postalCode: STORE_DEFAULTS.postalCode,
-      whatsappPhoneNumberId: phoneNumberId,
-      kitchenPinHash,
-    },
-    update: { kitchenPinHash },
+export async function seedStore(prisma: PrismaClient, opts: { phoneNumberId?: string } = {}): Promise<SeedResult> {
+  const kitchenPinHash = await bcrypt.hash(env.kitchenPin, 10);
+  const existing = await prisma.store.findFirst({ orderBy: { createdAt: "asc" } });
+  const phoneNumberId = resolveStorePhoneId({
+    requested: opts.phoneNumberId,
+    fromEnv: env.whatsappPhoneNumberId,
+    existing: existing?.whatsappPhoneNumberId,
   });
+
+  const store = existing
+    ? await prisma.store.update({
+        where: { id: existing.id },
+        data: { kitchenPinHash, whatsappPhoneNumberId: phoneNumberId },
+      })
+    : await prisma.store.create({
+        data: {
+          name: STORE_DEFAULTS.name,
+          tradingName: STORE_DEFAULTS.tradingName,
+          phone: STORE_DEFAULTS.phone,
+          addressLine: STORE_DEFAULTS.addressLine,
+          suburb: STORE_DEFAULTS.suburb,
+          city: STORE_DEFAULTS.city,
+          postalCode: STORE_DEFAULTS.postalCode,
+          whatsappPhoneNumberId: phoneNumberId,
+          kitchenPinHash,
+        },
+      });
 
   for (const h of TRADING_HOURS) {
     await prisma.tradingHour.upsert({

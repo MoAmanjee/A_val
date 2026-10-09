@@ -2,6 +2,7 @@ import type { MenuItem, Store } from "@prisma/client";
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
+import { resolveStorePhoneId } from "@/db/seed";
 import { categoryItemsMessage, categoryListRows, fulfilmentSummary, mealUpgradeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
@@ -31,6 +32,14 @@ function itemByName(name: string) {
   }
   throw new Error(`Missing menu item ${name}`);
 }
+
+describe("whatsapp phone number on the shop", () => {
+  it("keeps one shop and prefers the id from the environment", () => {
+    expect(resolveStorePhoneId({ fromEnv: "123456789012345", existing: "100000000000001" })).toBe("123456789012345");
+    expect(resolveStorePhoneId({ existing: "123456789012345" })).toBe("123456789012345");
+    expect(resolveStorePhoneId({})).toBe("100000000000001");
+  });
+});
 
 describe("money", () => {
   it("formats cents the way the till prints them", () => {

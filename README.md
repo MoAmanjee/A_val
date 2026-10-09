@@ -58,7 +58,7 @@ The kitchen is at http://localhost:3000/kitchen. The webhook is `GET` and `POST`
 2. Set `WHATSAPP_DRIVER=cloud`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_APP_SECRET`, and a long `WHATSAPP_VERIFY_TOKEN`.
 3. Set `APP_URL` to the public HTTPS origin (an ngrok URL is enough for a trial).
 4. In Meta, set the callback URL to `$APP_URL/api/webhooks/whatsapp` and the verify token to the same `WHATSAPP_VERIFY_TOKEN`.
-5. Put that phone number id on the store row (the seed uses a placeholder, `100000000000001`, until you do). Re-seed or update `stores.whatsappPhoneNumberId`.
+5. Put `WHATSAPP_PHONE_NUMBER_ID` in `.env`, then start the app again. The seed copies that id onto the existing shop. Until then the row stays `100000000000001` and Meta's messages are ignored. Do not send the token or the app secret to anyone. They stay in `.env`, which is not committed.
 
 Inbound webhooks are checked with `X-Hub-Signature-256`. The same message id is stored once, so Meta retries do not place a second order.
 

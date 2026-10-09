@@ -11,7 +11,8 @@ import { deliveryFeeLine } from "@/services/messaging/templates";
 import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 import { toGraphMessage } from "@/services/whatsapp/cloud";
-import { verifyWebhookSignature } from "@/services/whatsapp";
+import { inboundButtonPayload, inboundTextPayload } from "@/services/whatsapp/payload";
+import { parseWhatsAppWebhook, verifyWebhookSignature } from "@/services/whatsapp";
 import { WA_LIMITS } from "@/services/whatsapp/limits";
 import { matchFaq } from "@/services/conversations/faq";
 import { isOwnOrderStatus, orderAsk } from "@/services/conversations/order-questions";
@@ -345,6 +346,24 @@ describe("whatsapp messages", () => {
     expect(verifyWebhookSignature(body, sig, "secret")).toBe(true);
     expect(verifyWebhookSignature(body, sig, "other")).toBe(false);
     expect(verifyWebhookSignature(body, null, "secret")).toBe(false);
+  });
+
+  it("turns a playground tap into the same inbound shape Meta would send", () => {
+    const text = parseWhatsAppWebhook(
+      inboundTextPayload({ phoneNumberId: "100000000000001", from: "27820001111", text: "hi", name: "You", id: "wamid.1" }),
+    );
+    expect(text.messages[0]).toMatchObject({ from: "27820001111", text: "hi", type: "text", phoneNumberId: "100000000000001" });
+
+    const tap = parseWhatsAppWebhook(
+      inboundButtonPayload({
+        phoneNumberId: "100000000000001",
+        from: "27820001111",
+        replyId: "confirm:yes",
+        title: "Confirm order",
+        id: "wamid.2",
+      }),
+    );
+    expect(tap.messages[0]).toMatchObject({ type: "interactive", interactiveId: "confirm:yes", text: "Confirm order" });
   });
 
   it("pages a long category and keeps every list inside Meta's row cap", () => {

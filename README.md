@@ -30,17 +30,19 @@ Open `/kitchen` and enter `KITCHEN_PIN` (default `1234` until you change it).
 
 Open `/promotions` with the same kitchen PIN. Paste a picture, type a note, or send both. It goes to customers who have messaged the shop in the last 24 hours. WhatsApp blocks a free-form promotion after that, so older chats are skipped rather than risking the number. The page says when WhatsApp is not connected, and in that case nothing is delivered to a phone.
 
-## Run it locally
+## Run it on your laptop
 
-Postgres 16 via Docker:
+You need Node 22 and either Docker Desktop or Postgres 16. Then, from this folder:
 
 ```bash
-cp .env.example .env
-# For local tries, set WHATSAPP_DRIVER=mock
+npm install
 npm run local
 ```
 
-`npm run local` starts the database, applies migrations, seeds the Potch menu, and runs the app on port 3000.
+That creates `.env`, starts Postgres, loads the Potch menu, and serves the app on port 3000. Open:
+
+- http://localhost:3000/playground — you, as the customer. Type `hi` or a full order. Menu pictures and buttons work here. Nothing is sent to a real WhatsApp number.
+- http://localhost:3000/kitchen — kitchen PIN `1234`. Accept an order and the playground chat is told it is cooking, then ready.
 
 Without Docker, point `DATABASE_URL` at your own Postgres, then:
 
@@ -50,7 +52,7 @@ npx prisma db seed
 npm run dev
 ```
 
-The kitchen is at http://localhost:3000/kitchen. The webhook is `GET` and `POST` `/api/webhooks/whatsapp`.
+The webhook is `GET` and `POST` `/api/webhooks/whatsapp`. Leave `WHATSAPP_DRIVER=mock` until the branch number is connected.
 
 ## Connect the real WhatsApp number
 

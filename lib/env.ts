@@ -54,4 +54,8 @@ export const env = {
   get whatsappAppSecret() {
     return read("WHATSAPP_APP_SECRET");
   },
+  /** Local playground: take orders even outside trading hours. */
+  get forceOpen() {
+    return read("FORCE_OPEN", "false") === "true";
+  },
 };

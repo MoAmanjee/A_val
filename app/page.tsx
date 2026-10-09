@@ -24,7 +24,10 @@ export default async function HomePage() {
         when it is ready to collect at 17 Nelson Mandela Drive or when a delivery is on the way.
       </p>
       <div className="flex flex-wrap gap-3">
-        <Link href="/kitchen" className="rounded-full bg-red-700 px-5 py-3 font-semibold text-white">
+        <Link href="/playground" className="rounded-full bg-red-700 px-5 py-3 font-semibold text-white">
+          Try it on this laptop
+        </Link>
+        <Link href="/kitchen" className="rounded-full border border-neutral-300 px-5 py-3 font-semibold">
           Open the kitchen screen
         </Link>
         <Link href="/promotions" className="rounded-full border border-neutral-300 px-5 py-3 font-semibold">

@@ -1,5 +1,6 @@
 import type { MessageType, Store } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
 import {
@@ -180,7 +181,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     const activeOrder = await findActiveOrder(conv.id);
     const hours = await db.tradingHour.findMany({ where: { storeId: conv.storeId }, orderBy: { dayOfWeek: "asc" } });
     const openState = isOpenAt(hours, new Date(), conv.store.timezone);
-    const shopClosed = !openState.open && !activeOrder;
+    const shopClosed = !env.forceOpen && !openState.open && !activeOrder;
     const closedNote = openState.opensAt ? `we open again at ${openState.opensAt}.` : "we are closed for now.";
 
     // A tapped button carries exactly what it means. Browsing the menu is

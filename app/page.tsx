@@ -44,7 +44,7 @@ export default async function HomePage() {
         <p className="font-semibold text-neutral-900">How a message is handled</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>A greeting offers two ways in: type the whole order, or browse the menu. Each tap adds one item, then the same list comes straight back for the next one.</li>
-          <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Tap That&apos;s everything when the order is complete.</li>
+          <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Next item, Type order, Collect, and Delivery are buttons.</li>
           <li>The customer confirms the total before anything reaches the kitchen.</li>
           <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer.</li>
         </ol>

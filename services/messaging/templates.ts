@@ -191,7 +191,7 @@ export function categoryItemsMessage(
   category: Pick<MenuCategory, "id" | "name" | "description">,
   items: MenuItemRow[],
   page = 0,
-  opts: { checkout?: boolean; body?: string } = {},
+  opts: { checkout?: boolean; body?: string; buttonLabel?: string } = {},
 ): OutboundMessage {
   const available = items.filter((i) => i.available);
   const soldOut = items.filter((i) => !i.available);
@@ -232,15 +232,14 @@ export function categoryItemsMessage(
     kind: "list",
     body: clamp(body, WA_LIMITS.interactiveBody),
     footer: opts.checkout ? TYPE_THE_REST : undefined,
-    buttonLabel: opts.checkout ? "Next item" : "Choose an item",
+    buttonLabel: opts.buttonLabel ?? (opts.checkout ? "Next item" : "Choose an item"),
     sections: [{ title: clamp(category.name, WA_LIMITS.sectionTitle), rows }],
   };
 }
 
-/** Running basket while the customer is still tapping items on. */
+/** Running basket. The next step is buttons, not a paragraph. */
 export function keepAddingBody(order: FullOrder, store: Store): string {
   const total = `*Total: ${money(store, order.totalCents)}*`;
-  const hint = "Tap the next item, or That's everything when you are done. You can also type several items in one message.";
   const lines = order.items.map((item) => {
     const choices = describeItemChoices(item);
     const qty = item.quantity > 1 ? `${item.quantity} × ` : "";
@@ -250,11 +249,24 @@ export function keepAddingBody(order: FullOrder, store: Store): string {
   while (shown.length > 1) {
     const extra = lines.length - shown.length;
     const lead = extra > 0 ? `So far, plus ${extra} earlier:\n` : "So far:\n";
-    const body = `${lead}${shown.join("\n")}\n\n${total}\n\n${hint}`;
+    const body = `${lead}${shown.join("\n")}\n\n${total}`;
     if (body.length <= 900) return body;
     shown = shown.slice(1);
   }
-  return `So far:\n${shown.join("\n")}\n\n${total}\n\n${hint}`;
+  return `So far:\n${shown.join("\n")}\n\n${total}`;
+}
+
+/** Type, collect, or delivery. Short button titles, no "That's everything" sentence. */
+export function orderActionsMessage(order: FullOrder, store: Store): OutboundMessage {
+  return {
+    kind: "buttons",
+    body: keepAddingBody(order, store),
+    buttons: [
+      { id: encodeReplyId({ kind: "typeOrder" }), title: "Type order" },
+      { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
+      { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Delivery" },
+    ],
+  };
 }
 
 export function itemPriceLine(store: Store, item: Pick<MenuItem, "priceCents" | "mealUpgradeCents" | "description">): string {
@@ -367,8 +379,7 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
 export function fulfilmentMessage(store: Store): OutboundMessage {
   return {
     kind: "buttons",
-    body: `Would you like to collect from ${store.addressLine}, or should we deliver in ${store.city}? For delivery, send the street address in the same message. Type another item if you want to add one.`,
-    footer: "Pay the driver, or at the till",
+    body: `Collect from the shop, or delivery in ${store.city}?`,
     buttons: [
       { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
       { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Delivery" },

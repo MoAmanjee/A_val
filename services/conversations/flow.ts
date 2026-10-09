@@ -17,8 +17,8 @@ import {
   fulfilmentMessage,
   HANDOVER_MESSAGE,
   KEEP_ORDER_MESSAGE,
-  keepAddingBody,
   mealUpgradeMessage,
+  orderActionsMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
@@ -114,13 +114,12 @@ async function resetConversation(conversationId: string) {
   });
 }
 
-/** Section list. While a basket is open, include "That's everything" so they can stop without a separate question. */
+/** Section list. An open basket gets the action buttons again, under the sections. */
 async function sendSectionList(conversationId: string, storeId: string, fallbackBody?: string) {
   const draft = await findDraft(conversationId);
-  const checkout = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
-  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  const body = checkout && draft ? keepAddingBody(draft, conv.store) : fallbackBody;
-  await sendMenu(conversationId, storeId, body, checkout);
+  const open = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
+  await sendMenu(conversationId, storeId, open ? undefined : fallbackBody, false);
+  if (open && draft) await sendOrderActions(conversationId, draft);
 }
 
 async function sendMenu(conversationId: string, storeId: string, body?: string, checkout = false) {
@@ -131,25 +130,29 @@ async function sendMenu(conversationId: string, storeId: string, body?: string, 
 }
 
 /**
- * After an item is complete, put the same section back on screen with the
- * running total. The next item is one tap. "That's everything" is the only
- * extra step, instead of an "add something?" question between every item.
+ * After an item is complete, show that section again. The button under it is
+ * "Next item". Type order, collect, and delivery are buttons on the next message.
  */
 async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  const body = keepAddingBody(order, conv.store);
   const last = order.items[order.items.length - 1];
   const found = last ? await getCategoryItems(conv.storeId, last.menuItem.categoryId) : null;
   if (found?.items.some((item) => item.available)) {
     await sendToCustomer(
       conversationId,
-      categoryItemsMessage(conv.store, found.category, found.items, 0, { checkout: true, body }),
+      categoryItemsMessage(conv.store, found.category, found.items, 0, { buttonLabel: "Next item" }),
       "AI",
     );
-    await setPendingQuestion(conversationId, "ANYTHING_ELSE");
-    return;
+  } else {
+    await sendMenu(conversationId, conv.storeId);
   }
-  await sendMenu(conversationId, conv.storeId, body, true);
+  await sendOrderActions(conversationId, order);
+}
+
+async function sendOrderActions(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
+  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
+  await sendToCustomer(conversationId, orderActionsMessage(order, conv.store), "AI");
+  await setPendingQuestion(conversationId, "ANYTHING_ELSE");
 }
 
 // ---------------------------------------------------------------- Tapped replies
@@ -176,16 +179,19 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       }
       const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
       const draft = await findDraft(conversationId);
-      const checkout = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
+      const open = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
       await sendToCustomer(
         conversationId,
         categoryItemsMessage(conv.store, found.category, found.items, action.page ?? 0, {
-          checkout,
-          body: checkout && draft ? keepAddingBody(draft, conv.store) : undefined,
+          buttonLabel: open ? "Next item" : undefined,
         }),
         "AI",
       );
-      await setPendingQuestion(conversationId, checkout ? "ANYTHING_ELSE" : "NONE");
+      if (open && draft) {
+        await sendOrderActions(conversationId, draft);
+        return { sent: true };
+      }
+      await setPendingQuestion(conversationId, "NONE");
       return { sent: true };
     }
 
@@ -236,6 +242,7 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
     case "fulfilment": {
       const draft = await findDraft(conversationId);
       if (!draft) return staleTap(conversationId);
+      await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });
       await setFulfilment(draft.id, action.mode);
       return advanceFlow(conversationId);
     }

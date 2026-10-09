@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, welcomeMessage } from "@/services/messaging/templates";
+import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { lineTotalCents, orderTotals } from "@/services/orders/pricing";
@@ -362,8 +362,15 @@ describe("whatsapp messages", () => {
     const body = keepAddingBody(order, store);
     expect(body).toContain("1/4 Chicken");
     expect(body).toContain("Chicken Burger");
-    expect(body).toContain("That's everything");
+    expect(body).not.toMatch(/That's everything/);
     expect(body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
+
+    const actions = orderActionsMessage(order, store);
+    expect(actions.kind).toBe("buttons");
+    if (actions.kind !== "buttons") return;
+    expect(actions.buttons.map((button) => button.title)).toEqual(["Type order", "Collect", "Delivery"]);
+    expect(actions.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
+    expect(decodeReplyId(actions.buttons[2]?.id)).toEqual({ kind: "fulfilment", mode: "DELIVERY" });
   });
 });
 

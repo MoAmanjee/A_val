@@ -51,17 +51,38 @@ export async function resolveMenuMedia(store: Store, image: MenuImage): Promise<
   return { link: publicLink(image.filePath) };
 }
 
+const MENU_REPEAT_WINDOW_MS = 30 * 60 * 1000;
+
 /**
- * Send the printed menu. Pictures go every time this is asked for; the PDF
+ * Whether this start should include the printed pages.
+ * Saying hi twice before ordering does not send them again. Placing an order
+ * and coming back does, even inside that half hour.
+ */
+export function menuPicturesDue(input: {
+  force?: boolean;
+  lastSentAt: Date | null;
+  lastConfirmedAt: Date | null;
+  now?: Date;
+}): boolean {
+  if (input.force) return true;
+  if (!input.lastSentAt) return true;
+  const now = input.now ?? new Date();
+  const recent = now.getTime() - input.lastSentAt.getTime() < MENU_REPEAT_WINDOW_MS;
+  if (!recent) return true;
+  return Boolean(input.lastConfirmedAt && input.lastConfirmedAt > input.lastSentAt);
+}
+
+/**
+ * Send the printed menu. Pictures go at the start of an order; the PDF
  * only when the customer asked for a file, so a greeting does not dump a document.
  * Returns how many messages were handed to WhatsApp.
  */
 export async function sendMenuPictures(
   conversationId: string,
-  opts: { includePdf?: boolean; force?: boolean } = {},
+  opts: { includePdf?: boolean; force?: boolean; newOrder?: boolean } = {},
 ): Promise<number> {
   if (!opts.force) {
-    const since = new Date(Date.now() - 30 * 60 * 1000);
+    const since = new Date(Date.now() - MENU_REPEAT_WINDOW_MS);
     const recent = await db.message.findFirst({
       where: {
         conversationId,
@@ -69,9 +90,19 @@ export async function sendMenuPictures(
         messageType: { in: ["IMAGE", "DOCUMENT"] },
         createdAt: { gt: since },
       },
-      select: { id: true },
+      orderBy: { createdAt: "desc" },
+      select: { createdAt: true },
     });
-    if (recent) return 0;
+    let lastConfirmedAt: Date | null = null;
+    if (recent && opts.newOrder) {
+      const placed = await db.order.findFirst({
+        where: { conversationId, confirmedAt: { not: null } },
+        orderBy: { confirmedAt: "desc" },
+        select: { confirmedAt: true },
+      });
+      lastConfirmedAt = placed?.confirmedAt ?? null;
+    }
+    if (!menuPicturesDue({ force: false, lastSentAt: recent?.createdAt ?? null, lastConfirmedAt })) return 0;
   }
 
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });

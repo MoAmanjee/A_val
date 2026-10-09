@@ -14,6 +14,7 @@ import { verifyWebhookSignature } from "@/services/whatsapp";
 import { WA_LIMITS } from "@/services/whatsapp/limits";
 import { matchFaq } from "@/services/conversations/faq";
 import { isGreeting, readAnythingElse, readConfirmation, wantsMenu, wantsMenuPictures } from "@/services/conversations/understanding";
+import { menuPicturesDue } from "@/services/menu/images";
 import { formatCents, parsePriceToCents } from "@/utils/money";
 
 const store = {
@@ -81,6 +82,23 @@ describe("pricing", () => {
     });
     expect(line).toBe((5990 + 4000 + 1000) * 2);
     expect(orderTotals([{ unitPriceCents: 4990, quantity: 1, isMeal: false, mealUpgradeCents: 4600, modifierDeltaCents: [] }]).totalCents).toBe(4990);
+  });
+});
+
+describe("menu pictures", () => {
+  const now = new Date("2026-10-09T10:00:00Z");
+
+  it("sends the pages when a new order starts after the last one", () => {
+    const sent = new Date("2026-10-09T09:40:00Z");
+    const confirmed = new Date("2026-10-09T09:50:00Z");
+    expect(menuPicturesDue({ lastSentAt: sent, lastConfirmedAt: confirmed, now })).toBe(true);
+    expect(menuPicturesDue({ lastSentAt: null, lastConfirmedAt: null, now })).toBe(true);
+  });
+
+  it("does not send the pages again when they say hi twice before ordering", () => {
+    const sent = new Date("2026-10-09T09:50:00Z");
+    expect(menuPicturesDue({ lastSentAt: sent, lastConfirmedAt: null, now })).toBe(false);
+    expect(menuPicturesDue({ lastSentAt: sent, lastConfirmedAt: new Date("2026-10-09T09:20:00Z"), now })).toBe(false);
   });
 });
 

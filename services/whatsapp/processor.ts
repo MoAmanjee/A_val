@@ -246,7 +246,11 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     // A greeting with nothing in the basket starts the order with the menu pictures
     // and then the tappable sections.
     if (!draft?.items.length && (isGreeting(text) || wantsMenu(text) || wantsMenuPictures(text))) {
-      await sendMenuPictures(conv.id, { includePdf: /\bpdf\b/i.test(text), force: wantsMenuPictures(text) });
+      await sendMenuPictures(conv.id, {
+        includePdf: /\bpdf\b/i.test(text),
+        force: wantsMenuPictures(text),
+        newOrder: true,
+      });
       const categories = await getCategories(conv.storeId);
       const name = customer.name ?? firstName(customer.whatsappProfileName);
       await sendToCustomer(

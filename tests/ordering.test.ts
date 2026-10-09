@@ -14,6 +14,7 @@ import { toGraphMessage } from "@/services/whatsapp/cloud";
 import { verifyWebhookSignature } from "@/services/whatsapp";
 import { WA_LIMITS } from "@/services/whatsapp/limits";
 import { matchFaq } from "@/services/conversations/faq";
+import { isOwnOrderStatus, orderAsk } from "@/services/conversations/order-questions";
 import { isGreeting, readAnythingElse, readConfirmation, wantsMenu, wantsMenuPictures } from "@/services/conversations/understanding";
 import { menuPicturesDue } from "@/services/menu/images";
 import { formatCents, parsePriceToCents } from "@/utils/money";
@@ -150,6 +151,38 @@ describe("shop faqs", () => {
     expect(matchFaq("hot quarter chicken, deliver to 14 Kock Street", faqs)).toBeNull();
     expect(matchFaq("do you deliver?", faqs)?.answer).toMatch(/Potchefstroom/);
     expect(matchFaq("do you deliver?", faqs)?.answer).not.toMatch(/collection only/i);
+    expect(matchFaq("how long does an order take?", faqs)?.question).toMatch(/How long/);
+    expect(matchFaq("can I cancel my order?", faqs)?.question).toMatch(/cancel/i);
+    expect(matchFaq("how much is delivery?", faqs)?.question).toMatch(/delivery/i);
+    expect(matchFaq("what if I have a nut allergy?", faqs)?.question).toMatch(/allergy/i);
+    expect(matchFaq("do you have kids meals?", faqs)?.question).toMatch(/kids/i);
+    expect(matchFaq("where is my order?", faqs)?.question ?? "").not.toMatch(/park/i);
+    expect(matchFaq("hot quarter chicken meal", faqs)).toBeNull();
+    expect(matchFaq("how long are you open?", faqs)?.question).toMatch(/hours/i);
+    expect(matchFaq("do you deliver outside Potchefstroom?", faqs)?.question).toMatch(/outside/i);
+    expect(matchFaq("can I see the menu pictures?", faqs)?.question).toMatch(/see the menu/i);
+    expect(matchFaq("what drinks can I choose?", faqs)?.question).toMatch(/drinks/i);
+    expect(matchFaq("can each item have a different spice?", faqs)?.question).toMatch(/spice/i);
+    expect(matchFaq("can I collect instead?", faqs)?.question).toMatch(/collect/i);
+    expect(matchFaq("menu please", faqs)).toBeNull();
+  });
+});
+
+describe("questions about an order", () => {
+  it("treats how long my order takes as the live ticket, and opening hours as a shop question", () => {
+    expect(orderAsk("how long is my order?")).toBe("status");
+    expect(orderAsk("where is my order?")).toBe("status");
+    expect(orderAsk("is it ready yet?")).toBe("status");
+    expect(orderAsk("can I cancel?")).toBe("cancel");
+    expect(orderAsk("can I change my order?")).toBe("change");
+    expect(orderAsk("what's in my order?")).toBe("basket");
+    expect(orderAsk("how long are you open?")).toBeNull();
+    expect(orderAsk("quarter chicken hot")).toBeNull();
+    expect(orderAsk("how long does an order take?")).toBe("status");
+    expect(isOwnOrderStatus("where is my order?")).toBe(true);
+    expect(isOwnOrderStatus("how long is my order?")).toBe(true);
+    expect(isOwnOrderStatus("how long does an order take?")).toBe(false);
+    expect(isOwnOrderStatus("how long are you open?")).toBe(false);
   });
 });
 
@@ -229,10 +262,23 @@ describe("typed orders", () => {
   });
 
   it("leaves a delivery question for the FAQ", () => {
-    const parsed = parseUtterance("do you deliver?", catalog);
-    expect(parsed.ignoredAsQuestion).toBe(true);
-    expect(parsed.lines).toHaveLength(0);
-    expect(parsed.fulfilment).toBeNull();
+    for (const text of [
+      "do you deliver?",
+      "how much is delivery?",
+      "how long does an order take?",
+      "can I cancel my order?",
+      "what if I have a nut allergy?",
+    ]) {
+      const parsed = parseUtterance(text, catalog);
+      expect(parsed.ignoredAsQuestion, text).toBe(true);
+      expect(parsed.lines, text).toHaveLength(0);
+    }
+  });
+
+  it("still hears a kids meal as an order", () => {
+    const parsed = parseUtterance("can I get a bambino meal", catalog);
+    expect(parsed.ignoredAsQuestion).toBe(false);
+    expect(parsed.lines[0]?.item.name).toBe("Bambino Meal");
   });
 
   it("prints delivery on the order summary", () => {

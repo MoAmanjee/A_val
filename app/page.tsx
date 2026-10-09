@@ -46,7 +46,8 @@ export default async function HomePage() {
           <li>A greeting offers two ways in: type the whole order, or browse the menu. Each tap adds one item, then the same list comes straight back for the next one.</li>
           <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Next item, Type order, Collect, and Delivery are buttons.</li>
           <li>The customer confirms the total before anything reaches the kitchen.</li>
-          <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer.</li>
+          <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer. They can also set the delivery price, including free.</li>
+          <li>Shop questions (hours, delivery price, a meal, allergies) get a written answer. Ticket questions (how long, cancel, what is in it) are read from the order. Halaal is passed to the shop.</li>
         </ol>
       </section>
     </main>

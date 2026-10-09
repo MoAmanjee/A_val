@@ -877,7 +877,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
       question: "Where are you and where do I park?",
       answer:
         "We are at 17 Nelson Mandela Drive in the Potchefstroom CBD. There is street parking right outside, and the shop is on the main drag so it is easy to find.",
-      keywords: ["where", "address", "location", "directions", "parking", "find you", "where are you", "nelson mandela"],
+      keywords: ["address", "location", "directions", "parking", "find you", "where are you", "where you based", "nelson mandela"],
     },
     {
       question: "Do you deliver?",
@@ -889,7 +889,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
       question: "How do I pay?",
       answer:
         "Collection is paid at the till — cash, card or SnapScan. Delivery is paid to the driver, including the delivery amount shown on your total. There is no payment in the chat.",
-      keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint"],
+      keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint", "pay in the chat", "pay on whatsapp"],
     },
     {
       question: "How do I order on WhatsApp?",
@@ -920,6 +920,122 @@ export const MOCHACHOS_MENU: MenuSeed = {
       answer:
         "We do. The Familia Fiesta meals feed a crowd, and for anything bigger a staff member will put a quote together for you.",
       keywords: ["party", "catering", "function", "big order", "bulk order", "event"],
+    },
+    {
+      question: "How long does an order take?",
+      answer:
+        "Once the kitchen accepts it, food usually takes about 20 minutes. They message you when they start, and again when it is ready. If they are busy they will send their own time. Ask \"how long is my order?\" after you've confirmed and I'll read that ticket.",
+      keywords: ["how long", "how long does it take", "how long will it take", "prep time", "waiting time", "ready in", "eta"],
+    },
+    {
+      question: "Can I cancel my order?",
+      answer:
+        "Yes, in this chat, before the kitchen starts and for 5 minutes after they accept it. Say cancel and I'll ask you to confirm. Once they are cooking, or the food is already made, a person at the shop has to cancel it.",
+      keywords: ["cancel my order", "can i cancel", "cancellation", "kanselleer", "cancel it"],
+    },
+    {
+      question: "Can I change my order?",
+      answer:
+        "Before you tap yes, just say the change, like make it mild or remove the chips. After the kitchen has started, say cancel if the whole order should stop, or ask for a person if only one item should change.",
+      keywords: ["change my order", "edit my order", "amend my order", "wrong item", "made a mistake"],
+    },
+    {
+      question: "How much is delivery?",
+      answer:
+        "The shop sets the delivery price, and it can be free. It is added to your total before you confirm, and you pay the driver. Collection from 17 Nelson Mandela Drive has no delivery price. We deliver in Potchefstroom when you send a street address.",
+      keywords: ["delivery fee", "delivery price", "how much is delivery", "delivery cost", "cost to deliver", "is delivery free"],
+    },
+    {
+      question: "What is in a meal?",
+      answer:
+        "On most chicken and burgers, a meal adds beeg chips and a buddy drink. The chat shows that add-on price before you confirm. If you don't want the meal, say on its own.",
+      keywords: ["what is a meal", "whats in a meal", "what comes with a meal", "meal include", "what is included"],
+    },
+    {
+      question: "Do you have kids meals?",
+      answer:
+        "Yes. The Bambino Meal comes with chips, a fruit juice and a free toy. Ask for a Bambino Meal and I'll add it.",
+      keywords: ["kids", "kids meal", "kiddies", "bambino", "children", "child", "toy"],
+    },
+    {
+      question: "What if I have an allergy?",
+      answer:
+        "Tell me the allergy in your message and ask to speak to someone. I don't keep a full allergen list here, so a person at the shop needs to confirm it before the kitchen starts.",
+      keywords: ["allergy", "allergic", "allergen", "nut allergy", "gluten", "dairy", "intolerance"],
+    },
+    {
+      question: "What if my order is wrong?",
+      answer:
+        "Sorry. Say what is missing or wrong, and that you want a person. I'll hand the chat to the shop so they can fix it.",
+      keywords: ["wrong order", "missing item", "forgot my", "not what i ordered", "incorrect order"],
+    },
+    {
+      question: "Will you message me when it is ready?",
+      answer:
+        "Yes. You get a message when the kitchen accepts the order, and another when it is ready to collect or on the way. Your order number looks like MP-0004.",
+      keywords: ["message me", "notify me", "let me know", "order number", "how will i know"],
+    },
+    {
+      question: "Can I speak to someone?",
+      answer:
+        "Yes. Say you want to speak to someone and I'll pass this chat to the shop. They reply here.",
+      keywords: ["speak to someone", "talk to someone", "real person", "call the shop", "phone number"],
+    },
+    {
+      question: "Is there a minimum for delivery?",
+      answer:
+        "This chat does not set a minimum spend. Send the order and the street address. If the shop can't do that drop, a person will tell you.",
+      keywords: ["minimum", "minimum spend", "minimum order", "smallest order"],
+    },
+    {
+      question: "Do you deliver outside Potchefstroom?",
+      answer:
+        "The chat takes delivery inside Potchefstroom. Send the street address and we'll check it. If you're further out, ask for a person and the shop will say if they can.",
+      keywords: [
+        "deliver outside potchefstroom",
+        "outside potchefstroom",
+        "how far do you deliver",
+        "delivery area",
+        "delivery radius",
+        "other towns",
+        "klerksdorp",
+      ],
+    },
+    {
+      question: "Can I collect instead of delivery?",
+      answer:
+        "Yes. Tap Collect, or say collect. You pick up at 17 Nelson Mandela Drive in the Potchefstroom CBD and pay at the till. A collection has no delivery price.",
+      keywords: ["collect instead", "can i collect", "pick up", "pickup", "come fetch", "for collection"],
+    },
+    {
+      question: "Can I order more than one item?",
+      answer:
+        "Yes. Type everything in one message, or tap Next item after each one. Each item keeps its own spice. Say all hot when every item that still needs a spice should be the same.",
+      keywords: ["more than one", "multiple items", "several items", "two items", "whole order", "at the same time"],
+    },
+    {
+      question: "Can each item have a different spice?",
+      answer:
+        "Yes. Put the spice with the item, for example quarter chicken hot and a chicken burger mild. The choices are Lemon & Herb, Mild, Hot, Extra Hot and Dynamite. Say all hot only when every item should match.",
+      keywords: ["different spice", "different flavour", "own spice", "own flavour", "per item", "one hot one mild"],
+    },
+    {
+      question: "Can I see the menu?",
+      answer:
+        "Yes. Say menu pictures and I will send both pages. Say menu pdf if you want the file. Or tap Browse the menu and pick from the list. A new order also gets the pictures once.",
+      keywords: ["see the menu", "menu pictures", "menu pdf", "send the menu", "show me the menu", "picture of the menu"],
+    },
+    {
+      question: "What drinks can I choose?",
+      answer:
+        "A meal's buddy drink is Coke, Coke Zero, Fanta Orange, Sprite, Creme Soda or Stoney Ginger Beer. Drinks can also be ordered on their own from the menu.",
+      keywords: ["what drinks", "which drink", "buddy drink", "soft drinks", "what cool drinks", "which cool drink"],
+    },
+    {
+      question: "What happens after I say yes?",
+      answer:
+        "The kitchen gets the order and you get a number like MP-0004. They message you when they start, and again when it is ready to collect or on the way. The usual time is about 20 minutes after they accept. If they are busy they send their own time.",
+      keywords: ["after i say yes", "after i confirm", "what happens next", "once i confirm", "after i order"],
     },
   ],
 };

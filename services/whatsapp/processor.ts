@@ -14,6 +14,7 @@ import {
 import { advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
 import { applyDictation } from "@/services/orders/dictate";
 import { matchFaq } from "@/services/conversations/faq";
+import { orderAsk, replyToOrderAsk } from "@/services/conversations/order-questions";
 import { isGreeting, normalise, wantsCancel, wantsHuman, wantsMenu, wantsMenuPictures, wantsStatus } from "@/services/conversations/understanding";
 import { getCategories, getStoreFaqs } from "@/services/menu";
 import { sendMenuPictures } from "@/services/menu/images";
@@ -232,6 +233,11 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     // A plain answer to the question we just asked ("ja", "hot", "no thats all").
     const handled = await handlePendingText(conv, text);
     if (handled?.sent) return;
+
+    // "How long is my order?" and "can I cancel?" read the live ticket.
+    // A general "how long does food take?" falls through to the shop FAQs.
+    const ask = orderAsk(text);
+    if (ask && (await replyToOrderAsk(conv.id, ask, text))) return;
 
     const faq = matchFaq(text, await getStoreFaqs(conv.storeId));
     if (faq) {

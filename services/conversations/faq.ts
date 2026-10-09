@@ -35,7 +35,9 @@ export function matchFaq<T extends FaqMatchInput>(raw: string, faqs: T[]): T | n
       score += normalised.length;
       longest = Math.max(longest, normalised.length);
     }
-    if (score > 0 && (!best || score > best.score)) best = { faq, score, longest };
+    if (score > 0 && (!best || score > best.score || (score === best.score && longest > best.longest))) {
+      best = { faq, score, longest };
+    }
   }
 
   if (!best) return null;

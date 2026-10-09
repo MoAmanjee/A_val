@@ -43,8 +43,8 @@ export default async function HomePage() {
       <section className="rounded-2xl border border-neutral-200 bg-white p-5 text-sm leading-relaxed text-neutral-700">
         <p className="font-semibold text-neutral-900">How a message is handled</p>
         <ol className="mt-2 list-decimal space-y-1 pl-5">
-          <li>A greeting offers two ways in: type the whole order, or browse the menu. Each tap adds one item, then the same list comes straight back for the next one.</li>
-          <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Next item, Type order, Collect, and Delivery are buttons.</li>
+          <li>A greeting offers two ways in: type the whole order, or browse the menu. After each item, Add another opens every section, so a second and third item are the next taps.</li>
+          <li>A spice left out is asked per item, on a list. Type all hot when every item still waiting should match. Collect and Delivery sit at the bottom of that section list, not on top of the items.</li>
           <li>The customer confirms the total before anything reaches the kitchen.</li>
           <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer. They can also set the delivery price, including free.</li>
           <li>Shop questions (hours, delivery price, a meal, allergies) get a written answer. Ticket questions (how long, cancel, what is in it) are read from the order. Halaal is passed to the shop.</li>

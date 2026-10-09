@@ -157,9 +157,53 @@ export function categoryListRows(categories: Pick<MenuCategory, "id" | "name" | 
   return kept;
 }
 
-/** Checkout row first, then every section that still fits. No photo row, so a big order can move on in one tap. */
+const FINISH_ROWS: ListRow[] = [
+  {
+    id: encodeReplyId({ kind: "typeOrder" }),
+    title: "Type my order",
+    description: "Write the rest in one message",
+  },
+  {
+    id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }),
+    title: "Collect",
+    description: "Pay at the till",
+  },
+  {
+    id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }),
+    title: "Delivery",
+    description: "Pay the driver",
+  },
+];
+
+/**
+ * Sections first, then Collect and Delivery at the bottom of the same list.
+ * A separate button message under the items was getting tapped instead of the next item.
+ */
+export function addingSectionRows(
+  categories: Pick<MenuCategory, "id" | "name" | "description">[],
+  page = 0,
+): ListRow[] {
+  const finish = FINISH_ROWS.length;
+  const overflow = categories.length > WA_LIMITS.maxListRows - finish;
+  const pageSize = overflow ? WA_LIMITS.maxListRows - finish - 1 : WA_LIMITS.maxListRows - finish;
+  const pages = Math.max(1, Math.ceil(categories.length / pageSize));
+  const safePage = Math.min(Math.max(0, page), pages - 1);
+  const slice = categories.slice(safePage * pageSize, safePage * pageSize + pageSize);
+  const rows = slice.map(categoryRow);
+  if (safePage + 1 < pages) {
+    rows.push({
+      id: encodeReplyId({ kind: "categories", page: safePage + 1 }),
+      title: "More sections",
+      description: `Page ${safePage + 2} of ${pages}`,
+    });
+  }
+  rows.push(...FINISH_ROWS);
+  return rows;
+}
+
+/** @deprecated Use addingSectionRows. Kept so older callers still compile. */
 export function checkoutCategoryRows(categories: Pick<MenuCategory, "id" | "name" | "description">[]): ListRow[] {
-  return [DONE_ORDERING_ROW, ...categories.map(categoryRow)].slice(0, WA_LIMITS.maxListRows);
+  return addingSectionRows(categories, 0);
 }
 
 const DONE_ORDERING_ROW: ListRow = {
@@ -172,15 +216,15 @@ export function categoryPickerMessage(
   store: Store,
   categories: Pick<MenuCategory, "id" | "name" | "description">[],
   body = "Here is our menu. What can we get you?",
-  opts: { checkout?: boolean } = {},
+  opts: { checkout?: boolean; page?: number } = {},
 ): OutboundMessage {
   return {
     kind: "list",
     header: storeName(store),
     body: clamp(body, WA_LIMITS.interactiveBody),
-    footer: opts.checkout ? TYPE_THE_REST : undefined,
-    buttonLabel: opts.checkout ? "Next item" : "See the menu",
-    sections: [{ title: "Menu", rows: opts.checkout ? checkoutCategoryRows(categories) : categoryListRows(categories) }],
+    footer: opts.checkout ? "Add another item. Collect is at the bottom." : undefined,
+    buttonLabel: opts.checkout ? "Add another" : "See the menu",
+    sections: [{ title: "Menu", rows: opts.checkout ? addingSectionRows(categories, opts.page ?? 0) : categoryListRows(categories) }],
   };
 }
 
@@ -196,7 +240,7 @@ export function categoryItemsMessage(
   category: Pick<MenuCategory, "id" | "name" | "description">,
   items: MenuItemRow[],
   page = 0,
-  opts: { checkout?: boolean; body?: string; buttonLabel?: string } = {},
+  opts: { checkout?: boolean; adding?: boolean; body?: string; buttonLabel?: string } = {},
 ): OutboundMessage {
   const available = items.filter((i) => i.available);
   const soldOut = items.filter((i) => !i.available);
@@ -224,8 +268,8 @@ export function categoryItemsMessage(
   }
   rows.push({
     id: encodeReplyId({ kind: "categories" }),
-    title: opts.checkout ? "Other sections" : "\u2190 Back to menu",
-    description: opts.checkout ? "Burgers, sides, drinks" : undefined,
+    title: opts.checkout || opts.adding ? "Other sections" : "\u2190 Back to menu",
+    description: opts.checkout || opts.adding ? "Burgers, chicken, drinks" : undefined,
   });
 
   const header = category.description ? `${category.name} \u2014 ${category.description}` : category.name;

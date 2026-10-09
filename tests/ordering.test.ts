@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { categoryItemsMessage, categoryListRows, checkoutCategoryRows, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { clampDeliveryFeeCents, lineTotalCents, orderTotals } from "@/services/orders/pricing";
@@ -293,6 +293,7 @@ describe("reply ids", () => {
     const actions = [
       { kind: "category" as const, categoryId: "cat_1", page: 2 },
       { kind: "categories" as const },
+      { kind: "categories" as const, page: 1 },
       { kind: "menuPhotos" as const },
       { kind: "typeOrder" as const },
       { kind: "item" as const, menuItemId: "item_1" },
@@ -375,7 +376,7 @@ describe("whatsapp messages", () => {
     expect(rows.some((r) => r.title.startsWith("Burger"))).toBe(true);
   });
 
-  it("keeps the item list open and puts That's everything on the first row", () => {
+  it("keeps the next item on the list and puts collect at the bottom", () => {
     const items = Array.from({ length: 12 }, (_, i) => ({
       id: `item-${i}`,
       name: `Burger ${i + 1}`,
@@ -388,24 +389,40 @@ describe("whatsapp messages", () => {
     })) as unknown as Pick<MenuItem, "id" | "name" | "shortName" | "description" | "priceCents" | "mealUpgradeCents" | "available" | "soldOutNote">[];
 
     const list = categoryItemsMessage(store, { id: "burgers", name: "Burger El' Supremo", description: null }, items, 0, {
-      checkout: true,
-      body: "So far:\n• 1/4 Chicken\n\n*Total: R95.90*\n\nTap the next item, or That's everything when you are done.",
+      adding: true,
+      buttonLabel: "Next item",
     });
     if (list.kind !== "list") throw new Error("expected a list");
     const rows = list.sections.flatMap((section) => section.rows);
     expect(rows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
-    expect(rows[0]?.title).toBe("That's everything");
-    expect(decodeReplyId(rows[0]?.id)).toEqual({ kind: "anythingElse", done: true });
-    expect(rows.map((row) => row.title)).toContain("Burger 1");
+    expect(rows[0]?.title).toBe("Burger 1");
+    expect(rows.map((row) => row.title)).not.toContain("That's everything");
+    expect(rows.map((row) => row.title)).not.toContain("Collect");
     expect(rows.map((row) => row.title)).toContain("Other sections");
     expect(list.buttonLabel).toBe("Next item");
 
     const categories = MOCHACHOS_MENU.categories.map((c, i) => ({ id: `c${i}`, name: c.name, description: c.description ?? null }));
-    const sectionRows = checkoutCategoryRows(categories);
-    expect(sectionRows[0]?.title).toBe("That's everything");
+    const sectionRows = addingSectionRows(categories);
     expect(sectionRows.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
-    expect(sectionRows.some((row) => row.title === "Menu pictures")).toBe(false);
+    expect(sectionRows[0]?.title).not.toBe("Collect");
+    expect(sectionRows.at(-3)?.title).toBe("Type my order");
+    expect(sectionRows.at(-2)?.title).toBe("Collect");
+    expect(sectionRows.at(-1)?.title).toBe("Delivery");
+    expect(decodeReplyId(sectionRows.at(-2)?.id)).toEqual({ kind: "fulfilment", mode: "COLLECTION" });
     expect(sectionRows.some((row) => row.title.startsWith("Burger"))).toBe(true);
+    expect(sectionRows.some((row) => row.title.startsWith("Pollo"))).toBe(true);
+    const pageTwo = addingSectionRows(categories, 1);
+    expect(pageTwo.length).toBeLessThanOrEqual(WA_LIMITS.maxListRows);
+    expect(pageTwo.at(-1)?.title).toBe("Delivery");
+
+    const picker = categoryPickerMessage(store, categories, "So far:\n• 1/4 Chicken\n\n*Total: R95.90*", { checkout: true });
+    if (picker.kind !== "list") throw new Error("expected a list");
+    expect(picker.buttonLabel).toBe("Add another");
+    expect((picker.footer ?? "").length).toBeLessThanOrEqual(WA_LIMITS.footerText);
+    const pickerRows = picker.sections.flatMap((section) => section.rows);
+    expect(pickerRows[0]?.title).not.toBe("Collect");
+    expect(pickerRows.at(-1)?.title).toBe("Delivery");
+    expect(pickerRows.some((row) => row.title.startsWith("Burger"))).toBe(true);
   });
 
   it("fits a running total into one WhatsApp list body", () => {

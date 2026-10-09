@@ -17,8 +17,8 @@ import {
   fulfilmentMessage,
   HANDOVER_MESSAGE,
   KEEP_ORDER_MESSAGE,
+  keepAddingBody,
   mealUpgradeMessage,
-  orderActionsMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
@@ -114,12 +114,15 @@ async function resetConversation(conversationId: string) {
   });
 }
 
-/** Section list. An open basket gets the action buttons again, under the sections. */
-async function sendSectionList(conversationId: string, storeId: string, fallbackBody?: string) {
+/** Section list. An open basket stays on this list, with Collect and Delivery at the bottom. */
+async function sendSectionList(conversationId: string, storeId: string, fallbackBody?: string, page = 0) {
   const draft = await findDraft(conversationId);
   const open = Boolean(draft && draft.items.length > 0 && !nextRequirement(draft));
-  await sendMenu(conversationId, storeId, open ? undefined : fallbackBody, false);
-  if (open && draft) await sendOrderActions(conversationId, draft);
+  if (open && draft) {
+    await sendAddingSections(conversationId, draft, page);
+    return;
+  }
+  await sendMenu(conversationId, storeId, fallbackBody, false);
 }
 
 async function sendMenu(conversationId: string, storeId: string, body?: string, checkout = false) {
@@ -130,28 +133,26 @@ async function sendMenu(conversationId: string, storeId: string, body?: string, 
 }
 
 /**
- * After an item is complete, show that section again. The button under it is
- * "Next item". Type order, collect, and delivery are buttons on the next message.
+ * After an item is complete, show every section. Collect and Delivery sit at
+ * the bottom of that list, so the next tap can add a burger, then chicken,
+ * then a drink, instead of checking out.
  */
 async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
-  const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  const last = order.items[order.items.length - 1];
-  const found = last ? await getCategoryItems(conv.storeId, last.menuItem.categoryId) : null;
-  if (found?.items.some((item) => item.available)) {
-    await sendToCustomer(
-      conversationId,
-      categoryItemsMessage(conv.store, found.category, found.items, 0, { buttonLabel: "Next item" }),
-      "AI",
-    );
-  } else {
-    await sendMenu(conversationId, conv.storeId);
-  }
-  await sendOrderActions(conversationId, order);
+  await sendAddingSections(conversationId, order, 0);
 }
 
-async function sendOrderActions(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
+async function sendAddingSections(
+  conversationId: string,
+  order: NonNullable<Awaited<ReturnType<typeof findDraft>>>,
+  page: number,
+) {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  await sendToCustomer(conversationId, orderActionsMessage(order, conv.store), "AI");
+  const categories = await getCategories(conv.storeId);
+  await sendToCustomer(
+    conversationId,
+    categoryPickerMessage(conv.store, categories, keepAddingBody(order, conv.store), { checkout: true, page }),
+    "AI",
+  );
   await setPendingQuestion(conversationId, "ANYTHING_ELSE");
 }
 
@@ -168,7 +169,7 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
 
   switch (action.kind) {
     case "categories":
-      await sendSectionList(conversationId, conversation.storeId);
+      await sendSectionList(conversationId, conversation.storeId, undefined, action.page ?? 0);
       return { sent: true };
 
     case "category": {
@@ -183,15 +184,15 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       await sendToCustomer(
         conversationId,
         categoryItemsMessage(conv.store, found.category, found.items, action.page ?? 0, {
-          buttonLabel: open ? "Next item" : undefined,
+          adding: open,
+          buttonLabel: open ? "Add this item" : undefined,
+          body: open && draft ? keepAddingBody(draft, conv.store) : undefined,
         }),
         "AI",
       );
-      if (open && draft) {
-        await sendOrderActions(conversationId, draft);
-        return { sent: true };
-      }
-      await setPendingQuestion(conversationId, "NONE");
+      // Leave the item list as the last message. Collect stays on the section
+      // list, so opening chicken does not check the order out.
+      await setPendingQuestion(conversationId, open ? "ANYTHING_ELSE" : "NONE");
       return { sent: true };
     }
 

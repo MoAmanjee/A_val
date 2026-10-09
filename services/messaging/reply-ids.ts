@@ -11,8 +11,8 @@
 export type ReplyAction =
   /** Show the items in a menu category. `page` walks past WhatsApp's 10-row cap. */
   | { kind: "category"; categoryId: string; page?: number }
-  /** Go back to the list of categories. */
-  | { kind: "categories" }
+  /** Go back to the list of categories. `page` walks past the 10-row cap. */
+  | { kind: "categories"; page?: number }
   /** Send the printed menu pictures. */
   | { kind: "menuPhotos" }
   /** The customer would rather type the whole order than tap the menu. */
@@ -41,7 +41,7 @@ export function encodeReplyId(action: ReplyAction): string {
     case "category":
       return action.page ? `cat:${action.categoryId}:${action.page}` : `cat:${action.categoryId}`;
     case "categories":
-      return "cats";
+      return action.page ? `cats:${action.page}` : "cats";
     case "menuPhotos":
       return "photos";
     case "typeOrder":
@@ -76,8 +76,10 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       const page = b ? Number(b) : 0;
       return { kind: "category", categoryId: a, page: Number.isFinite(page) && page > 0 ? page : 0 };
     }
-    case "cats":
-      return { kind: "categories" };
+    case "cats": {
+      const page = a ? Number(a) : 0;
+      return page > 0 && Number.isFinite(page) ? { kind: "categories", page } : { kind: "categories" };
+    }
     case "photos":
       return { kind: "menuPhotos" };
     case "type":

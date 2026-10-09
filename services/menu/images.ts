@@ -88,6 +88,7 @@ export async function sendMenuPictures(
         conversationId,
         direction: "OUTBOUND",
         messageType: { in: ["IMAGE", "DOCUMENT"] },
+        deliveryStatus: { not: "FAILED" },
         createdAt: { gt: since },
       },
       orderBy: { createdAt: "desc" },

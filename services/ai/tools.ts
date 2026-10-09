@@ -106,10 +106,16 @@ function orderView(order: FullOrder) {
     items: order.items.map((i) => itemView(i, symbol)),
     total: money(order.totalCents, symbol),
     notes: order.notes,
+    fulfilment: order.fulfilment,
+    delivery_address: order.deliveryAddress,
     still_needed: missing,
     note: missing.length
       ? "The ordering system will ask the customer about these itself - do not ask about them in your reply."
-      : "Nothing outstanding; the system will show the summary and ask the customer to confirm.",
+      : order.fulfilment === "DELIVERY" && !order.deliveryAddress
+        ? "The ordering system will ask for the delivery address - do not ask for it yourself."
+        : order.fulfilment
+          ? "Nothing outstanding; the system will show the summary and ask the customer to confirm."
+          : "The ordering system will ask whether this is collection or delivery - do not ask that yourself.",
   };
 }
 
@@ -613,7 +619,8 @@ const TOOLS: Record<string, ToolSpec> = {
           trading_hours: hours.map((h) => ({ day: days[h.dayOfWeek], hours: h.closed ? "Closed" : `${h.opensAt} - ${h.closesAt}` })),
           typical_prep_minutes: s.defaultPrepMinutes,
           accepting_whatsapp_orders: s.acceptingOrders,
-          fulfilment: "Collection only",
+          fulfilment:
+            "Collection from the shop, or delivery in Potchefstroom when the customer gives a street address. Do not quote a delivery fee.",
           answers: faqs.map((f) => ({ question: f.question, answer: f.answer })),
         },
       };

@@ -882,18 +882,19 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "Do you deliver?",
       answer:
-        "WhatsApp orders are collection only from the Potch CBD branch. Order here and we will have it ready for you to pick up at 17 Nelson Mandela Drive.",
+        "Yes. We deliver in Potchefstroom. Send your order and the street address and the kitchen will see it. Pay the driver when it arrives, or pay at the till if you collect from 17 Nelson Mandela Drive. The chat does not quote a delivery fee — the shop confirms that.",
       keywords: ["deliver", "delivery", "do you deliver", "drop off", "uber eats", "mr d", "bolt food"],
     },
     {
       question: "How do I pay?",
-      answer: "You pay when you collect. We take cash, card and SnapScan at the till. There is no payment in the chat.",
+      answer:
+        "Collection is paid at the till — cash, card or SnapScan. Delivery is paid to the driver. There is no payment in the chat, and the chat does not quote a delivery fee.",
       keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint"],
     },
     {
       question: "How do I order on WhatsApp?",
       answer:
-        "I send the menu pictures and a list. Tap what you want, or type it, then choose the flavour and confirm. The kitchen gets it only after you say yes. You collect from 17 Nelson Mandela Drive and pay at the till.",
+        "Type the whole order in one message if you like, for example hot quarter chicken meal with a Coke, delivery to 14 Kock Street. Or tap through the menu. I only ask for what you left out. The kitchen gets it after you say yes. Collect from 17 Nelson Mandela Drive, or we deliver in Potchefstroom.",
       keywords: ["how do i order", "how does this work", "how to order", "how does ordering work"],
     },
     {

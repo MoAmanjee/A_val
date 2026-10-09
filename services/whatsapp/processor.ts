@@ -12,6 +12,7 @@ import {
   sendToCustomer,
 } from "@/services/conversations";
 import { advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
+import { applyDictation } from "@/services/orders/dictate";
 import { matchFaq } from "@/services/conversations/faq";
 import { isGreeting, normalise, wantsCancel, wantsHuman, wantsMenu, wantsMenuPictures, wantsStatus } from "@/services/conversations/understanding";
 import { getCategories, getStoreFaqs } from "@/services/menu";
@@ -213,6 +214,21 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
+    // A typed order fills every slot it already names (item, flavour, meal,
+    // drink, collection or delivery) so we only ask for the rest.
+    try {
+      const dictated = await applyDictation(conv.id, text);
+      if (dictated.changed) {
+        await advanceFlow(conv.id);
+        return;
+      }
+    } catch (e) {
+      console.error("[flow] could not read the typed order", e);
+      await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not add that \u2014 ${errorMessage(e)}` }, "AI");
+      await advanceFlow(conv.id);
+      return;
+    }
+
     // A plain answer to the question we just asked ("ja", "hot", "no thats all").
     const handled = await handlePendingText(conv, text);
     if (handled?.sent) return;
@@ -374,6 +390,7 @@ function startsAnOrder(action: ReplyAction): boolean {
     action.kind === "modifierSkip" ||
     action.kind === "meal" ||
     action.kind === "anythingElse" ||
+    action.kind === "fulfilment" ||
     action.kind === "confirm"
   );
 }

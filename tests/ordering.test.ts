@@ -2,7 +2,8 @@ import type { MenuItem, Store } from "@prisma/client";
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
-import { categoryItemsMessage, categoryListRows, mealUpgradeMessage } from "@/services/messaging/templates";
+import { categoryItemsMessage, categoryListRows, fulfilmentSummary, mealUpgradeMessage } from "@/services/messaging/templates";
+import { catalogFromMenu, parseUtterance, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { lineTotalCents, orderTotals } from "@/services/orders/pricing";
 import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/orders/requirements";
@@ -108,6 +109,75 @@ describe("shop faqs", () => {
     expect(matchFaq("hi", faqs)).toBeNull();
     expect(matchFaq("menu please", faqs)).toBeNull();
     expect(matchFaq("hot quarter chicken and a coke", faqs)).toBeNull();
+    expect(matchFaq("hot quarter chicken, deliver to 14 Kock Street", faqs)).toBeNull();
+    expect(matchFaq("do you deliver?", faqs)?.answer).toMatch(/Potchefstroom/);
+    expect(matchFaq("do you deliver?", faqs)?.answer).not.toMatch(/collection only/i);
+  });
+});
+
+describe("typed orders", () => {
+  const catalog = catalogFromMenu(MOCHACHOS_MENU);
+
+  function chosen(line: ParsedLine): string[] {
+    return line.selections.flatMap((selection) => selection.optionIds.map((id) => id.split(":").at(-1) ?? id));
+  }
+
+  it("reads flavour, meal and drink from one message", () => {
+    const parsed = parseUtterance("hot quarter chicken meal with a coke", catalog);
+    expect(parsed.fulfilment).toBeNull();
+    expect(parsed.deliveryAddress).toBeNull();
+    expect(parsed.lines).toHaveLength(1);
+    expect(parsed.lines[0].item.name).toBe("1/4 Chicken");
+    expect(parsed.lines[0].isMeal).toBe(true);
+    expect(chosen(parsed.lines[0])).toEqual(expect.arrayContaining(["Hot", "Coke"]));
+    expect(chosen(parsed.lines[0])).not.toContain("Extra Hot");
+  });
+
+  it("does not treat extra hot as hot", () => {
+    const parsed = parseUtterance("extra hot quarter chicken", catalog);
+    expect(parsed.lines[0].item.name).toBe("1/4 Chicken");
+    expect(chosen(parsed.lines[0])).toContain("Extra Hot");
+    expect(chosen(parsed.lines[0])).not.toContain("Hot");
+    expect(parsed.lines[0].isMeal).toBeNull();
+  });
+
+  it("keeps a drink on the meal instead of adding a can", () => {
+    const parsed = parseUtterance("hot quarter chicken and a coke", catalog);
+    expect(parsed.lines.map((line) => line.item.name)).toEqual(["1/4 Chicken"]);
+    expect(parsed.lines[0].isMeal).toBe(true);
+    expect(chosen(parsed.lines[0])).toEqual(expect.arrayContaining(["Hot", "Coke"]));
+  });
+
+  it("reads collection and a delivery address", () => {
+    const collect = parseUtterance("quarter chicken, collect", catalog);
+    expect(collect.lines[0].item.name).toBe("1/4 Chicken");
+    expect(collect.fulfilment).toBe("COLLECTION");
+    expect(collect.deliveryAddress).toBeNull();
+
+    const delivery = parseUtterance("delivery to 14 Kock Street", catalog);
+    expect(delivery.lines).toHaveLength(0);
+    expect(delivery.fulfilment).toBe("DELIVERY");
+    expect(delivery.deliveryAddress).toBe("14 Kock Street");
+
+    const together = parseUtterance("hot quarter chicken meal with a coke, delivery to 14 Kock Street", catalog);
+    expect(together.lines[0].item.name).toBe("1/4 Chicken");
+    expect(together.lines[0].isMeal).toBe(true);
+    expect(chosen(together.lines[0])).toEqual(expect.arrayContaining(["Hot", "Coke"]));
+    expect(together.fulfilment).toBe("DELIVERY");
+    expect(together.deliveryAddress).toBe("14 Kock Street");
+  });
+
+  it("leaves a delivery question for the FAQ", () => {
+    const parsed = parseUtterance("do you deliver?", catalog);
+    expect(parsed.ignoredAsQuestion).toBe(true);
+    expect(parsed.lines).toHaveLength(0);
+    expect(parsed.fulfilment).toBeNull();
+  });
+
+  it("prints delivery on the order summary", () => {
+    const line = fulfilmentSummary({ fulfilment: "DELIVERY", deliveryAddress: "14 Kock Street" }, store);
+    expect(line).toBe("Delivery to 14 Kock Street");
+    expect(fulfilmentSummary({ fulfilment: "COLLECTION" }, store)).toMatch(/Collection from 17 Nelson Mandela Dr/);
   });
 });
 
@@ -121,6 +191,7 @@ describe("reply ids", () => {
       { kind: "modifier" as const, orderItemId: "line_1", optionId: "opt_1" },
       { kind: "meal" as const, orderItemId: "line_1", yes: false },
       { kind: "anythingElse" as const, done: true },
+      { kind: "fulfilment" as const, mode: "DELIVERY" as const },
       { kind: "confirm" as const, answer: "yes" as const },
       { kind: "cancelOrder" as const, yes: true },
       { kind: "human" as const },

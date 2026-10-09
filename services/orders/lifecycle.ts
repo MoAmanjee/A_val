@@ -97,6 +97,10 @@ export async function confirmOrder(orderId: string, opts: { notify?: boolean } =
         : `We still need to know whether the ${missing?.item.nameSnapshot} is a meal`,
     );
   }
+  if (!priced.fulfilment) throw new InvalidStateError("We still need to know whether this is collection or delivery");
+  if (priced.fulfilment === "DELIVERY" && !priced.deliveryAddress?.trim()) {
+    throw new InvalidStateError("We still need a street address for the delivery");
+  }
   assertTransition(priced, "SENT_TO_KITCHEN");
 
   const orderNumber = priced.orderNumber ?? (await nextOrderNumber(priced.storeId));

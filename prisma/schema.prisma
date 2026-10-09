@@ -299,6 +299,10 @@ enum PendingQuestion {
   ORDER_CONFIRMATION
   /// Waiting for "are you sure you want to cancel?".
   CANCEL_CONFIRMATION
+  /// Waiting for collection or delivery.
+  FULFILMENT
+  /// Waiting for the street address when they chose delivery.
+  DELIVERY_ADDRESS
 }
 
 model Conversation {
@@ -411,6 +415,11 @@ enum CancelledBy {
   SYSTEM
 }
 
+enum Fulfilment {
+  COLLECTION
+  DELIVERY
+}
+
 model Order {
   id             String      @id @default(cuid())
   storeId        String
@@ -426,6 +435,11 @@ model Order {
 
   /// Free-text notes from the customer ("no mayo please").
   notes String?
+
+  /// Null until the customer says collection or delivery.
+  fulfilment Fulfilment?
+  /// Set when fulfilment is DELIVERY.
+  deliveryAddress String?
 
   /// What the bot quoted before the kitchen accepted.
   quotedPrepMinutes Int?

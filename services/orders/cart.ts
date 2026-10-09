@@ -223,3 +223,24 @@ export async function setOrderNotes(orderId: string, notes: string | null): Prom
   await db.order.update({ where: { id: orderId }, data: { notes } });
   return loadOrder(orderId);
 }
+
+/**
+ * Collection or delivery. Collection clears any address. A delivery address is
+ * only written when one is passed; tapping Delivery before the street is known
+ * leaves the address empty so the flow can ask for it.
+ */
+export async function setFulfilment(
+  orderId: string,
+  fulfilment: "COLLECTION" | "DELIVERY",
+  address?: string | null,
+): Promise<FullOrder> {
+  const order = await loadOrder(orderId);
+  assertEditable(order);
+  if (fulfilment === "COLLECTION") {
+    await db.order.update({ where: { id: orderId }, data: { fulfilment: "COLLECTION", deliveryAddress: null } });
+    return loadOrder(orderId);
+  }
+  const deliveryAddress = address === undefined ? order.deliveryAddress : address?.trim().slice(0, 240) || null;
+  await db.order.update({ where: { id: orderId }, data: { fulfilment: "DELIVERY", deliveryAddress } });
+  return loadOrder(orderId);
+}

@@ -8,6 +8,8 @@ type Ticket = {
   status: "SENT_TO_KITCHEN" | "ACKNOWLEDGED" | "PREPARING" | "READY_FOR_COLLECTION";
   totalCents: number;
   notes: string | null;
+  fulfilment: "COLLECTION" | "DELIVERY" | null;
+  deliveryAddress: string | null;
   confirmedAt: string | null;
   promisedReadyAt: string | null;
   customerName: string;
@@ -132,7 +134,7 @@ export default function KitchenPage() {
   const columns = [
     { title: "New", hint: "Accept so the customer gets a time", tickets: incoming, tone: "new" },
     { title: "Cooking", hint: "Mark ready when it can be collected", tickets: cooking, tone: "" },
-    { title: "Ready", hint: "Hand it over at the till", tickets: ready, tone: "ready" },
+    { title: "Ready", hint: "Hand it over, or send the delivery", tickets: ready, tone: "ready" },
   ];
 
   return (
@@ -171,6 +173,11 @@ export default function KitchenPage() {
                       <p className="text-sm text-neutral-400">
                         {ticket.customerName} · {ago(ticket.confirmedAt)}
                       </p>
+                      {ticket.fulfilment === "DELIVERY" ? (
+                        <p className="text-sm text-amber-200">Delivery{ticket.deliveryAddress ? ` · ${ticket.deliveryAddress}` : ""}</p>
+                      ) : ticket.fulfilment === "COLLECTION" ? (
+                        <p className="text-sm text-amber-200">Collection</p>
+                      ) : null}
                     </div>
                     <p className="font-semibold">{money(ticket.totalCents, board.store.currencySymbol)}</p>
                   </div>

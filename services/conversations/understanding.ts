@@ -15,6 +15,7 @@
 
 export type Confirmation = "yes" | "no" | "unclear";
 export type AnythingElse = "add" | "done" | "unclear";
+export type FulfilmentChoice = "COLLECTION" | "DELIVERY" | "unclear";
 
 /** Lowercase, strip punctuation and collapse whitespace, keeping emoji. */
 export function normalise(raw: string): string {
@@ -170,4 +171,16 @@ const STATUS_RE =
 
 export function wantsStatus(raw: string): boolean {
   return STATUS_RE.test(normalise(raw));
+}
+
+const DELIVERY_RE = /\b(deliver|delivery|drop off|dropoff|bring it)\b/;
+const COLLECT_RE = /\b(collect|collection|pick up|pickup|fetch|come get it|come fetch)\b/;
+
+/** Collection or delivery, when the customer says it in plain text. */
+export function readFulfilment(raw: string): FulfilmentChoice {
+  const text = normalise(raw);
+  const delivery = DELIVERY_RE.test(text);
+  const collect = COLLECT_RE.test(text);
+  if (delivery === collect) return "unclear";
+  return delivery ? "DELIVERY" : "COLLECTION";
 }

@@ -2,7 +2,7 @@ import { Prisma, type Conversation } from "@prisma/client";
 import { db } from "@/lib/db";
 import { errorMessage } from "@/lib/errors";
 import { handOverToHuman, sendToCustomer, setPendingQuestion } from "@/services/conversations";
-import { readAnythingElse, readConfirmation } from "@/services/conversations/understanding";
+import { readAnythingElse, readConfirmation, readFulfilment } from "@/services/conversations/understanding";
 import { getCategories, getCategoryItems, isDecisive, rankByName } from "@/services/menu";
 import { sendMenuPictures } from "@/services/menu/images";
 import type { ReplyAction } from "@/services/messaging/reply-ids";
@@ -14,14 +14,16 @@ import {
   cancelConfirmMessage,
   changeRequestMessage,
   confirmationMessages,
+  deliveryAddressMessage,
   DRAFT_CANCELLED_MESSAGE,
+  fulfilmentMessage,
   HANDOVER_MESSAGE,
   KEEP_ORDER_MESSAGE,
   mealUpgradeMessage,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
 } from "@/services/messaging/templates";
-import { addItem, findDraft, getOrCreateDraft, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
+import { addItem, findDraft, getOrCreateDraft, setFulfilment, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
 import { backToDraft, cancelOrder, confirmOrder, findActiveOrder, markAwaitingConfirmation } from "@/services/orders/lifecycle";
 import { nextRequirement } from "@/services/orders/requirements";
 
@@ -32,7 +34,8 @@ import { nextRequirement } from "@/services/orders/requirements";
  * the basket - a tapped button, or an item the model understood from free text -
  * `advanceFlow` looks at what the order still needs and sends exactly one
  * question for it, with buttons whose ids map straight back to the item and
- * choice they belong to.
+ * choice they belong to. A typed order that already named the flavour, the
+ * meal and the drink skips those questions.
  *
  * That split is the reason the flow is reliable: prices, totals and the
  * confirmation summary are rendered from the database, the questions come in a
@@ -77,6 +80,18 @@ export async function advanceFlow(conversationId: string): Promise<FlowResult> {
     await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });
     await sendToCustomer(conversationId, anythingElseMessage(order, conv.store), "AI");
     await setPendingQuestion(conversationId, "ANYTHING_ELSE");
+    return { sent: true };
+  }
+
+  if (!order.fulfilment) {
+    await sendToCustomer(conversationId, fulfilmentMessage(conv.store), "AI");
+    await setPendingQuestion(conversationId, "FULFILMENT", { orderId: order.id });
+    return { sent: true };
+  }
+
+  if (order.fulfilment === "DELIVERY" && !order.deliveryAddress?.trim()) {
+    await sendToCustomer(conversationId, deliveryAddressMessage(conv.store), "AI");
+    await setPendingQuestion(conversationId, "DELIVERY_ADDRESS", { orderId: order.id });
     return { sent: true };
   }
 
@@ -170,6 +185,13 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       const draft = await findDraft(conversationId);
       if (!draft) return staleTap(conversationId);
       await setMealUpgrade(draft.id, action.orderItemId, action.yes);
+      return advanceFlow(conversationId);
+    }
+
+    case "fulfilment": {
+      const draft = await findDraft(conversationId);
+      if (!draft) return staleTap(conversationId);
+      await setFulfilment(draft.id, action.mode);
       return advanceFlow(conversationId);
     }
 
@@ -293,6 +315,24 @@ export async function handlePendingText(conversation: Conversation, text: string
       const answer = readConfirmation(text);
       if (answer === "unclear") return null;
       return applyReplyAction(conversation, { kind: "cancelOrder", yes: answer === "yes" });
+    }
+
+    case "FULFILMENT": {
+      const mode = readFulfilment(text);
+      if (mode === "unclear") return null;
+      return applyReplyAction(conversation, { kind: "fulfilment", mode });
+    }
+
+    case "DELIVERY_ADDRESS": {
+      const mode = readFulfilment(text);
+      if (mode === "COLLECTION") return applyReplyAction(conversation, { kind: "fulfilment", mode: "COLLECTION" });
+      const address = text.trim();
+      if (address.length < 5 || address.length > 240) return null;
+      if (/^(do|does|can|could|what|where|when|how|is|are)\b/i.test(address)) return null;
+      const draft = await findDraft(conversation.id);
+      if (!draft) return null;
+      await setFulfilment(draft.id, "DELIVERY", address);
+      return advanceFlow(conversation.id);
     }
 
     default:

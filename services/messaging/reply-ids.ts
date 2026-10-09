@@ -25,6 +25,8 @@ export type ReplyAction =
   | { kind: "meal"; orderItemId: string; yes: boolean }
   /** Answer "anything else?". */
   | { kind: "anythingElse"; done: boolean }
+  /** Collection from the shop, or delivery to an address. */
+  | { kind: "fulfilment"; mode: "COLLECTION" | "DELIVERY" }
   /** Answer the order confirmation. */
   | { kind: "confirm"; answer: "yes" | "change" | "cancel" }
   /** Answer "are you sure you want to cancel?". */
@@ -50,6 +52,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return `meal:${action.orderItemId}:${action.yes ? "y" : "n"}`;
     case "anythingElse":
       return `else:${action.done ? "done" : "add"}`;
+    case "fulfilment":
+      return action.mode === "COLLECTION" ? "fulfil:collect" : "fulfil:deliver";
     case "confirm":
       return `confirm:${action.answer}`;
     case "cancelOrder":
@@ -82,6 +86,10 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       return a && (b === "y" || b === "n") ? { kind: "meal", orderItemId: a, yes: b === "y" } : null;
     case "else":
       return a === "done" || a === "add" ? { kind: "anythingElse", done: a === "done" } : null;
+    case "fulfil":
+      if (a === "collect") return { kind: "fulfilment", mode: "COLLECTION" };
+      if (a === "deliver") return { kind: "fulfilment", mode: "DELIVERY" };
+      return null;
     case "confirm":
       return a === "yes" || a === "change" || a === "cancel" ? { kind: "confirm", answer: a } : null;
     case "cancel":

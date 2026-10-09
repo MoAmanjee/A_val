@@ -12,6 +12,7 @@ import { formatClock } from "@/utils/time";
  */
 
 const MAX_SUMMARY_IN_BODY = 900;
+const TYPE_THE_REST = "Or type the rest in one message";
 
 export function storeName(store: Store): string {
   return store.tradingName || store.name;
@@ -66,11 +67,25 @@ export function orderLines(order: FullOrder, store: Store): string {
     .join("\n");
 }
 
+export function fulfilmentSummary(
+  order: { fulfilment?: "COLLECTION" | "DELIVERY" | null; deliveryAddress?: string | null },
+  store: Store,
+): string | null {
+  if (order.fulfilment === "DELIVERY") {
+    return order.deliveryAddress?.trim() ? `Delivery to ${order.deliveryAddress.trim()}` : "Delivery";
+  }
+  if (order.fulfilment === "COLLECTION") {
+    return `Collection from ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""}`;
+  }
+  return null;
+}
+
 export function orderSummaryText(order: FullOrder, store: Store): string {
   const lines = orderLines(order, store);
   const total = `*Total: ${money(store, order.totalCents)}*`;
+  const going = fulfilmentSummary(order, store);
   const notes = order.notes ? `\nNote for the kitchen: ${order.notes}` : "";
-  return `${lines}\n\n${total}${notes}`;
+  return `${lines}\n\n${total}${going ? `\n${going}` : ""}${notes}`;
 }
 
 // ---------------------------------------------------------------- Greeting & menu
@@ -85,7 +100,7 @@ export function welcomeMessage(
   const intro = opts.returning
     ? `${hello} 👋 Welcome back to ${storeName(store)}.`
     : `${hello} 👋 Welcome to ${storeName(store)} in ${store.city}.`;
-  const body = `${intro}\n\nWhat would you like to order today? Tap below to browse the menu, or just type what you want \u2014 for example "hot quarter chicken meal with a Coke".`;
+  const body = `${intro}\n\nWhat would you like to order today? Tap below to browse the menu, or type the whole order in one message \u2014 for example "hot quarter chicken meal with a Coke, delivery to 14 Kock Street".`;
 
   return {
     kind: "list",
@@ -222,6 +237,7 @@ export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, l
     return {
       kind: "buttons",
       body,
+      footer: TYPE_THE_REST,
       buttons: options.map((o) => ({
         id: encodeReplyId({ kind: "modifier", orderItemId: item.id, optionId: o.id }),
         title: label(o.name, o.priceDeltaCents),
@@ -241,6 +257,7 @@ export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, l
   return {
     kind: "list",
     body,
+    footer: TYPE_THE_REST,
     buttonLabel: group.name.length <= WA_LIMITS.listButtonLabel ? `Choose ${group.name.toLowerCase()}`.slice(0, WA_LIMITS.listButtonLabel) : "Choose",
     sections: [{ title: group.name, rows: rows.slice(0, WA_LIMITS.maxListRows) }],
   };
@@ -252,10 +269,30 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
   return {
     kind: "buttons",
     body: `${forItem(order, item)}Would you like that as a meal? A meal adds ${includes} for ${money(store, upgrade)}.`,
+    footer: TYPE_THE_REST,
     buttons: [
       { id: encodeReplyId({ kind: "meal", orderItemId: item.id, yes: true }), title: "Yes, make it a meal" },
       { id: encodeReplyId({ kind: "meal", orderItemId: item.id, yes: false }), title: "No, on its own" },
     ],
+  };
+}
+
+export function fulfilmentMessage(store: Store): OutboundMessage {
+  return {
+    kind: "buttons",
+    body: `Would you like to collect from ${store.addressLine}, or should we deliver in ${store.city}? For delivery, send the street address in the same message.`,
+    footer: "Pay the driver, or at the till",
+    buttons: [
+      { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
+      { id: encodeReplyId({ kind: "fulfilment", mode: "DELIVERY" }), title: "Delivery" },
+    ],
+  };
+}
+
+export function deliveryAddressMessage(store: Store): OutboundMessage {
+  return {
+    kind: "text",
+    text: `Where in ${store.city} should we deliver it? Send the street address, for example 14 Kock Street.`,
   };
 }
 
@@ -274,9 +311,16 @@ export function anythingElseMessage(order: FullOrder, store: Store): OutboundMes
  * The confirmation step. The summary goes in the button message when it fits,
  * otherwise it is sent as its own message first so nothing is truncated away.
  */
+function confirmationQuestion(order: FullOrder, store: Store, prepMinutes: number): string {
+  if (order.fulfilment === "DELIVERY" && order.deliveryAddress?.trim()) {
+    return `Is that correct? Tap *Yes, order it* and I will send it to the kitchen \u2014 about ${prepMinutes} minutes, delivered to ${order.deliveryAddress.trim()}. Pay the driver when it arrives.`;
+  }
+  return `Is that correct? Tap *Yes, order it* and I will send it straight to the kitchen \u2014 about ${prepMinutes} minutes for collection from ${store.addressLine}. Pay at the till.`;
+}
+
 export function confirmationMessages(order: FullOrder, store: Store, prepMinutes: number): OutboundMessage[] {
   const summary = orderSummaryText(order, store);
-  const question = `Is that correct? Tap *Yes, order it* and I will send it straight to the kitchen \u2014 about ${prepMinutes} minutes for collection.`;
+  const question = confirmationQuestion(order, store, prepMinutes);
   const buttons = [
     { id: encodeReplyId({ kind: "confirm", answer: "yes" as const }), title: "Yes, order it" },
     { id: encodeReplyId({ kind: "confirm", answer: "change" as const }), title: "Change something" },
@@ -296,43 +340,63 @@ export function confirmationMessages(order: FullOrder, store: Store, prepMinutes
 // ---------------------------------------------------------------- Order progress
 
 export function orderPlacedMessage(order: FullOrder, store: Store, prepMinutes: number): OutboundMessage {
+  const delivering = order.fulfilment === "DELIVERY" && Boolean(order.deliveryAddress?.trim());
   return {
     kind: "text",
-    text: [
-      `✅ Thank you! Order *${order.orderNumber}* is confirmed and on its way to the kitchen.`,
-      `Total: *${money(store, order.totalCents)}* \u2014 pay when you collect.`,
-      ``,
-      `We are at ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""}, ${store.city}.`,
-      `I will message you the moment the kitchen starts on it, and again when it is ready. It usually takes about ${prepMinutes} minutes.`,
-    ].join("\n"),
+    text: delivering
+      ? [
+          `✅ Thank you! Order *${order.orderNumber}* is confirmed and on its way to the kitchen.`,
+          `Total: *${money(store, order.totalCents)}* \u2014 pay the driver when it arrives.`,
+          ``,
+          `We will deliver to ${order.deliveryAddress?.trim()}.`,
+          `I will message you when the kitchen starts on it, and again when it is on the way. It usually takes about ${prepMinutes} minutes.`,
+        ].join("\n")
+      : [
+          `✅ Thank you! Order *${order.orderNumber}* is confirmed and on its way to the kitchen.`,
+          `Total: *${money(store, order.totalCents)}* \u2014 pay when you collect.`,
+          ``,
+          `We are at ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""}, ${store.city}.`,
+          `I will message you the moment the kitchen starts on it, and again when it is ready. It usually takes about ${prepMinutes} minutes.`,
+        ].join("\n"),
   };
 }
 
 export function kitchenAcknowledgedMessage(order: FullOrder, store: Store): OutboundMessage {
   const at = order.promisedReadyAt ? formatClock(order.promisedReadyAt, store.timezone) : null;
+  const delivering = order.fulfilment === "DELIVERY";
+  const readyFor = delivering ? "out for delivery" : "ready for collection";
   return {
     kind: "text",
     text: at
-      ? `👨‍🍳 The kitchen has started on order *${order.orderNumber}*. It should be ready for collection at about *${at}*.`
+      ? `👨‍🍳 The kitchen has started on order *${order.orderNumber}*. It should be ${readyFor} at about *${at}*.`
       : `👨‍🍳 The kitchen has your order *${order.orderNumber}* and is starting on it now.`,
   };
 }
 
 export function orderReadyMessage(order: FullOrder, store: Store): OutboundMessage {
+  const delivering = order.fulfilment === "DELIVERY" && Boolean(order.deliveryAddress?.trim());
   return {
     kind: "text",
-    text: [
-      `🔔 Order *${order.orderNumber}* is ready for collection!`,
-      `Come through to ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""} and give your order number at the till.`,
-      `Amount due: *${money(store, order.totalCents)}*. Enjoy! 🔥`,
-    ].join("\n"),
+    text: delivering
+      ? [
+          `🔔 Order *${order.orderNumber}* is on its way to ${order.deliveryAddress?.trim()}!`,
+          `Amount due: *${money(store, order.totalCents)}*. Pay the driver when it arrives. Enjoy! 🔥`,
+        ].join("\n")
+      : [
+          `🔔 Order *${order.orderNumber}* is ready for collection!`,
+          `Come through to ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""} and give your order number at the till.`,
+          `Amount due: *${money(store, order.totalCents)}*. Enjoy! 🔥`,
+        ].join("\n"),
   };
 }
 
 export function orderCollectedMessage(order: FullOrder, store: Store): OutboundMessage {
+  const delivering = order.fulfilment === "DELIVERY";
   return {
     kind: "text",
-    text: `Thanks for coming through! 🙌 Order *${order.orderNumber}* is all settled. Message us any time to order again from ${storeName(store)}.`,
+    text: delivering
+      ? `Thanks! 🙌 Order *${order.orderNumber}* has been delivered. Message us any time to order again from ${storeName(store)}.`
+      : `Thanks for coming through! 🙌 Order *${order.orderNumber}* is all settled. Message us any time to order again from ${storeName(store)}.`,
   };
 }
 

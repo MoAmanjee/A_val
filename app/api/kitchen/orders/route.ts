@@ -31,6 +31,8 @@ export async function GET() {
       status: order.status,
       totalCents: order.totalCents,
       notes: order.notes,
+      fulfilment: order.fulfilment,
+      deliveryAddress: order.deliveryAddress,
       confirmedAt: order.confirmedAt,
       promisedReadyAt: order.promisedReadyAt,
       customerName: order.customer.name || order.customer.whatsappProfileName || order.customer.phone,

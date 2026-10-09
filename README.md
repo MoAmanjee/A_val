@@ -2,27 +2,27 @@
 
 WhatsApp agent for one shop: **Mochachos Potchefstroom CBD**, 17 Nelson Mandela Drive, Potchefstroom.
 
-A customer messages the branch number. The bot sends the menu pictures, then walks the order one question at a time: flavour (Lemon & Herb, Mild, Hot, Extra Hot, or Dynamite), whether it should be a meal, which drink, and anything else. It shows the total and waits for a clear yes before the kitchen sees it. The kitchen screen accepts the ticket and later marks it ready. Both of those steps message the customer.
+A customer messages the branch number. The bot sends the menu pictures. They can type the whole order in one message — item, flavour, meal, drink, and collection or delivery — and the bot only asks for what they left out. It shows the total and waits for a clear yes before the kitchen sees it. The kitchen screen accepts the ticket and later marks it ready. Both of those steps message the customer.
 
 The menu is the 2026 Mochachos RSA board, stored in Postgres. Change a price or mark something sold out in the database and the next message uses the new figure. The bot does not invent prices.
 
 ## What a customer can do
 
 - Say hi, or ask for the menu, and get the two menu pages plus a tappable list.
-- Order in plain language ("hot quarter chicken meal with a Coke") when `OPENAI_API_KEY` is set.
-- Order with buttons only, even with no AI key.
+- Order in plain language ("hot quarter chicken meal with a Coke, delivery to 14 Kock Street"). That works with or without an AI key.
+- Order with buttons only. On a flavour or meal question, the rest of the order can still be typed in one message.
 - Confirm, change, or cancel. "Ja", "yebo", and "sharp" count as yes. "Yes but make it hot" does not place the order.
 - Ask when it will be ready, or cancel while the kitchen has not started (and for a few minutes after it accepts).
 - Ask for a person. The chat is then left for staff.
 
-Collection only. Pay at the till with cash, card, or SnapScan. There is no delivery and no in-chat payment.
+Collection from 17 Nelson Mandela Drive, or delivery in Potchefstroom when the customer sends a street address. Pay at the till for collection, or pay the driver for delivery. The chat does not take payment and does not quote a delivery fee.
 
 ## Kitchen screen
 
 Open `/kitchen` and enter `KITCHEN_PIN` (default `1234` until you change it).
 
 - **New** — Accept, with how many minutes it will take. The customer is told that time.
-- **Cooking** — Ready to collect. The customer is told to come through.
+- **Cooking** — Ready. The customer is told to collect, or that the delivery is on its way.
 - **Ready** — Collected.
 - **Cannot make it** — the customer is told the order was cancelled and nothing will be charged.
 
@@ -87,4 +87,4 @@ npm test
 npm run typecheck
 ```
 
-The tests cover prices against the combo board, the yes/no lexicon, button ids, menu paging, and the flavour → meal → drink order. They do not need Postgres.
+The tests cover prices against the combo board, the yes/no lexicon, button ids, menu paging, typed orders (including delivery), and the flavour → meal → drink order. They do not need Postgres.

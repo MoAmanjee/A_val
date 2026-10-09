@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 type Ticket = {
@@ -144,7 +145,11 @@ export default function KitchenPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">{board.store.name}</p>
           <h1 className="text-3xl font-black">Kitchen</h1>
         </div>
-        <button
+        <div className="flex gap-2">
+          <Link href="/promotions" className="rounded-full border border-neutral-600 px-4 py-2 text-sm">
+            Promotions
+          </Link>
+          <button
           className="rounded-full border border-neutral-600 px-4 py-2 text-sm"
           onClick={async () => {
             await fetch("/api/kitchen/logout", { method: "POST" });
@@ -154,6 +159,7 @@ export default function KitchenPage() {
         >
           Lock screen
         </button>
+        </div>
       </header>
       {error ? <p className="mb-4 rounded-xl bg-red-950 px-4 py-3 text-red-200">{error}</p> : null}
       <div className="grid gap-4 lg:grid-cols-3">

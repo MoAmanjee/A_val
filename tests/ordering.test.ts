@@ -133,6 +133,13 @@ describe("typed orders", () => {
     expect(chosen(parsed.lines[0])).not.toContain("Extra Hot");
   });
 
+  it("reads two menu items from one message", () => {
+    const parsed = parseUtterance("quarter chicken hot and a chicken burger mild", catalog);
+    expect(parsed.lines.map((line) => line.item.name)).toEqual(["1/4 Chicken", "Chicken Burger"]);
+    expect(chosen(parsed.lines[0])).toContain("Hot");
+    expect(chosen(parsed.lines[1])).toContain("Mild");
+  });
+
   it("does not treat extra hot as hot", () => {
     const parsed = parseUtterance("extra hot quarter chicken", catalog);
     expect(parsed.lines[0].item.name).toBe("1/4 Chicken");

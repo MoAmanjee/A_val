@@ -26,6 +26,10 @@ Open `/kitchen` and enter `KITCHEN_PIN` (default `1234` until you change it).
 - **Ready** — Collected.
 - **Cannot make it** — the customer is told the order was cancelled and nothing will be charged.
 
+## Promotions
+
+Open `/promotions` with the same kitchen PIN. Paste a picture, type a note, or send both. It goes to customers who have messaged the shop in the last 24 hours. WhatsApp blocks a free-form promotion after that, so older chats are skipped rather than risking the number. The page says when WhatsApp is not connected, and in that case nothing is delivered to a phone.
+
 ## Run it locally
 
 Postgres 16 via Docker:

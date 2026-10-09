@@ -280,7 +280,7 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
 export function fulfilmentMessage(store: Store): OutboundMessage {
   return {
     kind: "buttons",
-    body: `Would you like to collect from ${store.addressLine}, or should we deliver in ${store.city}? For delivery, send the street address in the same message.`,
+    body: `Would you like to collect from ${store.addressLine}, or should we deliver in ${store.city}? For delivery, send the street address in the same message. Type another item if you want to add one.`,
     footer: "Pay the driver, or at the till",
     buttons: [
       { id: encodeReplyId({ kind: "fulfilment", mode: "COLLECTION" }), title: "Collect" },
@@ -312,10 +312,11 @@ export function anythingElseMessage(order: FullOrder, store: Store): OutboundMes
  * otherwise it is sent as its own message first so nothing is truncated away.
  */
 function confirmationQuestion(order: FullOrder, store: Store, prepMinutes: number): string {
+  const another = "Type another item if you want to add one.";
   if (order.fulfilment === "DELIVERY" && order.deliveryAddress?.trim()) {
-    return `Is that correct? Tap *Yes, order it* and I will send it to the kitchen \u2014 about ${prepMinutes} minutes, delivered to ${order.deliveryAddress.trim()}. Pay the driver when it arrives.`;
+    return `Is that correct? Tap *Yes, order it* and I will send it to the kitchen — about ${prepMinutes} minutes, delivered to ${order.deliveryAddress.trim()}. Pay the driver when it arrives. ${another}`;
   }
-  return `Is that correct? Tap *Yes, order it* and I will send it straight to the kitchen \u2014 about ${prepMinutes} minutes for collection from ${store.addressLine}. Pay at the till.`;
+  return `Is that correct? Tap *Yes, order it* and I will send it straight to the kitchen — about ${prepMinutes} minutes for collection from ${store.addressLine}. Pay at the till. ${another}`;
 }
 
 export function confirmationMessages(order: FullOrder, store: Store, prepMinutes: number): OutboundMessage[] {

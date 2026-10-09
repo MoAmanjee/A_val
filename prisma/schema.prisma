@@ -59,6 +59,7 @@ model Store {
   conversations Conversation[]
   orders        Order[]
   faqs          FaqEntry[]
+  promotions    Promotion[]
 
   @@map("stores")
 }
@@ -274,6 +275,7 @@ model Customer {
   store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   conversations Conversation[]
   orders        Order[]
+  promotionDeliveries PromotionDelivery[]
 
   @@unique([storeId, phone])
   @@map("customers")
@@ -418,6 +420,45 @@ enum CancelledBy {
 enum Fulfilment {
   COLLECTION
   DELIVERY
+}
+
+/// A picture, a note, or both, sent to people who have already messaged the shop.
+model Promotion {
+  id        String   @id @default(cuid())
+  storeId   String
+  /// Optional words. On a picture this is the caption.
+  body      String?
+  /// Public path such as promotions/abc.jpg, served from /public.
+  imagePath String?
+  createdAt DateTime @default(now())
+
+  store      Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  deliveries PromotionDelivery[]
+
+  @@index([storeId, createdAt])
+  @@map("promotions")
+}
+
+enum PromotionDeliveryStatus {
+  SENT
+  /// Outside WhatsApp's 24-hour window, or the number is not connected.
+  SKIPPED
+  FAILED
+}
+
+model PromotionDelivery {
+  id          String                  @id @default(cuid())
+  promotionId String
+  customerId  String
+  status      PromotionDeliveryStatus
+  detail      String?
+  createdAt   DateTime                @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+  @@map("promotion_deliveries")
 }
 
 model Order {

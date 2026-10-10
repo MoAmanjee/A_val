@@ -235,16 +235,43 @@ export async function setFulfilment(
   orderId: string,
   fulfilment: "COLLECTION" | "DELIVERY",
   address?: string | null,
+  place?: { notes?: string | null; latitude?: number | null; longitude?: number | null },
 ): Promise<FullOrder> {
   const order = await loadOrder(orderId);
   assertEditable(order);
   if (fulfilment === "COLLECTION") {
-    await db.order.update({ where: { id: orderId }, data: { fulfilment: "COLLECTION", deliveryAddress: null, deliveryFeeCents: 0 } });
+    await db.order.update({
+      where: { id: orderId },
+      data: {
+        fulfilment: "COLLECTION",
+        deliveryAddress: null,
+        deliveryNotes: null,
+        deliveryLatitude: null,
+        deliveryLongitude: null,
+        deliveryFeeCents: 0,
+      },
+    });
     return recalculate(orderId);
   }
   const deliveryAddress = address === undefined ? order.deliveryAddress : address?.trim().slice(0, 240) || null;
-  await db.order.update({ where: { id: orderId }, data: { fulfilment: "DELIVERY", deliveryAddress } });
+  const notes = place && "notes" in place ? place.notes?.trim().slice(0, 240) || null : undefined;
+  await db.order.update({
+    where: { id: orderId },
+    data: {
+      fulfilment: "DELIVERY",
+      deliveryAddress,
+      ...(notes !== undefined ? { deliveryNotes: notes } : {}),
+      ...(place && "latitude" in place ? { deliveryLatitude: place.latitude ?? null, deliveryLongitude: place.longitude ?? null } : {}),
+    },
+  });
   return recalculate(orderId);
+}
+
+export async function setDeliveryNotes(orderId: string, notes: string | null): Promise<FullOrder> {
+  const order = await loadOrder(orderId);
+  assertEditable(order);
+  await db.order.update({ where: { id: orderId }, data: { deliveryNotes: notes?.trim().slice(0, 240) || null } });
+  return loadOrder(orderId);
 }
 
 /** The kitchen sets what delivery costs. Open baskets pick the new amount up. */

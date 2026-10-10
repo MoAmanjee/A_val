@@ -57,6 +57,8 @@ export interface InboundMessage {
   interactiveId?: string;
   mediaId?: string;
   caption?: string;
+  /** Present when the customer shares a WhatsApp location pin. */
+  location?: { latitude: number; longitude: number; name?: string; address?: string };
 }
 
 export interface StatusUpdate {

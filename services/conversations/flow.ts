@@ -13,6 +13,7 @@ import {
   changeRequestMessage,
   confirmationMessages,
   deliveryAddressMessage,
+  deliveryNoteMessage,
   DRAFT_CANCELLED_MESSAGE,
   fulfilmentMessage,
   HANDOVER_MESSAGE,
@@ -24,7 +25,8 @@ import {
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
 } from "@/services/messaging/templates";
-import { addItem, findDraft, getOrCreateDraft, setFulfilment, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
+import { addItem, findDraft, getOrCreateDraft, setDeliveryNotes, setFulfilment, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
+import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
 import { backToDraft, cancelOrder, confirmOrder, findActiveOrder, markAwaitingConfirmation } from "@/services/orders/lifecycle";
 import { nextRequirement } from "@/services/orders/requirements";
 
@@ -250,6 +252,13 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       return advanceFlow(conversationId);
     }
 
+    case "deliveryNote": {
+      const draft = await findDraft(conversationId);
+      if (!draft) return staleTap(conversationId);
+      await setDeliveryNotes(draft.id, null);
+      return advanceFlow(conversationId);
+    }
+
     case "basket": {
       const draft = await findDraft(conversationId);
       if (!draft?.items.length) {
@@ -399,20 +408,49 @@ export async function handlePendingText(conversation: Conversation, text: string
     }
 
     case "DELIVERY_ADDRESS": {
-      const mode = readFulfilment(text);
-      if (mode === "COLLECTION") return applyReplyAction(conversation, { kind: "fulfilment", mode: "COLLECTION" });
-      const address = text.trim();
-      if (address.length < 5 || address.length > 240) return null;
-      if (/^(do|does|can|could|what|where|when|how|is|are)\b/i.test(address)) return null;
       const draft = await findDraft(conversation.id);
       if (!draft) return null;
-      await setFulfilment(draft.id, "DELIVERY", address);
-      return advanceFlow(conversation.id);
+      const wantNote = Boolean((context as { wantNote?: boolean }).wantNote);
+      if (wantNote) {
+        await setDeliveryNotes(draft.id, isSkippedDriverNote(text) ? null : text.trim());
+        return advanceFlow(conversation.id);
+      }
+      const mode = readFulfilment(text);
+      if (mode === "COLLECTION") return applyReplyAction(conversation, { kind: "fulfilment", mode: "COLLECTION" });
+      const parsed = parseDeliveryText(text);
+      if (!parsed) return null;
+      await setFulfilment(draft.id, "DELIVERY", parsed.address, {
+        notes: parsed.notes,
+        latitude: null,
+        longitude: null,
+      });
+      if (parsed.notes) return advanceFlow(conversation.id);
+      await sendToCustomer(conversation.id, deliveryNoteMessage(), "AI");
+      await setPendingQuestion(conversation.id, "DELIVERY_ADDRESS", { orderId: draft.id, wantNote: true });
+      return { sent: true };
     }
 
     default:
       return null;
   }
+}
+
+/** A WhatsApp location pin stands in for the street address. A driver note is asked next. */
+export async function acceptDeliveryPin(
+  conversationId: string,
+  loc: { latitude: number; longitude: number; name?: string; address?: string },
+): Promise<FlowResult> {
+  const draft = await findDraft(conversationId);
+  if (!draft?.items.length) return { sent: false };
+  await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });
+  await setFulfilment(draft.id, "DELIVERY", pinLabel(loc), {
+    notes: null,
+    latitude: loc.latitude,
+    longitude: loc.longitude,
+  });
+  await sendToCustomer(conversationId, deliveryNoteMessage(), "AI");
+  await setPendingQuestion(conversationId, "DELIVERY_ADDRESS", { orderId: draft.id, wantNote: true });
+  return { sent: true };
 }
 
 /** Ask the customer to confirm a cancellation of an order already in the kitchen. */

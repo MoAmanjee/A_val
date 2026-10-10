@@ -11,6 +11,9 @@ type Ticket = {
   notes: string | null;
   fulfilment: "COLLECTION" | "DELIVERY" | null;
   deliveryAddress: string | null;
+  deliveryNotes: string | null;
+  deliveryLatitude: number | null;
+  deliveryLongitude: number | null;
   deliveryFeeCents: number;
   confirmedAt: string | null;
   promisedReadyAt: string | null;
@@ -233,11 +236,24 @@ export default function KitchenPage() {
                         {ticket.customerName} · {ago(ticket.confirmedAt)}
                       </p>
                       {ticket.fulfilment === "DELIVERY" ? (
-                        <p className="text-sm text-amber-200">
-                          Delivery
-                          {ticket.deliveryFeeCents > 0 ? ` ${money(ticket.deliveryFeeCents, board.store.currencySymbol)}` : " · free"}
-                          {ticket.deliveryAddress ? ` · ${ticket.deliveryAddress}` : ""}
-                        </p>
+                        <div className="text-sm text-amber-200">
+                          <p>
+                            Delivery
+                            {ticket.deliveryFeeCents > 0 ? ` ${money(ticket.deliveryFeeCents, board.store.currencySymbol)}` : " · free"}
+                            {ticket.deliveryAddress ? ` · ${ticket.deliveryAddress}` : ""}
+                          </p>
+                          {ticket.deliveryNotes ? <p>Driver note: {ticket.deliveryNotes}</p> : null}
+                          {ticket.deliveryLatitude != null && ticket.deliveryLongitude != null ? (
+                            <a
+                              className="underline"
+                              href={`https://www.google.com/maps?q=${ticket.deliveryLatitude},${ticket.deliveryLongitude}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Open the pin
+                            </a>
+                          ) : null}
+                        </div>
                       ) : ticket.fulfilment === "COLLECTION" ? (
                         <p className="text-sm text-amber-200">Collection</p>
                       ) : null}

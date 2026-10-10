@@ -11,7 +11,7 @@ import {
   recordInbound,
   sendToCustomer,
 } from "@/services/conversations";
-import { advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
+import { acceptDeliveryPin, advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
 import { applyDictation } from "@/services/orders/dictate";
 import { matchFaq } from "@/services/conversations/faq";
 import { orderAsk, replyToOrderAsk } from "@/services/conversations/order-questions";
@@ -198,6 +198,24 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
         await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not do that \u2014 ${errorMessage(e)}` }, "AI");
         await advanceFlow(conv.id);
       }
+      return;
+    }
+
+    if (msg.location && (conv.pendingQuestion === "DELIVERY_ADDRESS" || conv.pendingQuestion === "FULFILMENT")) {
+      const saved = await acceptDeliveryPin(conv.id, msg.location);
+      if (saved.sent) return;
+    }
+
+    // The street address is not food. Matching it against the menu was rejecting
+    // real addresses with "I didn't catch that".
+    if (conv.pendingQuestion === "DELIVERY_ADDRESS") {
+      const handled = await handlePendingText(conv, text);
+      if (handled?.sent) return;
+      await sendToCustomer(
+        conv.id,
+        { kind: "text", text: "Send the street address, or your WhatsApp location pin. A note for the driver can go on the next line." },
+        "AI",
+      );
       return;
     }
 

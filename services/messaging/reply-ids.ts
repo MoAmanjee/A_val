@@ -36,7 +36,9 @@ export type ReplyAction =
   /** Ask for a staff member. */
   | { kind: "human" }
   /** Back to Confirm order, Add to order, and Cancel order. */
-  | { kind: "basket" };
+  | { kind: "basket" }
+  /** Skip the optional driver note. */
+  | { kind: "deliveryNote"; skip: true };
 
 export function encodeReplyId(action: ReplyAction): string {
   switch (action.kind) {
@@ -68,6 +70,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return "human";
     case "basket":
       return "basket";
+    case "deliveryNote":
+      return "dnote:skip";
   }
 }
 
@@ -110,6 +114,8 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       return { kind: "human" };
     case "basket":
       return { kind: "basket" };
+    case "dnote":
+      return a === "skip" ? { kind: "deliveryNote", skip: true } : null;
     default:
       return null;
   }

@@ -3,7 +3,9 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, fulfilmentMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
+import { parseWhatsAppWebhook } from "@/services/whatsapp/cloud";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { clampDeliveryFeeCents, lineTotalCents, orderTotals } from "@/services/orders/pricing";
@@ -526,5 +528,88 @@ describe("what an order still needs", () => {
     const message = mealUpgradeMessage({ items: [item] } as FullOrder, item, store);
     expect(message.kind).toBe("buttons");
     if (message.kind === "buttons") expect(message.body).toContain("beeg chips and a buddy drink");
+  });
+});
+
+describe("delivery address and pin", () => {
+  it("keeps a typed street, and a driver note on the next line or after note:", () => {
+    expect(parseDeliveryText("14 Kock Street")).toEqual({ address: "14 Kock Street", notes: null });
+    expect(parseDeliveryText("14 Kock Street\nGate code 1234")).toEqual({
+      address: "14 Kock Street",
+      notes: "Gate code 1234",
+    });
+    expect(parseDeliveryText("17 Nelson Mandela Dr note: blue gate")).toEqual({
+      address: "17 Nelson Mandela Dr",
+      notes: "blue gate",
+    });
+    expect(parseDeliveryText("hi")).toBeNull();
+    expect(parseDeliveryText("where is my order")).toBeNull();
+    expect(parseDeliveryText("do you deliver to Cachet")).toBeNull();
+  });
+
+  it("treats no, skip and nothing as an empty driver note", () => {
+    expect(isSkippedDriverNote("no")).toBe(true);
+    expect(isSkippedDriverNote("No note")).toBe(true);
+    expect(isSkippedDriverNote("nothing")).toBe(true);
+    expect(isSkippedDriverNote("skip please")).toBe(true);
+    expect(isSkippedDriverNote("park at the blue gate")).toBe(false);
+    expect(isSkippedDriverNote("nothing, just hoot")).toBe(false);
+  });
+
+  it("labels a WhatsApp pin and puts the coordinates on the kitchen map link", () => {
+    expect(pinLabel({ latitude: -26.71452, longitude: 27.09705 })).toBe("Pinned location (-26.71452, 27.09705)");
+    expect(pinLabel({ latitude: -26.7, longitude: 27.1, name: "Mochachos", address: "17 Nelson Mandela Dr" })).toBe(
+      "Mochachos, 17 Nelson Mandela Dr",
+    );
+
+    const parsed = parseWhatsAppWebhook({
+      entry: [
+        {
+          changes: [
+            {
+              field: "messages",
+              value: {
+                metadata: { phone_number_id: "1261244360400536" },
+                messages: [
+                  {
+                    id: "wamid.pin",
+                    from: "27821234567",
+                    timestamp: "1710000000",
+                    type: "location",
+                    location: { latitude: -26.71452, longitude: 27.09705, name: "Home", address: "14 Kock Street" },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      ],
+    });
+    expect(parsed.messages[0]?.location).toEqual({
+      latitude: -26.71452,
+      longitude: 27.09705,
+      name: "Home",
+      address: "14 Kock Street",
+    });
+    expect(parsed.messages[0]?.text).toBe("Home, 14 Kock Street");
+  });
+
+  it("shows the driver note on the receipt and asks for a pin or a typed address", () => {
+    expect(fulfilmentSummary({ fulfilment: "DELIVERY", deliveryAddress: "14 Kock Street", deliveryNotes: "Blue gate" }, store)).toBe(
+      "Delivery to 14 Kock Street\nDriver note: Blue gate",
+    );
+    const ask = deliveryAddressMessage({ ...store, deliveryFeeCents: 1500 } as Store);
+    expect(ask.kind).toBe("text");
+    if (ask.kind === "text") {
+      expect(ask.text).toContain("R15.00");
+      expect(ask.text).toContain("WhatsApp location pin");
+      expect(ask.text).toContain("next line");
+    }
+    const note = deliveryNoteMessage();
+    expect(note.kind).toBe("buttons");
+    if (note.kind === "buttons") {
+      expect(note.buttons[0]?.title).toBe("No note");
+      expect(decodeReplyId(note.buttons[0]?.id)).toEqual({ kind: "deliveryNote", skip: true });
+    }
   });
 });

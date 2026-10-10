@@ -21,7 +21,7 @@ const PENDING_NOTE: Record<PendingQuestion, string> = {
     "The customer has been shown the receipt, including delivery when they asked for it, and can accept or decline. If their message clearly means yes, call confirm_order. If they want something changed, change it with the basket tools.",
   CANCEL_CONFIRMATION: "The customer was just asked to confirm that they want to cancel their order.",
   FULFILMENT: "The customer was just asked whether this order is collection or delivery. Do not ask that yourself.",
-  DELIVERY_ADDRESS: "The customer was just asked for a delivery street address. Do not ask for the address yourself.",
+  DELIVERY_ADDRESS: "The customer was just asked for a delivery address, a location pin, or an optional note for the driver. Do not ask for the address yourself.",
 };
 
 export function buildSystemPrompt(input: {

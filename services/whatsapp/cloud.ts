@@ -228,7 +228,14 @@ export function parseWhatsAppWebhook(payload: unknown): ParsedWebhook {
         } else if (type === "location") {
           msg.type = "location";
           const loc = asObj("location");
-          msg.text = `Shared location: ${loc?.latitude}, ${loc?.longitude}`;
+          const latitude = Number(loc?.latitude);
+          const longitude = Number(loc?.longitude);
+          const name = typeof loc?.name === "string" ? loc.name : undefined;
+          const address = typeof loc?.address === "string" ? loc.address : undefined;
+          if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+            msg.location = { latitude, longitude, name, address };
+          }
+          msg.text = [name, address].filter(Boolean).join(", ") || (msg.location ? `Pinned location (${latitude}, ${longitude})` : "");
         } else if (type === "button") {
           // Quick reply on a template message.
           msg.type = "button";

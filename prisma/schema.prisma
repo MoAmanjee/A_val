@@ -307,6 +307,7 @@ enum PendingQuestion {
   /// Waiting for collection or delivery.
   FULFILMENT
   /// Waiting for the street address when they chose delivery.
+  /// pendingContext.wantNote means the address is saved and a driver note is optional.
   DELIVERY_ADDRESS
 }
 
@@ -488,8 +489,13 @@ model Order {
 
   /// Null until the customer says collection or delivery.
   fulfilment Fulfilment?
-  /// Set when fulfilment is DELIVERY.
+  /// Set when fulfilment is DELIVERY. A typed street address, or the label from a pin.
   deliveryAddress String?
+  /// Optional instruction for the driver (gate code, flat, where to stop).
+  deliveryNotes String?
+  /// Set when the customer sends a WhatsApp location pin.
+  deliveryLatitude Float?
+  deliveryLongitude Float?
 
   /// What the bot quoted before the kitchen accepted.
   quotedPrepMinutes Int?

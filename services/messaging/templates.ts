@@ -68,11 +68,16 @@ export function orderLines(order: FullOrder, store: Store): string {
 }
 
 export function fulfilmentSummary(
-  order: { fulfilment?: "COLLECTION" | "DELIVERY" | null; deliveryAddress?: string | null },
+  order: {
+    fulfilment?: "COLLECTION" | "DELIVERY" | null;
+    deliveryAddress?: string | null;
+    deliveryNotes?: string | null;
+  },
   store: Store,
 ): string | null {
   if (order.fulfilment === "DELIVERY") {
-    return order.deliveryAddress?.trim() ? `Delivery to ${order.deliveryAddress.trim()}` : "Delivery";
+    const where = order.deliveryAddress?.trim() ? `Delivery to ${order.deliveryAddress.trim()}` : "Delivery";
+    return order.deliveryNotes?.trim() ? `${where}\nDriver note: ${order.deliveryNotes.trim()}` : where;
   }
   if (order.fulfilment === "COLLECTION") {
     return `Collection from ${store.addressLine}${store.suburb ? `, ${store.suburb}` : ""}`;
@@ -444,7 +449,22 @@ export function deliveryAddressMessage(store: Store): OutboundMessage {
     : "Delivery is free.";
   return {
     kind: "text",
-    text: `${fee} Where in ${store.city} should we deliver it? Send the street address, for example 14 Kock Street.`,
+    text: [
+      fee,
+      `Where in ${store.city} should we deliver it?`,
+      "",
+      "Type the street address. Put a note for the driver on the next line if you need one, for example a gate code.",
+      "",
+      "Or send your WhatsApp location pin. You can add a note after the pin.",
+    ].join("\n"),
+  };
+}
+
+export function deliveryNoteMessage(): OutboundMessage {
+  return {
+    kind: "buttons",
+    body: "Any note for the driver? A gate code, flat number, or where to stop. Type it, or tap No note.",
+    buttons: [{ id: encodeReplyId({ kind: "deliveryNote", skip: true }), title: "No note" }],
   };
 }
 

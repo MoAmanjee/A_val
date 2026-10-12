@@ -38,7 +38,9 @@ export type ReplyAction =
   /** Back to Confirm order, Add to order, and Cancel order. */
   | { kind: "basket" }
   /** Skip the optional driver note. */
-  | { kind: "deliveryNote"; skip: true };
+  | { kind: "deliveryNote"; skip: true }
+  /** Nothing to leave out of this item. */
+  | { kind: "itemNote"; orderItemId: string; skip: true };
 
 export function encodeReplyId(action: ReplyAction): string {
   switch (action.kind) {
@@ -72,6 +74,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return "basket";
     case "deliveryNote":
       return "dnote:skip";
+    case "itemNote":
+      return `inote:${action.orderItemId}`;
   }
 }
 
@@ -116,6 +120,8 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
       return { kind: "basket" };
     case "dnote":
       return a === "skip" ? { kind: "deliveryNote", skip: true } : null;
+    case "inote":
+      return a ? { kind: "itemNote", orderItemId: a, skip: true } : null;
     default:
       return null;
   }

@@ -4,6 +4,7 @@ import { normalise } from "@/services/conversations/understanding";
 import { normaliseMenuText, tokensRoughlyEqual } from "@/services/menu/matching";
 import type { MenuSeed } from "@/db/menu";
 import { addItem, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
+import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { missingRequirements, nextRequirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem } from "@/services/orders/query";
 
@@ -208,12 +209,17 @@ export function choicesForItem(raw: string, item: DictationItem): { selections: 
   return { selections, isMeal: readMeal(peeled.text, item, selections) };
 }
 
-export async function applyDictation(conversationId: string, text: string): Promise<{ changed: boolean; unmatched: string[] }> {
+export async function applyDictation(
+  conversationId: string,
+  text: string,
+): Promise<{ changed: boolean; unmatched: string[]; deliveryPaused: boolean }> {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
   const catalog = await loadCatalog(conv.storeId);
   const parsed = parseUtterance(text, catalog);
   const unmatched = parsed.unmatched;
-  if (parsed.ignoredAsQuestion) return { changed: false, unmatched };
+  const deliveryPaused = !DELIVERY_ENABLED && parsed.fulfilment === "DELIVERY";
+  const pack = (changed: boolean) => ({ changed, unmatched, deliveryPaused });
+  if (parsed.ignoredAsQuestion) return pack(false);
 
   const existing = await findDraft(conversationId);
   const namesAFood = parsed.lines.some((line) => !isDrinkVessel(line.item));
@@ -224,7 +230,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
       const current = await loadOrder(existing.id);
       await writeFulfilment(current, parsed);
       await noteAdding(conversationId, existing.id, parsed);
-      return { changed: true, unmatched };
+      return pack(true);
     }
   }
 
@@ -246,19 +252,19 @@ export async function applyDictation(conversationId: string, text: string): Prom
         const current = await loadOrder(existing.id);
         if (await writeFulfilment(current, parsed)) changed = true;
         if (changed) await noteAdding(conversationId, existing.id, parsed);
-        return { changed, unmatched };
+        return pack(changed);
       }
     }
   }
 
   if (!parsed.lines.length && !parsed.fulfilment) {
-    if (!existing?.items.length) return { changed: false, unmatched };
+    if (!existing?.items.length) return pack(false);
     const target = pickLooseTarget(existing, catalog, text);
-    if (!target) return { changed: false, unmatched };
+    if (!target) return pack(false);
     const item = catalog.find((entry) => entry.id === target.menuItemId);
-    if (!item) return { changed: false, unmatched };
+    if (!item) return pack(false);
     const extras = choicesForItem(text, item);
-    if (!extras.selections.length && extras.isMeal === null) return { changed: false, unmatched };
+    if (!extras.selections.length && extras.isMeal === null) return pack(false);
     const changed = await writeOnto(existing.id, target, {
       item,
       quantity: target.quantity,
@@ -267,14 +273,14 @@ export async function applyDictation(conversationId: string, text: string): Prom
       forceNew: false,
     });
     if (changed) await noteAdding(conversationId, existing.id, parsed);
-    return { changed, unmatched };
+    return pack(changed);
   }
 
   if (!parsed.lines.length) {
-    if (!existing) return { changed: false, unmatched };
+    if (!existing) return pack(false);
     const changed = await writeFulfilment(existing, parsed);
     if (changed) await noteAdding(conversationId, existing.id, parsed);
-    return { changed, unmatched };
+    return pack(changed);
   }
 
   const draft = existing ?? (await getOrCreateDraft(conversationId));
@@ -287,7 +293,7 @@ export async function applyDictation(conversationId: string, text: string): Prom
   }
   if (await writeFulfilment(current, parsed)) changed = true;
   if (changed) await noteAdding(conversationId, draft.id, parsed);
-  return { changed, unmatched };
+  return pack(changed);
 }
 
 async function loadCatalog(storeId: string): Promise<DictationItem[]> {
@@ -385,6 +391,11 @@ function sameSelection(item: FullOrderItem, selection: ParsedSelection): boolean
 
 async function writeFulfilment(order: FullOrder, parsed: ParsedUtterance): Promise<boolean> {
   if (!parsed.fulfilment) return false;
+  if (parsed.fulfilment === "DELIVERY" && !DELIVERY_ENABLED) {
+    if (order.fulfilment === "COLLECTION" && !order.deliveryAddress) return false;
+    await setFulfilment(order.id, "COLLECTION");
+    return true;
+  }
   if (parsed.fulfilment === "COLLECTION") {
     if (order.fulfilment === "COLLECTION" && !order.deliveryAddress) return false;
     await setFulfilment(order.id, "COLLECTION");

@@ -11,9 +11,11 @@ import {
   categoryPickerMessage,
   cancelConfirmMessage,
   changeRequestMessage,
+  COLLECTION_ONLY_MESSAGE,
   confirmationMessages,
   deliveryAddressMessage,
   deliveryNoteMessage,
+  itemNotesMessage,
   DRAFT_CANCELLED_MESSAGE,
   fulfilmentMessage,
   HANDOVER_MESSAGE,
@@ -25,8 +27,10 @@ import {
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
 } from "@/services/messaging/templates";
-import { addItem, findDraft, getOrCreateDraft, setDeliveryNotes, setFulfilment, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
+import { addItem, findDraft, getOrCreateDraft, setDeliveryNotes, setFulfilment, setItemNotes, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
+import { isSkippedItemNote } from "@/services/orders/item-notes";
+import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { backToDraft, cancelOrder, confirmOrder, findActiveOrder, markAwaitingConfirmation } from "@/services/orders/lifecycle";
 import { nextRequirement } from "@/services/orders/requirements";
 
@@ -72,6 +76,9 @@ export async function advanceFlow(conversationId: string): Promise<FlowResult> {
         orderItemId: requirement.item.id,
         modifierGroupId: requirement.link.modifierGroupId,
       });
+    } else if (requirement.kind === "ITEM_NOTES") {
+      await sendToCustomer(conversationId, itemNotesMessage(requirement.item), "AI");
+      await setPendingQuestion(conversationId, "ITEM_NOTES", { orderItemId: requirement.item.id });
     } else {
       await sendToCustomer(conversationId, mealUpgradeMessage(order, requirement.item, conv.store), "AI");
       await setPendingQuestion(conversationId, "MEAL_UPGRADE", { orderItemId: requirement.item.id });
@@ -82,6 +89,12 @@ export async function advanceFlow(conversationId: string): Promise<FlowResult> {
   if (!conv.askedAnythingElse) {
     await sendKeepAdding(conversationId, order);
     return { sent: true };
+  }
+
+  // Delivery is commented out for now. The question below stays so it can be switched back on.
+  if (!DELIVERY_ENABLED) {
+    if (order.fulfilment !== "COLLECTION") await setFulfilment(order.id, "COLLECTION");
+    return askForConfirmation(conversationId);
   }
 
   if (!order.fulfilment) {
@@ -137,7 +150,8 @@ async function sendMenu(conversationId: string, storeId: string, body?: string, 
 
 /**
  * After an item is complete, show Confirm order, Add to order, and Cancel order.
- * Add to order opens the sections. Confirm order asks about delivery, then the receipt.
+ * Add to order opens the sections. Confirm order goes to the receipt.
+ * Delivery is switched off, so the receipt is collection.
  */
 async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
@@ -241,6 +255,13 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       const draft = await findDraft(conversationId);
       if (!draft) return staleTap(conversationId);
       await setMealUpgrade(draft.id, action.orderItemId, action.yes);
+      return advanceFlow(conversationId);
+    }
+
+    case "itemNote": {
+      const draft = await findDraft(conversationId);
+      if (!draft) return staleTap(conversationId);
+      await setItemNotes(draft.id, action.orderItemId, null);
       return advanceFlow(conversationId);
     }
 
@@ -398,7 +419,21 @@ export async function handlePendingText(conversation: Conversation, text: string
       return applyReplyAction(conversation, { kind: "cancelOrder", yes: answer === "yes" });
     }
 
+    case "ITEM_NOTES": {
+      const draft = await findDraft(conversation.id);
+      if (!draft || !context.orderItemId) return null;
+      await setItemNotes(draft.id, context.orderItemId, isSkippedItemNote(text) ? null : text);
+      return advanceFlow(conversation.id);
+    }
+
     case "FULFILMENT": {
+      if (!DELIVERY_ENABLED) {
+        const draft = await findDraft(conversation.id);
+        if (!draft) return null;
+        await setFulfilment(draft.id, "COLLECTION");
+        await sendToCustomer(conversation.id, COLLECTION_ONLY_MESSAGE, "AI");
+        return advanceFlow(conversation.id);
+      }
       const mode = readFulfilment(text);
       if (mode !== "unclear") return applyReplyAction(conversation, { kind: "fulfilment", mode });
       const answer = readConfirmation(text);
@@ -410,6 +445,11 @@ export async function handlePendingText(conversation: Conversation, text: string
     case "DELIVERY_ADDRESS": {
       const draft = await findDraft(conversation.id);
       if (!draft) return null;
+      if (!DELIVERY_ENABLED) {
+        await setFulfilment(draft.id, "COLLECTION");
+        await sendToCustomer(conversation.id, COLLECTION_ONLY_MESSAGE, "AI");
+        return advanceFlow(conversation.id);
+      }
       const wantNote = Boolean((context as { wantNote?: boolean }).wantNote);
       if (wantNote) {
         await setDeliveryNotes(draft.id, isSkippedDriverNote(text) ? null : text.trim());
@@ -440,6 +480,7 @@ export async function acceptDeliveryPin(
   conversationId: string,
   loc: { latitude: number; longitude: number; name?: string; address?: string },
 ): Promise<FlowResult> {
+  if (!DELIVERY_ENABLED) return { sent: false };
   const draft = await findDraft(conversationId);
   if (!draft?.items.length) return { sent: false };
   await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });

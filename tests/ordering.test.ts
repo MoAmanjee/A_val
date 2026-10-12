@@ -3,8 +3,10 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
+import { isSkippedItemNote } from "@/services/orders/item-notes";
+import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { parseWhatsAppWebhook } from "@/services/whatsapp/cloud";
 import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "@/services/orders/dictate";
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
@@ -151,8 +153,8 @@ describe("shop faqs", () => {
     expect(matchFaq("menu please", faqs)).toBeNull();
     expect(matchFaq("hot quarter chicken and a coke", faqs)).toBeNull();
     expect(matchFaq("hot quarter chicken, deliver to 14 Kock Street", faqs)).toBeNull();
-    expect(matchFaq("do you deliver?", faqs)?.answer).toMatch(/Potchefstroom/);
-    expect(matchFaq("do you deliver?", faqs)?.answer).not.toMatch(/collection only/i);
+    expect(matchFaq("do you deliver?", faqs)?.answer).toMatch(/collection/i);
+    expect(matchFaq("do you deliver?", faqs)?.answer).toMatch(/off for now|Not at the moment/);
     expect(matchFaq("how long does an order take?", faqs)?.question).toMatch(/How long/);
     expect(matchFaq("can I cancel my order?", faqs)?.question).toMatch(/cancel/i);
     expect(matchFaq("how much is delivery?", faqs)?.question).toMatch(/delivery/i);
@@ -513,12 +515,14 @@ describe("what an order still needs", () => {
     if (drinkReq.kind === "MODIFIER") expect(drinkReq.link.modifierGroupId).toBe("drink");
 
     order.items[0].modifiers.push({ groupId: "drink" } as FullOrderItem["modifiers"][number]);
+    expect(nextRequirement(order)?.kind).toBe("ITEM_NOTES");
+    order.items[0].notesOffered = true;
     expect(isReadyToConfirm(order)).toBe(true);
   });
 
   it("does not ask for a meal drink when the customer said no", () => {
     const order = {
-      items: [line({ links: [link("ALWAYS", "flavour", ["Hot"]), link("MEAL_ONLY", "drink", ["Coke"])], chosen: ["flavour"], isMeal: false })],
+      items: [line({ links: [link("ALWAYS", "flavour", ["Hot"]), link("MEAL_ONLY", "drink", ["Coke"])], chosen: ["flavour"], isMeal: false, notesOffered: true })],
     } as FullOrder;
     expect(nextRequirement(order)).toBeNull();
   });
@@ -528,6 +532,27 @@ describe("what an order still needs", () => {
     const message = mealUpgradeMessage({ items: [item] } as FullOrder, item, store);
     expect(message.kind).toBe("buttons");
     if (message.kind === "buttons") expect(message.body).toContain("beeg chips and a buddy drink");
+  });
+
+  it("asks what to leave out after the spice and the meal, and No notes is a skip", () => {
+    const order = {
+      items: [line({ links: [link("ALWAYS", "flavour", ["Hot"])], chosen: ["flavour"], isMeal: false, nameSnapshot: "Beef Burger" })],
+    } as FullOrder;
+    const note = nextRequirement(order);
+    expect(note?.kind).toBe("ITEM_NOTES");
+    if (note?.kind !== "ITEM_NOTES") return;
+    const message = itemNotesMessage(note.item);
+    expect(message.kind).toBe("buttons");
+    if (message.kind !== "buttons") return;
+    expect(message.body).toContain("Beef Burger");
+    expect(message.body).toContain("no tomato");
+    expect(message.buttons[0]?.title).toBe("No notes");
+    expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "itemNote", orderItemId: "line", skip: true });
+    expect(isSkippedItemNote("no")).toBe(true);
+    expect(isSkippedItemNote("No notes")).toBe(true);
+    expect(isSkippedItemNote("no tomato")).toBe(false);
+    expect(isSkippedItemNote("no lettuce")).toBe(false);
+    expect(DELIVERY_ENABLED).toBe(false);
   });
 });
 

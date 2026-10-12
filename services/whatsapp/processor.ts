@@ -22,6 +22,7 @@ import { decodeReplyId, type ReplyAction } from "@/services/messaging/reply-ids"
 import {
   categoryPickerMessage,
   closedMessage,
+  COLLECTION_ONLY_MESSAGE,
   FALLBACK_MESSAGE,
   HANDOVER_MESSAGE,
   MEDIA_MESSAGE,
@@ -206,6 +207,18 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       if (saved.sent) return;
     }
 
+    // A leave-out or allergy is not another menu item.
+    if (conv.pendingQuestion === "ITEM_NOTES") {
+      const handled = await handlePendingText(conv, text);
+      if (handled?.sent) return;
+      await sendToCustomer(
+        conv.id,
+        { kind: "text", text: "Type what to leave out, or an allergy, for example no tomato. Or tap No notes." },
+        "AI",
+      );
+      return;
+    }
+
     // The street address is not food. Matching it against the menu was rejecting
     // real addresses with "I didn't catch that".
     if (conv.pendingQuestion === "DELIVERY_ADDRESS") {
@@ -241,11 +254,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       if (dictated.unmatched.length) {
         await sendToCustomer(conv.id, missedItemsMessage(dictated.unmatched), "AI");
       }
+      if (dictated.deliveryPaused) {
+        await sendToCustomer(conv.id, COLLECTION_ONLY_MESSAGE, "AI");
+      }
       if (dictated.changed) {
         await advanceFlow(conv.id);
         return;
       }
-      if (dictated.unmatched.length) return;
+      if (dictated.unmatched.length || dictated.deliveryPaused) return;
     } catch (e) {
       console.error("[flow] could not read the typed order", e);
       await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not add that \u2014 ${errorMessage(e)}` }, "AI");
@@ -438,6 +454,7 @@ function startsAnOrder(action: ReplyAction): boolean {
     action.kind === "meal" ||
     action.kind === "anythingElse" ||
     action.kind === "fulfilment" ||
+    action.kind === "itemNote" ||
     action.kind === "confirm"
   );
 }

@@ -2,6 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { InvalidStateError, NotFoundError } from "@/lib/errors";
 import { clampDeliveryFeeCents, lineTotalCents, orderTotals, type LineInput } from "@/services/orders/pricing";
+import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { ORDER_INCLUDE, type FullOrder, type FullOrderItem } from "@/services/orders/query";
 
 /** Statuses where the basket is still the customer's to change. */
@@ -101,7 +102,8 @@ export async function addItem(orderId: string, input: AddItemInput): Promise<Ful
       nameSnapshot: menuItem.name,
       unitPriceCents: menuItem.priceCents,
       quantity: Math.max(1, Math.min(50, input.quantity ?? 1)),
-      notes: input.notes,
+      notes: input.notes?.trim().slice(0, 240) || null,
+      notesOffered: Boolean(input.notes?.trim()),
       mealUpgradeCents: menuItem.mealUpgradeCents ?? 0,
       // Items with no meal option are resolved immediately so the flow engine
       // never asks "would you like that as a meal?" about a can of Coke.
@@ -215,7 +217,11 @@ export async function setModifierSelection(
 export async function setItemNotes(orderId: string, orderItemId: string, notes: string | null): Promise<FullOrder> {
   const order = await loadOrder(orderId);
   assertEditable(order);
-  await db.orderItem.update({ where: { id: orderItemId }, data: { notes } });
+  if (!order.items.some((item) => item.id === orderItemId)) throw new NotFoundError("Order item");
+  await db.orderItem.update({
+    where: { id: orderItemId },
+    data: { notes: notes?.trim().slice(0, 240) || null, notesOffered: true },
+  });
   return loadOrder(orderId);
 }
 
@@ -239,6 +245,8 @@ export async function setFulfilment(
 ): Promise<FullOrder> {
   const order = await loadOrder(orderId);
   assertEditable(order);
+  // Delivery is commented out. A tap or a typed "deliver" still checks out as collection.
+  if (!DELIVERY_ENABLED) fulfilment = "COLLECTION";
   if (fulfilment === "COLLECTION") {
     await db.order.update({
       where: { id: orderId },

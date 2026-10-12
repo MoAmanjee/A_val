@@ -21,7 +21,7 @@ export default async function HomePage() {
       <p className="text-lg leading-relaxed text-neutral-700">
         Customers message the branch on WhatsApp, get the menu, and order one item or several. They can type the whole
         order, or tap through it. The order lands on the kitchen screen. The kitchen accepts it, and the customer is told
-        when it is ready to collect at 17 Nelson Mandela Drive or when a delivery is on the way.
+        when it is ready to collect at 17 Nelson Mandela Drive. Delivery is switched off for now.
       </p>
       <div className="flex flex-wrap gap-3">
         <Link href="/kitchen" className="rounded-full bg-red-700 px-5 py-3 font-semibold text-white">
@@ -45,9 +45,10 @@ export default async function HomePage() {
         <ol className="mt-2 list-decimal space-y-1 pl-5">
           <li>A greeting offers two ways in: type the whole order, or browse the menu. A close spelling still counts, so burito is read as Burrito. A spice left out is asked per item. Type all hot when every item still waiting should match.</li>
           <li>When the basket is ready there are three buttons: Confirm order, Add to order, and Cancel order.</li>
-          <li>Confirm order asks whether they want delivery and shows that price. The receipt then shows the total, including delivery. Accept sends it to the kitchen. Decline clears it.</li>
-          <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer. They can also set the delivery price, including free.</li>
-          <li>Shop questions (hours, delivery price, a meal, allergies) get a written answer. Ticket questions (how long, cancel, what is in it) are read from the order. Halaal is passed to the shop.</li>
+          <li>After the spice and the meal, each item asks what to leave out, or an allergy. They type it, for example no tomato, or tap No notes.</li>
+          <li>Confirm order shows the receipt for collection. Accept sends it to the kitchen. Decline clears it. Delivery is switched off.</li>
+          <li>The kitchen accepts the ticket and later marks it ready. Both steps message the customer. A leave-out shows on that item.</li>
+          <li>Shop questions (hours, a meal, allergies) get a written answer. Ticket questions (how long, cancel, what is in it) are read from the order. Halaal is passed to the shop.</li>
         </ol>
       </section>
     </main>

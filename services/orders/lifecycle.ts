@@ -94,7 +94,9 @@ export async function confirmOrder(orderId: string, opts: { notify?: boolean } =
     throw new InvalidStateError(
       missing?.kind === "MODIFIER"
         ? `${missing.item.nameSnapshot} still needs a ${missing.link.group.name.toLowerCase()} choice`
-        : `We still need to know whether the ${missing?.item.nameSnapshot} is a meal`,
+        : missing?.kind === "ITEM_NOTES"
+          ? `${missing.item.nameSnapshot} still needs a leave-out note, or No notes`
+          : `We still need to know whether the ${missing?.item.nameSnapshot} is a meal`,
     );
   }
   if (!priced.fulfilment) throw new InvalidStateError("We still need to know whether this is collection or delivery");

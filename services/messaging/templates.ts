@@ -61,7 +61,7 @@ export function orderLines(order: FullOrder, store: Store): string {
       const choices = describeItemChoices(item);
       const rows = [head];
       if (choices) rows.push(`   ${choices}`);
-      if (item.notes) rows.push(`   Note: ${item.notes}`);
+      if (item.notes) rows.push(`   Leave out: ${item.notes}`);
       return rows.join("\n");
     })
     .join("\n");
@@ -428,6 +428,19 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
     ],
   };
 }
+
+export function itemNotesMessage(item: FullOrderItem): OutboundMessage {
+  return {
+    kind: "buttons",
+    body: `Anything to leave out of the ${item.nameSnapshot}, or an allergy? Type it, for example no tomato or no lettuce. Tap No notes if it can be made as it is.`,
+    buttons: [{ id: encodeReplyId({ kind: "itemNote", orderItemId: item.id, skip: true }), title: "No notes" }],
+  };
+}
+
+export const COLLECTION_ONLY_MESSAGE: OutboundMessage = {
+  kind: "text",
+  text: "Delivery is off for now. This order is collection from the shop, and you pay at the till.",
+};
 
 export function fulfilmentMessage(store: Store): OutboundMessage {
   const fee = store.deliveryFeeCents > 0

@@ -9,14 +9,14 @@ import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orde
  * their mind), the next question is always "what is still unanswered?".
  *
  * Within one item the order is: the always-asked choices (basting), then the
- * meal upgrade, then the choices that only exist inside a meal (side, drink).
- * Items are completed one at a time, the way a till operator would work through
- * them.
+ * meal upgrade, then the choices that only exist inside a meal (side, drink),
+ * then an optional leave-out or allergy. Items are completed one at a time.
  */
 
 export type Requirement =
   | { kind: "MODIFIER"; item: FullOrderItem; link: ItemModifierLink }
-  | { kind: "MEAL_UPGRADE"; item: FullOrderItem };
+  | { kind: "MEAL_UPGRADE"; item: FullOrderItem }
+  | { kind: "ITEM_NOTES"; item: FullOrderItem };
 
 function hasSelection(item: FullOrderItem, groupId: string): boolean {
   return item.modifiers.some((m) => m.groupId === groupId);
@@ -47,6 +47,10 @@ function requirementsForItem(item: FullOrderItem): Requirement[] {
       if (link.scope !== "MEAL_ONLY" || !link.required) continue;
       if (!hasSelection(item, link.modifierGroupId) && askable(link)) out.push({ kind: "MODIFIER", item, link });
     }
+  }
+
+  if (out.length === 0 && !item.notesOffered && !item.notes?.trim()) {
+    out.push({ kind: "ITEM_NOTES", item });
   }
   return out;
 }

@@ -908,20 +908,22 @@ export const MOCHACHOS_MENU: MenuSeed = {
     },
     {
       question: "Do you deliver?",
+      // Previous answer, kept so delivery can be switched back on:
+      // "Yes. We deliver in Potchefstroom. The delivery amount is set by the shop and added to your total before you confirm. It can be free. Pay the driver when it arrives, or pay at the till if you collect from 17 Nelson Mandela Drive.",
       answer:
-        "Yes. We deliver in Potchefstroom. The delivery amount is set by the shop and added to your total before you confirm. It can be free. Pay the driver when it arrives, or pay at the till if you collect from 17 Nelson Mandela Drive.",
+        "Not at the moment. Orders are collection from 17 Nelson Mandela Drive in the Potchefstroom CBD, and you pay at the till.",
       keywords: ["deliver", "delivery", "do you deliver", "drop off", "uber eats", "mr d", "bolt food"],
     },
     {
       question: "How do I pay?",
       answer:
-        "Collection is paid at the till — cash, card or SnapScan. Delivery is paid to the driver, including the delivery amount shown on your total. There is no payment in the chat.",
+        "You pay at the till when you collect — cash, card or SnapScan. There is no payment in the chat. Delivery is off for now.",
       keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint", "pay in the chat", "pay on whatsapp"],
     },
     {
       question: "How do I order on WhatsApp?",
       answer:
-        "Type the whole order in one message if you like, for example hot quarter chicken meal with a Coke, delivery to 14 Kock Street. Or tap through the menu. I only ask for what you left out. The kitchen gets it after you say yes. Collect from 17 Nelson Mandela Drive, or we deliver in Potchefstroom.",
+        "Type the whole order in one message if you like, for example hot quarter chicken meal with a Coke. Or tap through the menu. After each item you can type what to leave out, or an allergy. I only ask for what you left out. The kitchen gets it after you say yes. Collect from 17 Nelson Mandela Drive.",
       keywords: ["how do i order", "how does this work", "how to order", "how does ordering work"],
     },
     {
@@ -969,7 +971,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "How much is delivery?",
       answer:
-        "The shop sets the delivery price, and it can be free. It is added to your total before you confirm, and you pay the driver. Collection from 17 Nelson Mandela Drive has no delivery price. We deliver in Potchefstroom when you send a street address.",
+        "Delivery is off for now. You collect from 17 Nelson Mandela Drive and pay at the till. There is no delivery price on a collection order.",
       keywords: ["delivery fee", "delivery price", "how much is delivery", "delivery cost", "cost to deliver", "is delivery free"],
     },
     {
@@ -987,7 +989,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "What if I have an allergy?",
       answer:
-        "Tell me the allergy in your message and ask to speak to someone. I don't keep a full allergen list here, so a person at the shop needs to confirm it before the kitchen starts.",
+        "After each item I ask what to leave out. Type it then, for example no tomato, no lettuce, or a nut allergy, and the kitchen sees it on that item. I don't keep a full allergen list, so ask for a person if the shop needs to confirm it before they start.",
       keywords: ["allergy", "allergic", "allergen", "nut allergy", "gluten", "dairy", "intolerance"],
     },
     {
@@ -999,7 +1001,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "Will you message me when it is ready?",
       answer:
-        "Yes. You get a message when the kitchen accepts the order, and another when it is ready to collect or on the way. Your order number looks like MP-0004.",
+        "Yes. You get a message when the kitchen accepts the order, and another when it is ready to collect. Your order number looks like MP-0004.",
       keywords: ["message me", "notify me", "let me know", "order number", "how will i know"],
     },
     {
@@ -1011,13 +1013,13 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "Is there a minimum for delivery?",
       answer:
-        "This chat does not set a minimum spend. Send the order and the street address. If the shop can't do that drop, a person will tell you.",
+        "Delivery is off for now, so there is no delivery minimum. Collection orders do not have a minimum in this chat.",
       keywords: ["minimum", "minimum spend", "minimum order", "smallest order"],
     },
     {
       question: "Do you deliver outside Potchefstroom?",
       answer:
-        "The chat takes delivery inside Potchefstroom. Send the street address and we'll check it. If you're further out, ask for a person and the shop will say if they can.",
+        "Delivery is off for now, including outside Potchefstroom. Collection is from 17 Nelson Mandela Drive.",
       keywords: [
         "deliver outside potchefstroom",
         "outside potchefstroom",
@@ -1031,7 +1033,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "Can I collect instead of delivery?",
       answer:
-        "Yes. Tap Collect, or say collect. You pick up at 17 Nelson Mandela Drive in the Potchefstroom CBD and pay at the till. A collection has no delivery price.",
+        "Yes. Every order is collection for now. You pick up at 17 Nelson Mandela Drive in the Potchefstroom CBD and pay at the till.",
       keywords: ["collect instead", "can i collect", "pick up", "pickup", "come fetch", "for collection"],
     },
     {

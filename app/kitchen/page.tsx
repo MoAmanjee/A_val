@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { DELIVERY_ENABLED } from "@/services/orders/features";
 
 type Ticket = {
   id: string;
@@ -157,7 +158,7 @@ export default function KitchenPage() {
   const columns = [
     { title: "New", hint: "Accept so the customer gets a time", tickets: incoming, tone: "new" },
     { title: "Cooking", hint: "Mark ready when it can be collected", tickets: cooking, tone: "" },
-    { title: "Ready", hint: "Hand it over, or send the delivery", tickets: ready, tone: "ready" },
+    { title: "Ready", hint: DELIVERY_ENABLED ? "Hand it over, or send the delivery" : "Hand it over", tickets: ready, tone: "ready" },
   ];
 
   return (
@@ -184,6 +185,8 @@ export default function KitchenPage() {
         </div>
       </header>
       {error ? <p className="mb-4 rounded-xl bg-red-950 px-4 py-3 text-red-200">{error}</p> : null}
+      {/* Delivery price is commented out for now. The controls come back when DELIVERY_ENABLED is true. */}
+      {DELIVERY_ENABLED ? (
       <section className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-neutral-700 bg-neutral-900 px-4 py-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.16em] text-amber-300">Delivery price</p>
@@ -218,6 +221,7 @@ export default function KitchenPage() {
           </button>
         </div>
       </section>
+      ) : null}
       <div className="grid gap-4 lg:grid-cols-3">
         {columns.map((column) => (
           <section key={column.title}>
@@ -268,7 +272,7 @@ export default function KitchenPage() {
                         </span>
                         {item.isMeal ? <span className="text-amber-200"> · meal</span> : null}
                         {item.modifiers.length ? <p className="text-neutral-400">{item.modifiers.join(" · ")}</p> : null}
-                        {item.notes ? <p className="text-amber-100">Note: {item.notes}</p> : null}
+                        {item.notes ? <p className="text-amber-100">Leave out: {item.notes}</p> : null}
                       </li>
                     ))}
                   </ul>

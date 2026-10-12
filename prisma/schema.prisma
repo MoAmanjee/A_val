@@ -309,6 +309,8 @@ enum PendingQuestion {
   /// Waiting for the street address when they chose delivery.
   /// pendingContext.wantNote means the address is saved and a driver note is optional.
   DELIVERY_ADDRESS
+  /// Waiting for an optional leave-out or allergy on one item.
+  ITEM_NOTES
 }
 
 model Conversation {
@@ -541,7 +543,10 @@ model OrderItem {
   mealUpgradeCents Int      @default(0)
 
   lineTotalCents Int     @default(0)
+  /// Leave-out or allergy for this item ("no tomato", "nut allergy").
   notes          String?
+  /// True once the customer was asked, including when they tapped No notes.
+  notesOffered   Boolean @default(false)
   sortOrder      Int     @default(0)
 
   order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)

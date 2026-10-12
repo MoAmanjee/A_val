@@ -29,14 +29,17 @@ export const STORE_DEFAULTS = {
   whatsappPhoneNumberId: "100000000000001",
 } as const;
 
+// Open all day and all night so the chat can be tested after the shop would
+// normally have closed. The real hours are Sunday 11:00–20:00, Monday to
+// Thursday 10:00–21:00, Friday and Saturday 10:00–22:00.
 const TRADING_HOURS = [
-  { dayOfWeek: 0, opensAt: "11:00", closesAt: "20:00" },
-  { dayOfWeek: 1, opensAt: "10:00", closesAt: "21:00" },
-  { dayOfWeek: 2, opensAt: "10:00", closesAt: "21:00" },
-  { dayOfWeek: 3, opensAt: "10:00", closesAt: "21:00" },
-  { dayOfWeek: 4, opensAt: "10:00", closesAt: "21:00" },
-  { dayOfWeek: 5, opensAt: "10:00", closesAt: "22:00" },
-  { dayOfWeek: 6, opensAt: "10:00", closesAt: "22:00" },
+  { dayOfWeek: 0, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 1, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 2, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 3, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 4, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 5, opensAt: "00:00", closesAt: "24:00" },
+  { dayOfWeek: 6, opensAt: "00:00", closesAt: "24:00" },
 ];
 
 /**

@@ -887,7 +887,7 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "What are your hours?",
       answer:
-        "We are open Monday to Thursday 10:00 to 21:00, Friday and Saturday 10:00 to 22:00, and Sunday 11:00 to 20:00, Johannesburg time. Outside those hours I can still show you the menu, and you can place the order once we open.",
+        "You can order any time right now, including through the night. The usual shop hours are Monday to Thursday 10:00 to 21:00, Friday and Saturday 10:00 to 22:00, and Sunday 11:00 to 20:00, Johannesburg time.",
       keywords: [
         "hours",
         "what time do you open",

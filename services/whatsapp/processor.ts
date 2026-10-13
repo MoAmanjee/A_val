@@ -26,6 +26,7 @@ import {
   FALLBACK_MESSAGE,
   HANDOVER_MESSAGE,
   MEDIA_MESSAGE,
+  clarifyItemsMessage,
   missedItemsMessage,
   pausedMessage,
   welcomeMessage,
@@ -134,7 +135,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
   const customer = await findOrCreateCustomer(store.id, msg.from, msg.profileName);
   const conversation = await findOrCreateConversation(store.id, customer.id, msg.from);
 
-  const text = (msg.text ?? msg.caption ?? "").trim();
+  let text = (msg.text ?? msg.caption ?? "").trim();
   const { duplicate } = await recordInbound(conversation.id, {
     content: text || `[${msg.type}]`,
     messageType: toMessageType(msg.type),
@@ -171,7 +172,27 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     });
     if (alreadyAnswered) return;
 
-    if (wantsHuman(text) || /\b(halaal|halal)\b/.test(normalise(text))) {
+    if (/\b(halaal|halal)\b/.test(normalise(text))) {
+      await addNote(conv.id, `Customer asked about halaal: "${text.slice(0, 160)}"`);
+      await sendToCustomer(
+        conv.id,
+        {
+          kind: "text",
+          text: "Halaal is confirmed by someone at the shop. I have noted your question for them, and you can keep ordering here.",
+        },
+        "AI",
+      );
+      const remainder = text.replace(/\b(halaal|halal)\b/gi, " ").replace(/\s+/g, " ").trim();
+      const foodLeft = remainder
+        .replace(/\b(is|are|art|do|does|can|you|u|your|ur|it|the|food|please|pls|thanks|hi|hello|a|an|this|that)\b/gi, " ")
+        .replace(/[?.,!]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (foodLeft.length < 4) return;
+      text = remainder;
+    }
+
+    if (wantsHuman(text)) {
       await handOverToHuman(conv.id, `Customer said: "${text.slice(0, 160)}"`);
       await sendToCustomer(conv.id, HANDOVER_MESSAGE, "AI");
       return;
@@ -255,8 +276,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
         const recovered = await recoverMissedOrder(conv.id, draft?.items.length ?? 0, opts.llm);
         if (recovered) return;
       }
-      if (dictated.unmatched.length) {
-        await sendToCustomer(conv.id, missedItemsMessage(dictated.unmatched), "AI");
+      if (dictated.ambiguous.length) {
+        await sendToCustomer(conv.id, clarifyItemsMessage(dictated.ambiguous), "AI");
+      }
+      const stillMissed = dictated.unmatched.filter(
+        (clause) => !dictated.ambiguous.some((group) => group.clause === clause),
+      );
+      if (stillMissed.length) {
+        await sendToCustomer(conv.id, missedItemsMessage(stillMissed), "AI");
       }
       if (dictated.deliveryPaused) {
         await sendToCustomer(conv.id, COLLECTION_ONLY_MESSAGE, "AI");

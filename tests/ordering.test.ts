@@ -276,6 +276,63 @@ describe("typed orders", () => {
     expect(buddy.lines[0]?.item.name).toBe("Buddy");
     expect(chosen(buddy.lines[0])).toContain("Stoney Ginger Beer");
     expect(parseUtterance("the usual", catalog).lines).toHaveLength(0);
+    expect(parseUtterance("cappy", catalog).lines[0]?.item.name).toBe("330ml Cappy");
+    expect(parseUtterance("cappi", catalog).lines[0]?.item.name).toBe("330ml Cappy");
+    const appletiser = parseUtterance("appletiser", catalog);
+    expect(appletiser.lines[0]?.item.name).toBe("Appletiser / Grapetiser");
+    expect(chosen(appletiser.lines[0])).toContain("Appletiser");
+    expect(parseUtterance("a can of coke", catalog).lines[0]?.item.name).toBe("Can");
+    expect(chosen(parseUtterance("a can of coke", catalog).lines[0]!)).toContain("Coke");
+    const grape = parseUtterance("grapetiser", catalog);
+    expect(grape.lines[0]?.item.name).toBe("Appletiser / Grapetiser");
+    expect(chosen(grape.lines[0])).toContain("Grapetiser");
+    expect(parseUtterance("ice tea lemon", catalog).lines[0]?.item.name).toBe("Lemon Ice Tea");
+    expect(parseUtterance("cake", catalog).lines).toHaveLength(0);
+    const jose = parseUtterance("jose", catalog);
+    expect(jose.lines[0]?.item.name).toBe("Bambino Meal");
+    expect(chosen(jose.lines[0])).toContain("Jose");
+    expect(parseUtterance("4 wings", catalog).lines[0]?.item.name).toBe("4 Full BBQ Wings");
+    expect(parseUtterance("8 wings", catalog).lines[0]?.item.name).toBe("8 Full BBQ Wings & Beeger Chips");
+  });
+
+  it("keeps a leave-out on the item instead of calling it a missed dish", () => {
+    const parsed = parseUtterance("chicken burger hot, no tomato", catalog);
+    expect(parsed.unmatched).toEqual([]);
+    expect(parsed.lines).toHaveLength(1);
+    expect(parsed.lines[0].item.name).toBe("Chicken Burger");
+    expect(chosen(parsed.lines[0])).toContain("Hot");
+    expect(parsed.lines[0].notes).toBe("no tomato");
+
+    const inline = parseUtterance("burrito with no tomato and no lettuce", catalog);
+    expect(inline.unmatched).toEqual([]);
+    expect(inline.lines[0]?.item.name).toBe("Burrito");
+    expect(inline.lines[0]?.notes).toMatch(/no tomato/);
+    expect(inline.lines[0]?.notes).toMatch(/no lettuce/);
+
+    const meal = parseUtterance("quarter chicken no meal", catalog);
+    expect(meal.lines[0]?.item.name).toBe("1/4 Chicken");
+    expect(meal.lines[0]?.isMeal).toBe(false);
+    expect(meal.lines[0]?.notes).toBeNull();
+  });
+
+  it("asks which burger when the words fit more than one", () => {
+    const parsed = parseUtterance("cheese burger", catalog);
+    expect(parsed.lines).toHaveLength(0);
+    expect(parsed.ambiguous[0]?.names).toEqual(
+      expect.arrayContaining(["Chicken Cheese Burger", "Jalapeno Cheese Burger"]),
+    );
+    expect(parseUtterance("beef burger", catalog).lines[0]?.item.name).toBe("Beef Burger");
+  });
+
+  it("does not treat the 1.5 litre size as a quantity", () => {
+    const one = parseUtterance("1.5 litre coke", catalog);
+    expect(one.lines[0]?.item.name).toBe("1.5 Litre");
+    expect(one.lines[0]?.quantity).toBe(1);
+    expect(chosen(one.lines[0])).toContain("Coke");
+    const two = parseUtterance("2 1.5 litre cokes", catalog);
+    expect(two.lines[0]?.item.name).toBe("1.5 Litre");
+    expect(two.lines[0]?.quantity).toBe(2);
+    expect(chosen(two.lines[0])).toContain("Coke");
   });
 
   it("uses one spice for every item when the customer says all hot", () => {
@@ -615,6 +672,60 @@ describe("choice labels", () => {
     ]);
     expect(spice.kind).toBe("list");
     if (spice.kind === "list") expect(spice.buttonLabel).toBe("Choose spice");
+
+    for (const [groupName, label] of [
+      ["Appletiser choice", "Choose a drink"],
+      ["Water type", "Choose a drink"],
+      ["Loaded chips size", "Choose a size"],
+      ["Mexican filling", "Choose filling"],
+      ["Mochachos sauce", "Choose a sauce"],
+      ["Churros dip", "Choose a dip"],
+      ["Family chips choice", "Choose a side"],
+    ] as const) {
+      const message = choiceQuestion(groupName, "Which one?", [
+        { name: "One" },
+        { name: "Two" },
+        { name: "Three" },
+        { name: "Four" },
+      ]);
+      expect(message.kind, groupName).toBe("list");
+      if (message.kind === "list") {
+        expect(message.buttonLabel, groupName).toBe(label);
+        expect(message.buttonLabel.length, groupName).toBeLessThanOrEqual(20);
+      }
+    }
+  });
+
+  it("keeps a long extra name whole and puts the price in the row description", () => {
+    const message = modifierQuestionMessage(
+      { items: [] } as unknown as FullOrder,
+      { id: "line", nameSnapshot: "Burger", modifiers: [], menuItem: { modifierLinks: [] } } as unknown as FullOrderItem,
+      {
+        required: false,
+        modifierGroupId: "ex",
+        scope: "ALWAYS",
+        group: {
+          id: "ex",
+          name: "Extras",
+          prompt: "Add anything?",
+          selection: "MULTIPLE",
+          options: [
+            { id: "pine", name: "Slice of pineapple", description: null, available: true, priceDeltaCents: 1000 },
+            { id: "cheese", name: "Slice of cheese", description: null, available: true, priceDeltaCents: 1000 },
+          ],
+        },
+      } as unknown as ItemModifierLink,
+      store,
+    );
+    expect(message.kind).toBe("list");
+    if (message.kind !== "list") return;
+    const titles = message.sections.flatMap((section) => section.rows.map((row) => row.title));
+    expect(titles).toContain("Slice of pineapple");
+    expect(titles).toContain("Slice of cheese");
+    for (const row of message.sections.flatMap((section) => section.rows)) {
+      expect(row.title.length).toBeLessThanOrEqual(WA_LIMITS.rowTitle);
+      if (row.title.startsWith("Slice of")) expect(row.description).toMatch(/\+R10\.00/);
+    }
   });
 
   it("shows the kids meal descriptions with the names", () => {

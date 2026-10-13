@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { normalise } from "@/services/conversations/understanding";
 import { normaliseMenuText, tokensRoughlyEqual } from "@/services/menu/matching";
 import type { MenuSeed } from "@/db/menu";
-import { addItem, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
+import { addItem, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setItemNotes, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { missingRequirements, nextRequirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem } from "@/services/orders/query";
@@ -46,6 +46,8 @@ export interface ParsedLine {
   selections: ParsedSelection[];
   /** "another" / "one more" adds a second line instead of editing the first. */
   forceNew: boolean;
+  /** "no tomato" typed with the item, so the bot does not ask again. */
+  notes: string | null;
 }
 
 export interface ParsedUtterance {
@@ -56,6 +58,8 @@ export interface ParsedUtterance {
   ignoredAsQuestion: boolean;
   /** Clauses that named food the menu matcher could not place. */
   unmatched: string[];
+  /** A clause that fits several dishes, so the bot asks which one. */
+  ambiguous: { clause: string; names: string[] }[];
 }
 
 const QUESTION = /^(do|does|can|could|what|whats|where|wheres|when|how|is|are|wat|waar|wanneer|hoe)\b|\?/;
@@ -98,7 +102,14 @@ export function catalogFromMenu(menu: MenuSeed): DictationItem[] {
 }
 
 export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtterance {
-  const empty: ParsedUtterance = { lines: [], fulfilment: null, deliveryAddress: null, ignoredAsQuestion: false, unmatched: [] };
+  const empty: ParsedUtterance = {
+    lines: [],
+    fulfilment: null,
+    deliveryAddress: null,
+    ignoredAsQuestion: false,
+    unmatched: [],
+    ambiguous: [],
+  };
   const trimmed = raw.trim();
   if (!trimmed) return empty;
   if (isQuestionWithoutItem(trimmed, catalog)) return { ...empty, ignoredAsQuestion: true };
@@ -107,27 +118,48 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
   const clauses = splitClauses(peeled.text, catalog);
   const lines: ParsedLine[] = [];
   const unmatched: string[] = [];
+  const ambiguous: { clause: string; names: string[] }[] = [];
+
+  const rememberMiss = (clause: string, readable: string) => {
+    if (!looksLikeMissedFood(readable)) return;
+    unmatched.push(clause);
+    const names = closeMenuNames(readable, catalog);
+    if (names.length) ambiguous.push({ clause, names });
+  };
 
   for (const clause of clauses) {
     const readable = glueMenuWords(clause, catalog);
-    const built = linesFromClause(readable, catalog);
+    const peeled = peelItemNote(readable);
+    const food = peeled.note ? peeled.food : readable;
+    const built = linesFromClause(food, catalog);
     if (built.length) {
+      if (peeled.note) built[built.length - 1].notes = appendNote(built[built.length - 1].notes, peeled.note);
       lines.push(...built);
       continue;
     }
     const previous = lines.at(-1);
-    if (!previous) {
-      const drink = standaloneDrink(readable, catalog);
-      if (drink) lines.push(drink);
-      else if (looksLikeMissedFood(readable)) unmatched.push(clause);
+    if (peeled.note && !food.trim() && previous) {
+      previous.notes = appendNote(previous.notes, peeled.note);
       continue;
     }
-    const extras = choicesForItem(readable, previous.item);
+    if (!previous) {
+      const drink = standaloneDrink(food || readable, catalog);
+      if (drink) {
+        if (peeled.note) drink.notes = appendNote(drink.notes, peeled.note);
+        lines.push(drink);
+      } else rememberMiss(clause, food || readable);
+      continue;
+    }
+    const extras = choicesForItem(food || readable, previous.item);
     const useful = extras.selections.length > 0 || extras.isMeal !== null;
     if (extras.isMeal === true) previous.isMeal = true;
     else if (extras.isMeal === false && previous.isMeal === null) previous.isMeal = false;
     mergeSelections(previous, extras.selections);
-    if (!useful && looksLikeMissedFood(clause)) unmatched.push(clause);
+    if (peeled.note) {
+      previous.notes = appendNote(previous.notes, peeled.note);
+      continue;
+    }
+    if (!useful) rememberMiss(clause, food || readable);
   }
 
   const shared = sharedChoice(trimmed, catalog);
@@ -135,7 +167,14 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
     for (const line of lines) applySharedToLine(line, shared);
   }
 
-  return { lines, fulfilment: peeled.fulfilment, deliveryAddress: peeled.deliveryAddress, ignoredAsQuestion: false, unmatched };
+  return {
+    lines,
+    fulfilment: peeled.fulfilment,
+    deliveryAddress: peeled.deliveryAddress,
+    ignoredAsQuestion: false,
+    unmatched,
+    ambiguous,
+  };
 }
 
 const MISSED_SKIP = new Set([
@@ -183,22 +222,30 @@ function contentTokens(normalised: string): string[] {
   return normalised.split(" ").filter((token) => token.length >= 4 && !MISSED_SKIP.has(token));
 }
 
-function nameTokens(item: DictationItem): string[] {
-  return normaliseMenuText(item.name).split(" ").filter((token) => token.length >= 3);
+const MENU_WORD_SKIP = new Set(["the", "and", "with", "for", "please", "thanks", "that", "this", "just", "also", "plus", "meal", "meals", "combo"]);
+
+/** Food words, including short ones such as "ice" and "tea", and "lemon" which is also a spice. */
+function menuWords(normalised: string): string[] {
+  return normalised.split(" ").filter((token) => {
+    if (MENU_WORD_SKIP.has(token)) return false;
+    if (/^\d+$/.test(token)) return true;
+    return token.length >= 3;
+  });
 }
 
-function coversInOrder(need: string[], have: string[]): boolean {
-  let start = 0;
+function nameTokens(item: DictationItem): string[] {
+  return normaliseMenuText(item.name)
+    .split(" ")
+    .filter((token) => /^\d+$/.test(token) || token.length >= 3);
+}
+
+/** Every food word appears in the dish name. Order does not matter, so "ice tea lemon" is still Lemon Ice Tea. */
+function coversTokens(need: string[], have: string[]): boolean {
+  const pool = [...have];
   for (const token of need) {
-    let found = -1;
-    for (let i = start; i < have.length; i++) {
-      if (have[i] === token || tokensRoughlyEqual(have[i], token)) {
-        found = i;
-        break;
-      }
-    }
-    if (found < 0) return false;
-    start = found + 1;
+    const index = pool.findIndex((part) => part === token || tokensRoughlyEqual(part, token));
+    if (index < 0) return false;
+    pool.splice(index, 1);
   }
   return true;
 }
@@ -208,18 +255,19 @@ function coversInOrder(need: string[], have: string[]): boolean {
  * Keep the item that uses every food word the customer typed.
  */
 function preferFullerItem(normalised: string, hits: ItemHit[], catalog: DictationItem[]): ItemHit[] {
-  const need = contentTokens(normalised);
+  const need = menuWords(normalised);
   if (need.length < 2) return hits;
   const current = hits[0];
-  if (current && coversInOrder(need, nameTokens(current.item))) return hits;
+  if (current && coversTokens(need, nameTokens(current.item))) return hits;
 
   const scored = catalog
-    .filter((item) => !isDrinkVessel(item) && coversInOrder(need, nameTokens(item)))
+    .filter((item) => !isDrinkVessel(item) && coversTokens(need, nameTokens(item)))
     .map((item) => ({ item, precision: need.length / Math.max(1, nameTokens(item).length) }))
     .sort((a, b) => b.precision - a.precision);
   const best = scored[0];
   const second = scored[1];
-  if (!best || best.precision < 0.45) return hits;
+  const floor = need.some((token) => /^\d+$/.test(token)) ? 0.3 : 0.45;
+  if (!best || best.precision < floor) return hits;
   if (second && best.precision - second.precision < 0.12) return hits;
 
   const span = wordSpan(normalised, need);
@@ -302,13 +350,13 @@ export function choicesForItem(raw: string, item: DictationItem): { selections: 
 export async function applyDictation(
   conversationId: string,
   text: string,
-): Promise<{ changed: boolean; unmatched: string[]; deliveryPaused: boolean }> {
+): Promise<{ changed: boolean; unmatched: string[]; deliveryPaused: boolean; ambiguous: { clause: string; names: string[] }[] }> {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId } });
   const catalog = await loadCatalog(conv.storeId);
   const parsed = parseUtterance(text, catalog);
   const unmatched = parsed.unmatched;
   const deliveryPaused = !DELIVERY_ENABLED && parsed.fulfilment === "DELIVERY";
-  const pack = (changed: boolean) => ({ changed, unmatched, deliveryPaused });
+  const pack = (changed: boolean) => ({ changed, unmatched, deliveryPaused, ambiguous: parsed.ambiguous });
   if (parsed.ignoredAsQuestion) return pack(false);
 
   const existing = await findDraft(conversationId);
@@ -338,6 +386,7 @@ export async function applyDictation(
           isMeal: extras.isMeal,
           selections: extras.selections,
           forceNew: false,
+          notes: null,
         });
         const current = await loadOrder(existing.id);
         if (await writeFulfilment(current, parsed)) changed = true;
@@ -361,6 +410,7 @@ export async function applyDictation(
       isMeal: extras.isMeal,
       selections: extras.selections,
       forceNew: false,
+      notes: null,
     });
     if (changed) await noteAdding(conversationId, existing.id, parsed);
     return pack(changed);
@@ -435,6 +485,7 @@ async function upsertLine(order: FullOrder, line: ParsedLine): Promise<boolean> 
       menuItemId: line.item.id,
       quantity: line.quantity,
       isMeal: line.isMeal ?? undefined,
+      notes: line.notes ?? undefined,
     });
     await applySelections(order.id, created.id, line, created);
     return true;
@@ -454,6 +505,13 @@ async function writeOnto(orderId: string, target: FullOrderItem, line: ParsedLin
     target = { ...target, isMeal: line.isMeal };
   }
   if (await applySelections(orderId, target.id, line, target)) changed = true;
+  if (line.notes) {
+    const combined = appendNote(target.notes, line.notes);
+    if (combined !== target.notes) {
+      await setItemNotes(orderId, target.id, combined);
+      changed = true;
+    }
+  }
   return changed;
 }
 
@@ -628,6 +686,7 @@ function linesFromClause(clause: string, catalog: DictationItem[]): ParsedLine[]
       isMeal,
       selections,
       forceNew: ANOTHER.test(clause),
+      notes: null,
     };
   });
 }
@@ -642,10 +701,89 @@ interface ItemHit {
 function itemHits(normalised: string, raw: string, catalog: DictationItem[]): ItemHit[] {
   const exact = collectItemHits(normalised, raw, catalog, false);
   const exactFood = exact.filter((hit) => !isDrinkVessel(hit.item));
-  if (exactFood.length) return preferFullerItem(normalised, orderHits(exactFood), catalog);
   const fuzzy = collectItemHits(normalised, raw, catalog, true).filter((hit) => !isDrinkVessel(hit.item));
-  if (fuzzy.length) return preferFullerItem(normalised, orderHits(fuzzy), catalog);
-  return preferFullerItem(normalised, orderHits(exact), catalog);
+  const base = exactFood.length ? orderHits(exactFood) : fuzzy.length ? orderHits(fuzzy) : orderHits(exact);
+  const fuller = preferFullerItem(normalised, base, catalog);
+  if (fuller.length) return fuller;
+  const unique = uniqueNameToken(normalised, catalog) ?? uniqueOptionItem(normalised, catalog);
+  return unique ? [unique] : [];
+}
+
+/** "cappy" is the 330ml Cappy. A word that fits several dishes is left unmatched. */
+function uniqueNameToken(normalised: string, catalog: DictationItem[]): ItemHit | null {
+  const need = contentTokens(normalised);
+  if (need.length !== 1) return null;
+  const token = need[0];
+  const hits = catalog.filter(
+    (item) => !isDrinkVessel(item) && nameTokens(item).some((part) => part === token || tokensRoughlyEqual(part, token)),
+  );
+  if (hits.length !== 1) return null;
+  const span = wordSpan(normalised, need);
+  // Leave the word free so "appletiser" can also select the Appletiser option.
+  return { item: hits[0], phrase: token, index: span.start, end: span.start };
+}
+
+/**
+ * "jose" is the kids meal, not a dish with that name.
+ * A word shared by several items, such as a spice, is left alone.
+ */
+function uniqueOptionItem(normalised: string, catalog: DictationItem[]): ItemHit | null {
+  const need = contentTokens(normalised);
+  if (need.length !== 1) return null;
+  const token = need[0];
+  const owners: { item: DictationItem; option: DictationOption }[] = [];
+  for (const item of catalog) {
+    if (isDrinkVessel(item)) continue;
+    const matched = item.options.filter((option) =>
+      normaliseMenuText(option.name)
+        .split(" ")
+        .some((part) => part.length >= 4 && (part === token || tokensRoughlyEqual(part, token))),
+    );
+    if (matched.length === 1) owners.push({ item, option: matched[0] });
+  }
+  if (owners.length !== 1) return null;
+  const span = wordSpan(normalised, need);
+  return { item: owners[0].item, phrase: token, index: span.start, end: span.start };
+}
+
+/**
+ * "cheese burger" fits more than one burger. Name them instead of guessing.
+ * A clear winner (Jalapeno Cheese Burger over the longer beef one) is not listed here.
+ */
+function closeMenuNames(clause: string, catalog: DictationItem[]): string[] {
+  const need = normaliseMenuText(clause)
+    .split(" ")
+    .filter((token) => token.length >= 4 && token !== "meal" && token !== "combo" && token !== "please" && token !== "thanks");
+  if (need.length < 2) return [];
+  const scored = catalog
+    .filter((item) => !isDrinkVessel(item) && coversTokens(need, nameTokens(item)))
+    .map((item) => ({ item, precision: need.length / Math.max(1, nameTokens(item).length) }))
+    .sort((a, b) => b.precision - a.precision || a.item.name.length - b.item.name.length);
+  const best = scored[0];
+  if (!best || best.precision < 0.45) return [];
+  const close = scored.filter((row) => best.precision - row.precision < 0.12);
+  if (close.length < 2) return [];
+  return close.slice(0, 4).map((row) => row.item.name);
+}
+
+const ITEM_NOTE = /\b((?:with no|without|hold the|leave out|allergic to|allergy to|no)\s+.+)$/i;
+
+/** "no tomato" is a leave-out, not a second menu item. "no meal" stays an answer to the meal question. */
+function peelItemNote(clause: string): { food: string; note: string | null } {
+  const match = clause.match(ITEM_NOTE);
+  if (!match || match.index === undefined) return { food: clause, note: null };
+  const note = match[1].replace(/^with\s+/i, "").replace(/\s+/g, " ").trim();
+  const rest = note.replace(/^(?:no|without|hold the|leave out|allergic to|allergy to)\s+/i, "").trim();
+  if (!rest || /^(a\s+)?meals?$/.test(normalise(rest)) || MEAL_NO.test(normalise(note))) {
+    return { food: clause, note: null };
+  }
+  return { food: clause.slice(0, match.index).trim(), note };
+}
+
+function appendNote(current: string | null, extra: string): string {
+  if (!current) return extra;
+  if (current.toLowerCase().includes(extra.toLowerCase())) return current;
+  return `${current}, ${extra}`.slice(0, 240);
 }
 
 function orderHits(hits: ItemHit[]): ItemHit[] {
@@ -740,7 +878,7 @@ function standaloneDrink(clause: string, catalog: DictationItem[]): ParsedLine |
   if (!vessel) return null;
   const selections = matchOptions(normaliseMenuText(clause), vessel, []);
   if (!named && !selections.length) return null;
-  return { item: vessel, quantity: readQuantity(clause), isMeal: false, selections, forceNew: ANOTHER.test(clause) };
+  return { item: vessel, quantity: readQuantity(clause), isMeal: false, selections, forceNew: ANOTHER.test(clause), notes: null };
 }
 
 function matchOptions(normalised: string, item: DictationItem, occupied: { start: number; end: number }[]): ParsedSelection[] {
@@ -834,7 +972,7 @@ function readMeal(raw: string, item: DictationItem, selections: ParsedSelection[
 }
 
 function readQuantity(raw: string): number {
-  const withoutFractions = raw.replace(/\d+\s*\/\s*\d+/g, " ");
+  const withoutFractions = raw.replace(/\d+\s*\/\s*\d+/g, " ").replace(/\b1\.5\b/g, " ");
   const digit = withoutFractions.match(/\b(\d{1,2})\b/);
   if (digit) return clampQuantity(Number(digit[1]));
   const word = normalise(raw).match(/\b(one|two|three|four|five|six)\b/);

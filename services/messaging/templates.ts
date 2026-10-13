@@ -357,6 +357,15 @@ export function missedItemsMessage(clauses: string[]): OutboundMessage {
   };
 }
 
+/** Several dishes fit the same words. Ask, instead of adding the wrong one. */
+export function clarifyItemsMessage(groups: { clause: string; names: string[] }[]): OutboundMessage {
+  const lines = groups.slice(0, 2).map((group) => {
+    const names = group.names.slice(0, 4).join(", ");
+    return `"${group.clause.trim()}" could be ${names}.`;
+  });
+  return { kind: "text", text: `${lines.join(" ")} Tell me which one.` };
+}
+
 export function itemPriceLine(store: Store, item: Pick<MenuItem, "priceCents" | "mealUpgradeCents" | "description">): string {
   const price = money(store, item.priceCents);
   const meal = item.mealUpgradeCents !== null ? ` \u00b7 meal +${money(store, item.mealUpgradeCents)}` : "";
@@ -409,9 +418,14 @@ function modifierPrompt(order: FullOrder, item: FullOrderItem, link: ItemModifie
 function choiceListLabel(groupName: string): string {
   // "Soft drink flavour" contains both words. Drinks are not a spice.
   if (/zee|spice/i.test(groupName)) return "Choose spice";
-  if (/drink/i.test(groupName)) return "Choose a drink";
+  if (/drink|water|appletiser|grapetiser/i.test(groupName)) return "Choose a drink";
   if (/bambino|kids/i.test(groupName)) return "Choose a meal";
   if (/flavour|flavor|freezo|shake/i.test(groupName)) return "Choose flavour";
+  if (/size|portion/i.test(groupName)) return "Choose a size";
+  if (/filling|topping/i.test(groupName)) return "Choose filling";
+  if (/sauce|mayo/i.test(groupName)) return "Choose a sauce";
+  if (/dip/i.test(groupName)) return "Choose a dip";
+  if (/chips|salad|side/i.test(groupName)) return "Choose a side";
   const label = `Choose ${groupName.toLowerCase()}`;
   return label.length <= WA_LIMITS.listButtonLabel ? label : "Choose";
 }
@@ -444,11 +458,19 @@ export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, l
     };
   }
 
-  const rows: ListRow[] = options.map((o) => ({
-    id: encodeReplyId({ kind: "modifier", orderItemId: item.id, optionId: o.id }),
-    title: label(o.name, o.priceDeltaCents),
-    description: o.description ?? undefined,
-  }));
+  const rows: ListRow[] = options.map((o) => {
+    const priced = label(o.name, o.priceDeltaCents);
+    const titleFits = priced.length <= WA_LIMITS.rowTitle;
+    const priceNote = o.priceDeltaCents > 0 ? `+${money(store, o.priceDeltaCents)}` : "";
+    const description = titleFits
+      ? (o.description ?? undefined)
+      : [o.description?.trim(), priceNote].filter(Boolean).join(" · ") || undefined;
+    return {
+      id: encodeReplyId({ kind: "modifier", orderItemId: item.id, optionId: o.id }),
+      title: titleFits ? priced : o.name,
+      description,
+    };
+  });
   if (!link.required) {
     rows.push({ id: encodeReplyId({ kind: "modifierSkip", orderItemId: item.id, groupId: group.id }), title: "No thanks" });
   }

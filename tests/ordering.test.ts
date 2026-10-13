@@ -17,7 +17,9 @@ import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orde
 import { toGraphMessage } from "@/services/whatsapp/cloud";
 import { verifyWebhookSignature } from "@/services/whatsapp";
 import { clamp, WA_LIMITS } from "@/services/whatsapp/limits";
-import { matchFaq } from "@/services/conversations/faq";
+import { isShopQuestion, matchFaq } from "@/services/conversations/faq";
+import { interpretFaqReply } from "@/services/ai/faq-answer";
+import { rankByName, scoreMatch } from "@/services/menu/matching";
 import { isOwnOrderStatus, orderAsk } from "@/services/conversations/order-questions";
 import { isGreeting, readAnythingElse, readConfirmation, wantsMenu, wantsMenuPictures } from "@/services/conversations/understanding";
 import { menuPicturesDue } from "@/services/menu/images";
@@ -169,6 +171,34 @@ describe("shop faqs", () => {
     expect(matchFaq("can each item have a different spice?", faqs)?.question).toMatch(/spice/i);
     expect(matchFaq("can I collect instead?", faqs)?.question).toMatch(/collect/i);
     expect(matchFaq("menu please", faqs)).toBeNull();
+  });
+
+  it("reads misspelled questions as the same shop answer", () => {
+    expect(matchFaq("do you delivar?", faqs)?.question).toMatch(/deliver/i);
+    expect(matchFaq("wat ar your ours?", faqs)?.question).toMatch(/hours/i);
+    expect(matchFaq("i have a nut alergy", faqs)?.question).toMatch(/allergy/i);
+    expect(matchFaq("do u have kidz meals?", faqs)?.question).toMatch(/kids/i);
+    expect(matchFaq("where is my order?", faqs)?.question ?? "").not.toMatch(/park/i);
+    expect(matchFaq("hot quarter chicken and a coke", faqs)).toBeNull();
+    expect(isShopQuestion("do u delivar")).toBe(true);
+    expect(isShopQuestion("hot quarter chicken")).toBe(false);
+  });
+
+  it("lets the model answer only from the written list", () => {
+    expect(interpretFaqReply("UNKNOWN")).toEqual({ kind: "unknown" });
+    expect(interpretFaqReply("ORDER")).toEqual({ kind: "order" });
+    expect(interpretFaqReply("You collect from 17 Nelson Mandela Drive and pay at the till.")).toEqual({
+      kind: "answer",
+      text: "You collect from 17 Nelson Mandela Drive and pay at the till.",
+    });
+    expect(interpretFaqReply("  ")).toEqual({ kind: "unknown" });
+  });
+
+  it("matches a misspelled menu name and leaves a different word alone", () => {
+    expect(scoreMatch("milkshak", "Milkshake")).toBeGreaterThanOrEqual(0.5);
+    expect(scoreMatch("cake", "Coke")).toBe(0);
+    const ranked = rankByName("burito", [{ name: "Burrito" }, { name: "Burger" }], (item) => item.name);
+    expect(ranked[0]?.value.name).toBe("Burrito");
   });
 });
 

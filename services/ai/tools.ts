@@ -234,7 +234,7 @@ const TOOLS: Record<string, ToolSpec> = {
     def: {
       name: "find_menu_item",
       description:
-        "Match something the customer said against the menu, e.g. '1/4 chicken' or 'cheese burger'. Returns ranked matches. If the result is not decisive, ask the customer which one they meant instead of guessing.",
+        "Match something the customer said against the menu, including misspellings such as 'chiken burger', 'burito' or 'milkshak'. Returns ranked matches. If the result is not decisive, ask the customer which one they meant instead of guessing.",
       parameters: obj({ query: str("What the customer called the item") }, ["query"]),
     },
     schema: z.object({ query: z.string().min(1) }),
@@ -621,7 +621,7 @@ const TOOLS: Record<string, ToolSpec> = {
           typical_prep_minutes: s.defaultPrepMinutes,
           accepting_whatsapp_orders: s.acceptingOrders,
           fulfilment:
-            `Collection from the shop, or delivery in Potchefstroom. The shop's delivery amount is ${s.deliveryFeeCents > 0 ? money(s.deliveryFeeCents, s.currencySymbol) : "free"}. Do not quote a different fee.`,
+            "Delivery is off for now. Orders are collection from the shop and are paid at the till. Do not quote a delivery fee or a delivery area.",
           answers: faqs.map((f) => ({ question: f.question, answer: f.answer })),
         },
       };

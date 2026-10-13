@@ -1,7 +1,7 @@
 import type { MessageType, Store } from "@prisma/client";
 import { db } from "@/lib/db";
 import { errorMessage } from "@/lib/errors";
-import { getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
+import { answerFaqWithLlm, getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
 import {
   addNote,
   applyDeliveryStatus,
@@ -13,7 +13,7 @@ import {
 } from "@/services/conversations";
 import { acceptDeliveryPin, advanceFlow, applyReplyAction, askToConfirmCancel, handlePendingText } from "@/services/conversations/flow";
 import { applyDictation } from "@/services/orders/dictate";
-import { matchFaq } from "@/services/conversations/faq";
+import { isShopQuestion, matchFaq } from "@/services/conversations/faq";
 import { orderAsk, replyToOrderAsk } from "@/services/conversations/order-questions";
 import { isGreeting, normalise, wantsCancel, wantsHuman, wantsMenu, wantsMenuPictures, wantsStatus } from "@/services/conversations/understanding";
 import { getCategories, getStoreFaqs } from "@/services/menu";
@@ -278,7 +278,8 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     const ask = orderAsk(text);
     if (ask && (await replyToOrderAsk(conv.id, ask, text))) return;
 
-    const faq = matchFaq(text, await getStoreFaqs(conv.storeId));
+    const faqs = await getStoreFaqs(conv.storeId);
+    const faq = matchFaq(text, faqs);
     if (faq) {
       await sendToCustomer(conv.id, { kind: "text", text: faq.answer }, "AI");
       if (wantsMenu(text) || wantsMenuPictures(text)) {
@@ -286,6 +287,23 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       }
       if (draft?.items.length) await advanceFlow(conv.id);
       return;
+    }
+
+    // A question the written list did not recognise. The model may only use
+    // those answers. An order, or something the answers do not cover, falls
+    // through to the menu tools.
+    if (isShopQuestion(text) && (isLLMConfigured() || opts.llm)) {
+      try {
+        const llm = opts.llm ?? getLLMClient();
+        const answered = await answerFaqWithLlm(llm, text, faqs);
+        if (answered.kind === "answer") {
+          await sendToCustomer(conv.id, { kind: "text", text: answered.text }, "AI");
+          if (draft?.items.length) await advanceFlow(conv.id);
+          return;
+        }
+      } catch (e) {
+        console.error("[ai] faq answer failed", e);
+      }
     }
 
     // A greeting with nothing in the basket starts the order with the menu pictures

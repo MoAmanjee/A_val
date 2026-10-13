@@ -39,10 +39,14 @@ export class OpenAILLMClient implements LLMClient {
       messages,
       // Taking an order is not a creative task; keep it predictable.
       temperature: 0.2,
-      tools: params.tools.map((t) => ({
-        type: "function" as const,
-        function: { name: t.name, description: t.description, parameters: t.parameters },
-      })),
+      ...(params.tools.length
+        ? {
+            tools: params.tools.map((t) => ({
+              type: "function" as const,
+              function: { name: t.name, description: t.description, parameters: t.parameters },
+            })),
+          }
+        : {}),
     });
     const choice = res.choices[0]?.message;
     if (!choice) throw new Error("The AI provider returned no message");

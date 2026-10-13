@@ -6,6 +6,7 @@ export * from "@/services/ai/llm";
 export { runAgent, type AgentRunResult } from "@/services/ai/agent";
 export { executeTool, toolDefinitions, type ToolContext, type ToolResult } from "@/services/ai/tools";
 export { buildSystemPrompt } from "@/services/ai/prompt";
+export { answerFaqWithLlm, interpretFaqReply, buildFaqSystemPrompt, type FaqLlmResult } from "@/services/ai/faq-answer";
 
 let override: LLMClient | null = null;
 

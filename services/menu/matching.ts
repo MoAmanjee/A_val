@@ -98,7 +98,9 @@ export function scoreMatch(query: string, candidate: string): number {
   if (c.includes(q)) return 0.9 - 0.2 * (1 - q.length / c.length);
   if (q.includes(c)) return 0.85 - 0.2 * (1 - c.length / q.length);
 
-  const matched = qt.filter((t) => ct.some((x) => x === t || (t.length > 3 && x.startsWith(t)) || (x.length > 3 && t.startsWith(x))));
+  const matched = qt.filter((t) =>
+    ct.some((x) => x === t || tokensRoughlyEqual(t, x) || (t.length > 3 && x.startsWith(t)) || (x.length > 3 && t.startsWith(x))),
+  );
   if (!matched.length) return 0;
   const coverage = matched.length / qt.length;
   const precision = matched.length / ct.length;
@@ -141,6 +143,18 @@ export function tokensRoughlyEqual(a: string, b: string): boolean {
   const dist = damerau(a, b);
   if (shorter <= 4) return dist === 1 && (a.startsWith(b) || b.startsWith(a));
   return dist <= (shorter >= 8 ? 2 : 1);
+}
+
+/**
+ * One inserted, missing, or swapped letter, including "ours" for "hours".
+ * Used for questions. Menu matching stays stricter so "cake" is not a Coke.
+ */
+export function spellingClose(a: string, b: string): boolean {
+  if (tokensRoughlyEqual(a, b)) return true;
+  const shorter = Math.min(a.length, b.length);
+  const longer = Math.max(a.length, b.length);
+  if (shorter < 4 || longer - shorter > 1) return false;
+  return damerau(a, b) === 1;
 }
 
 function damerau(a: string, b: string): number {

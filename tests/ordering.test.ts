@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, orderActionsMessage, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, modifierQuestionMessage, orderActionsMessage, orderProgressMessages, welcomeMessage } from "@/services/messaging/templates";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
 import { isSkippedItemNote } from "@/services/orders/item-notes";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
@@ -16,7 +16,7 @@ import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 import { toGraphMessage } from "@/services/whatsapp/cloud";
 import { verifyWebhookSignature } from "@/services/whatsapp";
-import { WA_LIMITS } from "@/services/whatsapp/limits";
+import { clamp, WA_LIMITS } from "@/services/whatsapp/limits";
 import { matchFaq } from "@/services/conversations/faq";
 import { isOwnOrderStatus, orderAsk } from "@/services/conversations/order-questions";
 import { isGreeting, readAnythingElse, readConfirmation, wantsMenu, wantsMenuPictures } from "@/services/conversations/understanding";
@@ -460,6 +460,7 @@ describe("whatsapp messages", () => {
     expect(body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
 
     const actions = orderActionsMessage(order, store);
+    if (actions.kind === "buttons") expect(actions.body).toContain("Chicken Burger");
     expect(actions.kind).toBe("buttons");
     if (actions.kind !== "buttons") return;
     expect(actions.buttons.map((button) => button.title)).toEqual(["Confirm order", "Add to order", "Cancel order"]);
@@ -475,6 +476,114 @@ describe("whatsapp messages", () => {
       expect(delivery.body).toContain("R15.00");
       expect(delivery.buttons.map((button) => button.title)).toEqual(["Yes, deliver", "I'll collect"]);
     }
+  });
+
+  it("sends a long basket as text so the list is not cut off", () => {
+    const items = Array.from({ length: 14 }, (_, index) => ({
+      quantity: 1,
+      nameSnapshot: `Chicken Schwarma Burger ${index + 1}`,
+      modifiers: [{ groupNameSnapshot: "Zee Flavours", optionNameSnapshot: "Extra Hot and a Buddy with Creme Soda" }],
+      menuItem: { modifierLinks: [] },
+      isMeal: true,
+      notes: null,
+    }));
+    const order = { totalCents: 88710, items } as unknown as Parameters<typeof orderProgressMessages>[0];
+    const messages = orderProgressMessages(order, store);
+    const text = messages.find((message) => message.kind === "text");
+    const buttons = messages.find((message) => message.kind === "buttons");
+    expect(text?.kind).toBe("text");
+    expect(buttons?.kind).toBe("buttons");
+    if (text?.kind !== "text" || buttons?.kind !== "buttons") return;
+    expect(text.text).toContain("Chicken Schwarma Burger 1");
+    expect(text.text).toContain("Chicken Schwarma Burger 14");
+    expect(text.text.length).toBeLessThanOrEqual(WA_LIMITS.textBody);
+    expect(buttons.body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
+    expect(buttons.body).toContain("14 items");
+    expect(buttons.body).not.toContain("Chicken Schwarma Burger 1");
+  });
+
+  it("breaks a cut-off menu row on a word", () => {
+    const full = "R129.90 · Two soft flour tortillas to wrap your filling, with Mexican rice and salsa";
+    const description = clamp(full, WA_LIMITS.rowDescription);
+    expect(description.length).toBeLessThanOrEqual(WA_LIMITS.rowDescription);
+    expect(description.endsWith("\u2026")).toBe(true);
+    expect(full.startsWith(description.slice(0, -1).trimEnd())).toBe(true);
+    expect(description).not.toMatch(/Mexican r/);
+  });
+});
+
+function choiceQuestion(groupName: string, prompt: string, options: { name: string; description?: string }[]) {
+  const link = {
+    required: true,
+    modifierGroupId: "g",
+    scope: "ALWAYS",
+    group: {
+      id: "g",
+      name: groupName,
+      prompt,
+      selection: "SINGLE",
+      options: options.map((option, index) => ({
+        id: `o${index}`,
+        name: option.name,
+        description: option.description ?? null,
+        available: true,
+        priceDeltaCents: 0,
+      })),
+    },
+  } as unknown as ItemModifierLink;
+  const item = {
+    id: "line",
+    nameSnapshot: "Buddy",
+    modifiers: [],
+    menuItem: { modifierLinks: [link] },
+  } as unknown as FullOrderItem;
+  return modifierQuestionMessage({ items: [item] } as FullOrder, item, link, store);
+}
+
+describe("choice labels", () => {
+  it("asks for a drink on a cool drink, a can, and a buddy", () => {
+    const drinks = ["Coke", "Coke Zero", "Fanta Orange", "Sprite", "Creme Soda", "Stoney Ginger Beer"].map((name) => ({ name }));
+    const message = choiceQuestion("Soft drink flavour", "Which cold drink would you like?", drinks);
+    expect(message.kind).toBe("list");
+    if (message.kind !== "list") return;
+    expect(message.buttonLabel).toBe("Choose a drink");
+    expect(message.buttonLabel).not.toBe("Choose spice");
+  });
+
+  it("asks for a flavour on a milkshake, and spice only for Zee Flavours", () => {
+    const shake = choiceQuestion("Milkshake flavour", "Which milkshake flavour?", [
+      { name: "Chocolate" },
+      { name: "Strawberry" },
+      { name: "Banana" },
+      { name: "Bubblegum" },
+      { name: "Lime" },
+    ]);
+    expect(shake.kind).toBe("list");
+    if (shake.kind === "list") expect(shake.buttonLabel).toBe("Choose flavour");
+
+    const spice = choiceQuestion("Zee Flavours", "Which of Zee Flavours would you like?", [
+      { name: "Lemon & Herb" },
+      { name: "Mild" },
+      { name: "Hot" },
+      { name: "Extra Hot" },
+      { name: "Dynamite" },
+    ]);
+    expect(spice.kind).toBe("list");
+    if (spice.kind === "list") expect(spice.buttonLabel).toBe("Choose spice");
+  });
+
+  it("shows the kids meal descriptions with the names", () => {
+    const message = choiceQuestion("Bambino choice", "Which Bambino meal would you like?", [
+      { name: "Jose", description: "Mini chicken fillet burger" },
+      { name: "Pedro", description: "Mini beef burger" },
+      { name: "Speedy", description: "4 battered chicken breast strips" },
+    ]);
+    expect(message.kind).toBe("buttons");
+    if (message.kind !== "buttons") return;
+    expect(message.body).toContain("Jose — Mini chicken fillet burger");
+    expect(message.body).toContain("Pedro — Mini beef burger");
+    expect(message.body).toContain("Speedy — 4 battered chicken breast strips");
+    expect(message.buttons.map((button) => button.title)).toEqual(["Jose", "Pedro", "Speedy"]);
   });
 });
 
@@ -546,6 +655,18 @@ describe("what an order still needs", () => {
     if (message.kind !== "buttons") return;
     expect(message.body).toContain("Beef Burger");
     expect(message.body).toContain("no tomato");
+
+    const chosen = line({
+      links: [],
+      nameSnapshot: "Milkshake",
+      modifiers: [{ groupNameSnapshot: "Milkshake flavour", optionNameSnapshot: "Strawberry" } as FullOrderItem["modifiers"][number]],
+    });
+    const named = itemNotesMessage(chosen);
+    expect(named.kind).toBe("buttons");
+    if (named.kind === "buttons") {
+      expect(named.body).toContain("Milkshake (Strawberry)");
+      expect(named.body).not.toContain("Lime");
+    }
     expect(message.buttons[0]?.title).toBe("No notes");
     expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "itemNote", orderItemId: "line", skip: true });
     expect(isSkippedItemNote("no")).toBe(true);

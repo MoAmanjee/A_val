@@ -24,7 +24,12 @@ export function clamp(value: string, max: number): string {
   const v = value.trim();
   if (v.length <= max) return v;
   if (max <= 1) return v.slice(0, max);
-  return `${v.slice(0, max - 1).trimEnd()}\u2026`;
+  const budget = max - 1;
+  let cut = v.slice(0, budget);
+  // Break on a space or a new line so a row does not end in the middle of a word.
+  const breakAt = Math.max(cut.lastIndexOf("\n"), cut.lastIndexOf(" "));
+  if (breakAt > Math.floor(budget * 0.6)) cut = cut.slice(0, breakAt);
+  return `${cut.trimEnd()}\u2026`;
 }
 
 /** Splits rows into list-sized pages so a long category still fits. */

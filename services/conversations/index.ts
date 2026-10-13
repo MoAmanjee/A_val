@@ -86,6 +86,52 @@ export interface SendOutcome {
   error?: string;
 }
 
+/** Meta error 131056: too many messages to the same phone in a short time. */
+const SEND_GAP_MS = 6000;
+const BURST_WINDOW_MS = 15000;
+const BURST_COUNT = 3;
+const DUPLICATE_WINDOW_MS = 20000;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * The same basket was going out once per extra tap. If the customer already
+ * has this exact message, do not send it again.
+ */
+async function recentlySentSame(conversationId: string, content: string): Promise<boolean> {
+  const recent = await db.message.findFirst({
+    where: {
+      conversationId,
+      direction: "OUTBOUND",
+      createdAt: { gt: new Date(Date.now() - DUPLICATE_WINDOW_MS) },
+      deliveryStatus: { in: ["SENT", "DELIVERED", "READ"] },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { content: true },
+  });
+  return recent?.content === content;
+}
+
+/** After a burst, wait so the next message is not rejected with 131056. */
+async function paceBurst(conversationId: string): Promise<void> {
+  const recent = await db.message.findMany({
+    where: {
+      conversationId,
+      direction: "OUTBOUND",
+      deliveryStatus: { in: ["SENT", "DELIVERED", "READ", "FAILED"] },
+      createdAt: { gt: new Date(Date.now() - BURST_WINDOW_MS) },
+    },
+    orderBy: { createdAt: "desc" },
+    take: BURST_COUNT,
+    select: { createdAt: true },
+  });
+  if (recent.length < BURST_COUNT) return;
+  const wait = SEND_GAP_MS - (Date.now() - recent[0].createdAt.getTime());
+  if (wait > 0) await sleep(Math.min(wait, 8000));
+}
+
 /**
  * Persist an outbound message then hand it to WhatsApp. It is written first so
  * a failed send is still visible to staff instead of vanishing.
@@ -95,6 +141,11 @@ export async function sendToCustomer(
   message: OutboundMessage,
   sender: MessageSender = "AI",
 ): Promise<SendOutcome> {
+  const content = describeOutbound(message);
+  if (await recentlySentSame(conversationId, content)) return { sent: true };
+
+  await paceBurst(conversationId);
+
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
   const row = await db.message.create({
     data: {
@@ -102,7 +153,7 @@ export async function sendToCustomer(
       direction: "OUTBOUND",
       sender,
       messageType: outboundMessageType(message),
-      content: describeOutbound(message),
+      content,
       payload: message as unknown as Prisma.InputJsonValue,
     },
   });

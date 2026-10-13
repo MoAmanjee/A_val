@@ -193,7 +193,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
         return;
       }
       try {
-        await applyReplyAction(conv, action);
+        await applyReplyAction(conv, action, { inboundAt: latestInbound.createdAt });
       } catch (e) {
         console.error("[flow] reply action failed", e);
         await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not do that \u2014 ${errorMessage(e)}` }, "AI");

@@ -294,23 +294,58 @@ export function keepAddingBody(order: FullOrder, store: Store): string {
     const extra = lines.length - shown.length;
     const lead = extra > 0 ? `So far, plus ${extra} earlier:\n` : "So far:\n";
     const body = `${lead}${shown.join("\n")}\n\n${total}`;
-    if (body.length <= 900) return body;
+    if (body.length <= MAX_SUMMARY_IN_BODY) return body;
     shown = shown.slice(1);
   }
-  return `So far:\n${shown.join("\n")}\n\n${total}`;
+  const extra = lines.length - shown.length;
+  const lead = extra > 0 ? `So far, plus ${extra} earlier:\n` : "So far:\n";
+  return clamp(`${lead}${shown.join("\n")}\n\n${total}`, MAX_SUMMARY_IN_BODY);
+}
+
+/** Short enough to sit in a list or a button. A long basket is sent as its own text. */
+export function interactiveBasket(order: FullOrder, store: Store): string {
+  const full = keepAddingBody(order, store);
+  if (full.length <= 700 && !full.includes("earlier") && !full.endsWith("\u2026")) return full;
+  return `${order.items.length} items so far.\n*Total: ${money(store, order.totalCents)}*`;
+}
+
+const CONFIRM_PROMPT = "Confirm this order, add another item, or cancel.";
+
+function orderActionButtons(): { id: string; title: string }[] {
+  return [
+    { id: encodeReplyId({ kind: "anythingElse", done: true }), title: "Confirm order" },
+    { id: encodeReplyId({ kind: "anythingElse", done: false }), title: "Add to order" },
+    { id: encodeReplyId({ kind: "confirm", answer: "cancel" }), title: "Cancel order" },
+  ];
+}
+
+/**
+ * A short basket stays on the buttons. A long one is a text message (WhatsApp
+ * allows 4096 characters there) plus a short button message, so the list is
+ * not cut off at the 1024-character interactive limit.
+ */
+export function orderProgressMessages(order: FullOrder, store: Store): OutboundMessage[] {
+  const buttons = orderActionButtons();
+  const basket = keepAddingBody(order, store);
+  const inline = `${basket}\n\n${CONFIRM_PROMPT}`;
+  const fits = inline.length <= WA_LIMITS.interactiveBody && !basket.includes("earlier") && !basket.endsWith("\u2026");
+  if (fits) return [{ kind: "buttons", body: inline, buttons }];
+
+  const detail = clamp(`So far:\n\n${orderLines(order, store)}\n\n*Total: ${money(store, order.totalCents)}*`, WA_LIMITS.textBody);
+  return [
+    { kind: "text", text: detail },
+    {
+      kind: "buttons",
+      body: `${order.items.length} items on this order.\n*Total: ${money(store, order.totalCents)}*\n\n${CONFIRM_PROMPT}`,
+      buttons,
+    },
+  ];
 }
 
 /** Confirm, add another item, or cancel. These are buttons, so they are visible without opening a list. */
 export function orderActionsMessage(order: FullOrder, store: Store): OutboundMessage {
-  return {
-    kind: "buttons",
-    body: clamp(`${keepAddingBody(order, store)}\n\nConfirm this order, add another item, or cancel.`, WA_LIMITS.interactiveBody),
-    buttons: [
-      { id: encodeReplyId({ kind: "anythingElse", done: true }), title: "Confirm order" },
-      { id: encodeReplyId({ kind: "anythingElse", done: false }), title: "Add to order" },
-      { id: encodeReplyId({ kind: "confirm", answer: "cancel" }), title: "Cancel order" },
-    ],
-  };
+  const messages = orderProgressMessages(order, store);
+  return messages.find((message) => message.kind === "buttons") ?? messages[0];
 }
 
 export function missedItemsMessage(clauses: string[]): OutboundMessage {
@@ -371,21 +406,33 @@ function modifierPrompt(order: FullOrder, item: FullOrderItem, link: ItemModifie
   return `${which}\n\nTap a spice for this item only. Type all hot if every item still waiting should be the same.`;
 }
 
-function spiceListLabel(groupName: string): string {
-  if (/flavour/i.test(groupName)) return "Choose spice";
+function choiceListLabel(groupName: string): string {
+  // "Soft drink flavour" contains both words. Drinks are not a spice.
+  if (/zee|spice/i.test(groupName)) return "Choose spice";
   if (/drink/i.test(groupName)) return "Choose a drink";
+  if (/bambino|kids/i.test(groupName)) return "Choose a meal";
+  if (/flavour|flavor|freezo|shake/i.test(groupName)) return "Choose flavour";
   const label = `Choose ${groupName.toLowerCase()}`;
   return label.length <= WA_LIMITS.listButtonLabel ? label : "Choose";
+}
+
+function withOptionDescriptions(body: string, options: { name: string; description?: string | null }[]): string {
+  const lines = options
+    .map((option) => (option.description?.trim() ? `• ${option.name} — ${option.description.trim()}` : null))
+    .filter((line): line is string => Boolean(line));
+  if (!lines.length) return body;
+  return clamp(`${body}\n\n${lines.join("\n")}`, WA_LIMITS.interactiveBody);
 }
 
 export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, link: ItemModifierLink, store: Store): OutboundMessage {
   const group = link.group;
   const options = group.options.filter((o) => o.available);
-  const body = modifierPrompt(order, item, link, group.prompt);
+  const body = withOptionDescriptions(modifierPrompt(order, item, link, group.prompt), options);
 
   const label = (name: string, delta: number) => (delta > 0 ? `${name} (+${money(store, delta)})` : name);
+  const namesFitButtons = options.length <= WA_LIMITS.maxButtons && options.every((o) => label(o.name, o.priceDeltaCents).length <= WA_LIMITS.buttonTitle);
 
-  if (group.selection === "SINGLE" && options.length <= WA_LIMITS.maxButtons && options.every((o) => o.name.length <= 16)) {
+  if (group.selection === "SINGLE" && namesFitButtons) {
     return {
       kind: "buttons",
       body,
@@ -410,7 +457,7 @@ export function modifierQuestionMessage(order: FullOrder, item: FullOrderItem, l
     kind: "list",
     body,
     footer: TYPE_THE_REST,
-    buttonLabel: spiceListLabel(group.name),
+    buttonLabel: choiceListLabel(group.name),
     sections: [{ title: group.name, rows: rows.slice(0, WA_LIMITS.maxListRows) }],
   };
 }
@@ -430,9 +477,11 @@ export function mealUpgradeMessage(order: FullOrder, item: FullOrderItem, store:
 }
 
 export function itemNotesMessage(item: FullOrderItem): OutboundMessage {
+  const choices = describeItemChoices(item);
+  const named = choices ? `${item.nameSnapshot} (${choices})` : item.nameSnapshot;
   return {
     kind: "buttons",
-    body: `Anything to leave out of the ${item.nameSnapshot}, or an allergy? Type it, for example no tomato or no lettuce. Tap No notes if it can be made as it is.`,
+    body: `${named}. Anything to leave out, or an allergy? Type it, for example no tomato or no lettuce. Tap No notes if it can be made as it is.`,
     buttons: [{ id: encodeReplyId({ kind: "itemNote", orderItemId: item.id, skip: true }), title: "No notes" }],
   };
 }

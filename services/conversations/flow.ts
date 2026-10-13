@@ -20,9 +20,9 @@ import {
   fulfilmentMessage,
   HANDOVER_MESSAGE,
   KEEP_ORDER_MESSAGE,
-  keepAddingBody,
+  interactiveBasket,
   mealUpgradeMessage,
-  orderActionsMessage,
+  orderProgressMessages,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
@@ -155,7 +155,9 @@ async function sendMenu(conversationId: string, storeId: string, body?: string, 
  */
 async function sendKeepAdding(conversationId: string, order: NonNullable<Awaited<ReturnType<typeof findDraft>>>) {
   const conv = await db.conversation.findUniqueOrThrow({ where: { id: conversationId }, include: { store: true } });
-  await sendToCustomer(conversationId, orderActionsMessage(order, conv.store), "AI");
+  for (const message of orderProgressMessages(order, conv.store)) {
+    await sendToCustomer(conversationId, message, "AI");
+  }
   await setPendingQuestion(conversationId, "ANYTHING_ELSE");
 }
 
@@ -168,10 +170,31 @@ async function sendAddingSections(
   const categories = await getCategories(conv.storeId);
   await sendToCustomer(
     conversationId,
-    categoryPickerMessage(conv.store, categories, keepAddingBody(order, conv.store), { checkout: true, page }),
+    categoryPickerMessage(conv.store, categories, interactiveBasket(order, conv.store), { checkout: true, page }),
     "AI",
   );
   await setPendingQuestion(conversationId, "ANYTHING_ELSE");
+}
+
+/** True when the customer already sent something newer than the tap we are answering. */
+async function hasNewerInbound(conversationId: string, inboundAt: Date): Promise<boolean> {
+  const newer = await db.message.findFirst({
+    where: { conversationId, direction: "INBOUND", createdAt: { gt: inboundAt } },
+    select: { id: true },
+  });
+  return newer !== null;
+}
+
+/**
+ * A later tap will send the question. If the basket is waiting on a leave-out
+ * note, remember that so "no tomato" is saved instead of being read as food.
+ */
+async function rememberNotesIfThatIsNext(conversationId: string) {
+  const order = await findDraft(conversationId);
+  const requirement = order ? nextRequirement(order) : null;
+  if (requirement?.kind === "ITEM_NOTES") {
+    await setPendingQuestion(conversationId, "ITEM_NOTES", { orderItemId: requirement.item.id });
+  }
 }
 
 // ---------------------------------------------------------------- Tapped replies
@@ -182,7 +205,11 @@ async function sendAddingSections(
  * customer tapping something that has since been removed, which is reported
  * back plainly.
  */
-export async function applyReplyAction(conversation: Conversation, action: ReplyAction): Promise<FlowResult> {
+export async function applyReplyAction(
+  conversation: Conversation,
+  action: ReplyAction,
+  opts?: { inboundAt?: Date },
+): Promise<FlowResult> {
   const conversationId = conversation.id;
 
   switch (action.kind) {
@@ -204,7 +231,7 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
         categoryItemsMessage(conv.store, found.category, found.items, action.page ?? 0, {
           adding: open,
           buttonLabel: open ? "Add this item" : undefined,
-          body: open && draft ? keepAddingBody(draft, conv.store) : undefined,
+          body: open && draft ? interactiveBasket(draft, conv.store) : undefined,
         }),
         "AI",
       );
@@ -241,6 +268,13 @@ export async function applyReplyAction(conversation: Conversation, action: Reply
       const draft = await findDraft(conversationId);
       if (!option || !draft) return staleTap(conversationId);
       await setModifierSelection(draft.id, action.orderItemId, option.groupId, [option.id]);
+      // A burst of taps on the same list used to send a question per tap, and
+      // the last tap was the one on the receipt. Save each tap, and let the
+      // latest one speak so the message names the flavour that was kept.
+      if (opts?.inboundAt && (await hasNewerInbound(conversationId, opts.inboundAt))) {
+        await rememberNotesIfThatIsNext(conversationId);
+        return { sent: true };
+      }
       return advanceFlow(conversationId);
     }
 

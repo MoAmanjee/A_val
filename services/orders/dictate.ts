@@ -109,19 +109,20 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
   const unmatched: string[] = [];
 
   for (const clause of clauses) {
-    const built = linesFromClause(clause, catalog);
+    const readable = glueMenuWords(clause, catalog);
+    const built = linesFromClause(readable, catalog);
     if (built.length) {
       lines.push(...built);
       continue;
     }
     const previous = lines.at(-1);
     if (!previous) {
-      const drink = standaloneDrink(clause, catalog);
+      const drink = standaloneDrink(readable, catalog);
       if (drink) lines.push(drink);
-      else if (looksLikeMissedFood(clause)) unmatched.push(clause);
+      else if (looksLikeMissedFood(readable)) unmatched.push(clause);
       continue;
     }
-    const extras = choicesForItem(clause, previous.item);
+    const extras = choicesForItem(readable, previous.item);
     const useful = extras.selections.length > 0 || extras.isMeal !== null;
     if (extras.isMeal === true) previous.isMeal = true;
     else if (extras.isMeal === false && previous.isMeal === null) previous.isMeal = false;
@@ -149,6 +150,95 @@ function looksLikeMissedFood(clause: string): boolean {
   return normaliseMenuText(clause)
     .split(" ")
     .some((token) => token.length >= 4 && !MISSED_SKIP.has(token));
+}
+
+/** "milk shake" is one menu word. Only join a pair when the menu actually has it. */
+function glueMenuWords(raw: string, catalog: DictationItem[]): string {
+  const vocab = new Set<string>();
+  for (const item of catalog) {
+    for (const label of [item.name, item.shortName ?? "", ...item.options.map((option) => option.name)]) {
+      const norm = normaliseMenuText(label);
+      if (norm.length >= 5) vocab.add(norm);
+      for (const token of norm.split(" ")) if (token.length >= 5) vocab.add(token);
+    }
+  }
+  const tokens = raw.split(/\s+/).filter(Boolean);
+  const glued: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const next = tokens[i + 1];
+    if (next) {
+      const squashed = normaliseMenuText(`${tokens[i]}${next}`);
+      if (squashed.length >= 5 && vocab.has(squashed)) {
+        glued.push(squashed);
+        i += 1;
+        continue;
+      }
+    }
+    glued.push(tokens[i]);
+  }
+  return glued.join(" ");
+}
+
+function contentTokens(normalised: string): string[] {
+  return normalised.split(" ").filter((token) => token.length >= 4 && !MISSED_SKIP.has(token));
+}
+
+function nameTokens(item: DictationItem): string[] {
+  return normaliseMenuText(item.name).split(" ").filter((token) => token.length >= 3);
+}
+
+function coversInOrder(need: string[], have: string[]): boolean {
+  let start = 0;
+  for (const token of need) {
+    let found = -1;
+    for (let i = start; i < have.length; i++) {
+      if (have[i] === token || tokensRoughlyEqual(have[i], token)) {
+        found = i;
+        break;
+      }
+    }
+    if (found < 0) return false;
+    start = found + 1;
+  }
+  return true;
+}
+
+/**
+ * "nacho burger" contains Nachos, and also the Nacho Crunch burger.
+ * Keep the item that uses every food word the customer typed.
+ */
+function preferFullerItem(normalised: string, hits: ItemHit[], catalog: DictationItem[]): ItemHit[] {
+  const need = contentTokens(normalised);
+  if (need.length < 2) return hits;
+  const current = hits[0];
+  if (current && coversInOrder(need, nameTokens(current.item))) return hits;
+
+  const scored = catalog
+    .filter((item) => !isDrinkVessel(item) && coversInOrder(need, nameTokens(item)))
+    .map((item) => ({ item, precision: need.length / Math.max(1, nameTokens(item).length) }))
+    .sort((a, b) => b.precision - a.precision);
+  const best = scored[0];
+  const second = scored[1];
+  if (!best || best.precision < 0.45) return hits;
+  if (second && best.precision - second.precision < 0.12) return hits;
+
+  const span = wordSpan(normalised, need);
+  return [{ item: best.item, phrase: normaliseMenuText(best.item.name), index: span.start, end: span.end }];
+}
+
+function wordSpan(normalised: string, need: string[]): { start: number; end: number } {
+  const spans = tokenSpans(normalised);
+  let start = 0;
+  let end = normalised.length;
+  let from = 0;
+  for (const token of need) {
+    const found = spans.slice(from).find((span) => span.token === token || tokensRoughlyEqual(span.token, token));
+    if (!found) continue;
+    if (from === 0) start = found.start;
+    end = found.end;
+    from = spans.indexOf(found) + 1;
+  }
+  return { start, end };
 }
 
 /** "all hot" / "both mild" names one spice for every item that does not already have one. */
@@ -552,10 +642,10 @@ interface ItemHit {
 function itemHits(normalised: string, raw: string, catalog: DictationItem[]): ItemHit[] {
   const exact = collectItemHits(normalised, raw, catalog, false);
   const exactFood = exact.filter((hit) => !isDrinkVessel(hit.item));
-  if (exactFood.length) return orderHits(exactFood);
+  if (exactFood.length) return preferFullerItem(normalised, orderHits(exactFood), catalog);
   const fuzzy = collectItemHits(normalised, raw, catalog, true).filter((hit) => !isDrinkVessel(hit.item));
-  if (fuzzy.length) return orderHits(fuzzy);
-  return orderHits(exact);
+  if (fuzzy.length) return preferFullerItem(normalised, orderHits(fuzzy), catalog);
+  return preferFullerItem(normalised, orderHits(exact), catalog);
 }
 
 function orderHits(hits: ItemHit[]): ItemHit[] {
@@ -686,6 +776,24 @@ function matchOptions(normalised: string, item: DictationItem, occupied: { start
     taken.push({ start: found.start, end: found.end });
     for (let i = spans.length - 1; i >= 0; i--) {
       if (rangesOverlap(spans[i].start, spans[i].end, found.start, found.end)) spans.splice(i, 1);
+    }
+  }
+
+  // "freezo tofee" names the Toffee Caramel. One distinctive word is enough
+  // when no other option in that group uses it.
+  for (const span of [...spans]) {
+    const owners = item.options.filter((option) => {
+      if (option.selection === "SINGLE" && picked.some((chosen) => chosen.option.groupId === option.groupId)) return false;
+      return normaliseMenuText(option.name)
+        .split(" ")
+        .some((part) => part.length >= 5 && (part === span.token || tokensRoughlyEqual(part, span.token)));
+    });
+    const unique = [...new Map(owners.map((option) => [option.id, option])).values()];
+    if (unique.length !== 1) continue;
+    const option = unique[0];
+    picked.push({ option, index: span.start, end: span.end, phrase: span.token });
+    for (let i = spans.length - 1; i >= 0; i--) {
+      if (spans[i].start === span.start) spans.splice(i, 1);
     }
   }
 

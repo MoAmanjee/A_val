@@ -263,6 +263,21 @@ describe("typed orders", () => {
     expect(missed.unmatched.join(" ")).toMatch(/mystery|platter/i);
   });
 
+  it("reads a loose menu name and the flavour word inside it", () => {
+    expect(parseUtterance("nacho burger", catalog).lines[0]?.item.name).toBe("Nacho Crunch Gourmet Burger");
+    expect(parseUtterance("jalapeno burger", catalog).lines[0]?.item.name).toBe("Jalapeno Cheese Burger");
+    const shake = parseUtterance("milk shake strawbery", catalog);
+    expect(shake.lines[0]?.item.name).toBe("Milkshake");
+    expect(chosen(shake.lines[0])).toContain("Strawberry");
+    const freezo = parseUtterance("freezo tofee", catalog);
+    expect(freezo.lines[0]?.item.name).toBe("Freezo");
+    expect(chosen(freezo.lines[0])).toContain("Toffee Caramel");
+    const buddy = parseUtterance("buddy stoney", catalog);
+    expect(buddy.lines[0]?.item.name).toBe("Buddy");
+    expect(chosen(buddy.lines[0])).toContain("Stoney Ginger Beer");
+    expect(parseUtterance("the usual", catalog).lines).toHaveLength(0);
+  });
+
   it("uses one spice for every item when the customer says all hot", () => {
     const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
     expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });

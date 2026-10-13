@@ -251,6 +251,10 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
     // drink, collection or delivery) so we only ask for the rest.
     try {
       const dictated = await applyDictation(conv.id, text);
+      if (!dictated.changed && dictated.unmatched.length && (isLLMConfigured() || opts.llm)) {
+        const recovered = await recoverMissedOrder(conv.id, draft?.items.length ?? 0, opts.llm);
+        if (recovered) return;
+      }
       if (dictated.unmatched.length) {
         await sendToCustomer(conv.id, missedItemsMessage(dictated.unmatched), "AI");
       }
@@ -387,6 +391,30 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
   });
 
   return "processed";
+}
+
+/**
+ * The menu reader already fixed the close typos. This is for the slip it could
+ * not place: "the usual", a nickname, or two items it was not sure between.
+ * The model has to use find_menu_item, so it cannot invent a dish.
+ */
+async function recoverMissedOrder(conversationId: string, itemsBefore: number, injected?: LLMClient): Promise<boolean> {
+  try {
+    const llm = injected ?? getLLMClient();
+    const result = await runAgent({ llm, ctx: { storeId: (await db.conversation.findUniqueOrThrow({ where: { id: conversationId } })).storeId, conversationId } });
+    if (result.stop) return true;
+    const after = await findDraft(conversationId);
+    const added = (after?.items.length ?? 0) > itemsBefore;
+    if (result.reply) await sendToCustomer(conversationId, { kind: "text", text: result.reply }, "AI");
+    if (added) {
+      await advanceFlow(conversationId);
+      return true;
+    }
+    return Boolean(result.reply);
+  } catch (e) {
+    console.error("[ai] could not read the misspelled order", e);
+    return false;
+  }
 }
 
 /**

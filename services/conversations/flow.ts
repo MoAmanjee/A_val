@@ -17,6 +17,7 @@ import {
   deliveryAddressMessage,
   deliveryNoteMessage,
   itemNotesMessage,
+  orderNotesMessage,
   DRAFT_CANCELLED_MESSAGE,
   fulfilmentMessage,
   HANDOVER_MESSAGE,
@@ -29,12 +30,12 @@ import {
   STALE_TAP_MESSAGE,
   TYPE_ORDER_MESSAGE,
 } from "@/services/messaging/templates";
-import { addItem, findDraft, getOrCreateDraft, setDeliveryNotes, setFulfilment, setItemNotes, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
+import { addItem, findDraft, getOrCreateDraft, markOrderNotesOffered, setDeliveryNotes, setFulfilment, setItemNotes, setOrderNotes, setMealUpgrade, setModifierSelection } from "@/services/orders/cart";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
 import { isSkippedItemNote } from "@/services/orders/item-notes";
-import { DELIVERY_ENABLED } from "@/services/orders/features";
+import { DELIVERY_ENABLED, LEAN_ORDERING } from "@/services/orders/features";
 import { backToDraft, cancelOrder, confirmOrder, findActiveOrder, markAwaitingConfirmation } from "@/services/orders/lifecycle";
-import { nextRequirement } from "@/services/orders/requirements";
+import { nextRequirement, orderNotesDone } from "@/services/orders/requirements";
 
 /**
  * The ordering flow.
@@ -93,9 +94,17 @@ export async function advanceFlow(conversationId: string): Promise<FlowResult> {
     return { sent: true };
   }
 
+  // One kitchen note for the whole order, then place (lean) or show Accept.
+  if (LEAN_ORDERING && !orderNotesDone(order)) {
+    await sendToCustomer(conversationId, orderNotesMessage(order), "AI");
+    await setPendingQuestion(conversationId, "ITEM_NOTES", { orderLevel: true, orderId: order.id });
+    return { sent: true };
+  }
+
   // Delivery is commented out for now. The question below stays so it can be switched back on.
   if (!DELIVERY_ENABLED) {
     if (order.fulfilment !== "COLLECTION") await setFulfilment(order.id, "COLLECTION");
+    if (LEAN_ORDERING) return placeOrderNow(conversationId);
     return askForConfirmation(conversationId);
   }
 
@@ -122,6 +131,39 @@ async function askForConfirmation(conversationId: string): Promise<FlowResult> {
   }
   await setPendingQuestion(conversationId, "ORDER_CONFIRMATION", { orderId: order.id });
   return { sent: true };
+}
+
+/** Lean checkout: after the kitchen note, send it without a second Accept tap. */
+async function placeOrderNow(conversationId: string): Promise<FlowResult> {
+  const draft = await findDraft(conversationId);
+  if (!draft?.items.length) return { sent: false };
+  if (draft.fulfilment !== "COLLECTION" && !DELIVERY_ENABLED) await setFulfilment(draft.id, "COLLECTION");
+  try {
+    await confirmOrder(draft.id);
+    await resetConversation(conversationId);
+    return { sent: true };
+  } catch (e) {
+    console.warn("[flow] lean place blocked", errorMessage(e));
+    await backToDraft(draft.id);
+    return advanceFlow(conversationId);
+  }
+}
+
+async function finishOrderNotes(conversationId: string, notes: string | null): Promise<FlowResult> {
+  const draft = await findDraft(conversationId);
+  if (!draft) return { sent: false };
+  if (notes) {
+    const already = draft.notes?.trim();
+    if (!already) await setOrderNotes(draft.id, notes);
+    else if (!already.toLowerCase().includes(notes.toLowerCase())) {
+      await setOrderNotes(draft.id, `${already}; ${notes}`.slice(0, 500));
+    }
+  } else if (!draft.notes?.trim()) {
+    await setOrderNotes(draft.id, null);
+  }
+  await markOrderNotesOffered(draft.id);
+  await db.conversation.update({ where: { id: conversationId }, data: { askedAnythingElse: true } });
+  return advanceFlow(conversationId);
 }
 
 /** Back to a clean slate once an order is confirmed or dropped. */
@@ -193,7 +235,15 @@ async function hasNewerInbound(conversationId: string, inboundAt: Date): Promise
  */
 async function rememberNotesIfThatIsNext(conversationId: string) {
   const order = await findDraft(conversationId);
-  const requirement = order ? nextRequirement(order) : null;
+  if (!order) return;
+  if (LEAN_ORDERING) {
+    const conv = await db.conversation.findUnique({ where: { id: conversationId }, select: { askedAnythingElse: true } });
+    if (conv?.askedAnythingElse && !orderNotesDone(order) && !nextRequirement(order)) {
+      await setPendingQuestion(conversationId, "ITEM_NOTES", { orderLevel: true, orderId: order.id });
+    }
+    return;
+  }
+  const requirement = nextRequirement(order);
   if (requirement?.kind === "ITEM_NOTES") {
     await setPendingQuestion(conversationId, "ITEM_NOTES", { orderItemId: requirement.item.id });
   }
@@ -306,6 +356,10 @@ export async function applyReplyAction(
       if (!draft) return staleTap(conversationId);
       await setItemNotes(draft.id, action.orderItemId, null);
       return advanceFlow(conversationId);
+    }
+
+    case "orderNote": {
+      return finishOrderNotes(conversationId, null);
     }
 
     case "fulfilment": {
@@ -464,7 +518,12 @@ export async function handlePendingText(conversation: Conversation, text: string
 
     case "ITEM_NOTES": {
       const draft = await findDraft(conversation.id);
-      if (!draft || !context.orderItemId) return null;
+      if (!draft) return null;
+      const orderLevel = Boolean((conversation.pendingContext as { orderLevel?: boolean } | null)?.orderLevel);
+      if (orderLevel || (LEAN_ORDERING && !context.orderItemId)) {
+        return finishOrderNotes(conversation.id, isSkippedItemNote(text) ? null : text);
+      }
+      if (!context.orderItemId) return null;
       await setItemNotes(draft.id, context.orderItemId, isSkippedItemNote(text) ? null : text);
       return advanceFlow(conversation.id);
     }

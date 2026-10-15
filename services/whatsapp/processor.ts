@@ -33,6 +33,7 @@ import {
   welcomeMessage,
 } from "@/services/messaging/templates";
 import { findDraft } from "@/services/orders/cart";
+import { LEAN_ORDERING } from "@/services/orders/features";
 import { findActiveOrder } from "@/services/orders/lifecycle";
 import { getCredentials, getWhatsAppService, type InboundMessage, type StatusUpdate } from "@/services/whatsapp";
 import { firstName } from "@/utils/phone";
@@ -338,14 +339,17 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       }
     }
 
-    // A greeting with nothing in the basket starts the order with the menu pictures
-    // and then the tappable sections.
+    // A greeting with nothing in the basket starts the order. Lean mode skips
+    // the menu pictures until they ask, which saves two WhatsApp messages.
     if (!draft?.items.length && (isGreeting(text) || wantsMenu(text) || wantsMenuPictures(text))) {
-      await sendMenuPictures(conv.id, {
-        includePdf: /\bpdf\b/i.test(text),
-        force: wantsMenuPictures(text),
-        newOrder: true,
-      });
+      const sendPics = !LEAN_ORDERING || wantsMenuPictures(text) || wantsMenu(text);
+      if (sendPics) {
+        await sendMenuPictures(conv.id, {
+          includePdf: /\bpdf\b/i.test(text),
+          force: wantsMenuPictures(text) || wantsMenu(text),
+          newOrder: true,
+        });
+      }
       const categories = await getCategories(conv.storeId);
       const name = customer.name ?? firstName(customer.whatsappProfileName);
       await sendToCustomer(

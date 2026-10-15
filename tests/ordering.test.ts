@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, modifierQuestionMessage, orderActionsMessage, orderProgressMessages, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, confirmationMessages, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, modifierQuestionMessage, orderActionsMessage, orderProgressMessages, welcomeMessage } from "@/services/messaging/templates";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
 import { isSkippedItemNote } from "@/services/orders/item-notes";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
@@ -335,6 +335,70 @@ describe("typed orders", () => {
     expect(chosen(two.lines[0])).toContain("Coke");
   });
 
+  it("reads a pasted list with x quantities, beeg chips and shawarmas", () => {
+    const pasted = parseUtterance("1 x Chicken burger\n2 x beeg chips\n2x shawarmas", catalog);
+    expect(pasted.unmatched).toEqual([]);
+    expect(pasted.lines.map((line) => ({ name: line.item.name, qty: line.quantity }))).toEqual([
+      { name: "Chicken Burger", qty: 1 },
+      { name: "Chips", qty: 2 },
+      { name: "Schwarma", qty: 2 },
+    ]);
+    expect(chosen(pasted.lines[1])).toContain("Beeg");
+
+    const slash = parseUtterance("1 x Chicken burger / 2 x beeg chips / 2x shawarmas", catalog);
+    expect(slash.lines.map((line) => ({ name: line.item.name, qty: line.quantity }))).toEqual([
+      { name: "Chicken Burger", qty: 1 },
+      { name: "Chips", qty: 2 },
+      { name: "Schwarma", qty: 2 },
+    ]);
+  });
+
+  it("keeps quantities on a large multi-line order over R1000", () => {
+    const parsed = parseUtterance(
+      [
+        "4 x chicken burger meal",
+        "3 x quarter chicken meal",
+        "2 x chicken burrito hot",
+        "5 x schwarma",
+        "3 x beeg chips",
+        "2 x loaded chips",
+        "4 x buddy coke",
+        "2 x nacho crunch gourmet burger",
+        "3 x 1/2 chicken",
+      ].join("\n"),
+      catalog,
+    );
+    expect(parsed.unmatched).toEqual([]);
+    expect(parsed.lines.map((line) => ({ name: line.item.name, qty: line.quantity }))).toEqual([
+      { name: "Chicken Burger", qty: 4 },
+      { name: "1/4 Chicken", qty: 3 },
+      { name: "Burrito", qty: 2 },
+      { name: "Schwarma", qty: 5 },
+      { name: "Chips", qty: 3 },
+      { name: "Loaded Chips", qty: 2 },
+      { name: "Buddy", qty: 4 },
+      { name: "Nacho Crunch Gourmet Burger", qty: 2 },
+      { name: "1/2 Chicken", qty: 3 },
+    ]);
+    expect(parsed.lines[0]?.isMeal).toBe(true);
+    expect(parsed.lines[1]?.isMeal).toBe(true);
+    expect(chosen(parsed.lines[2])).toContain("Chicken");
+    expect(chosen(parsed.lines[4])).toContain("Beeg");
+    expect(chosen(parsed.lines[6])).toContain("Coke");
+
+    const byName = new Map(
+      MOCHACHOS_MENU.categories.flatMap((category) => category.items.map((item) => [item.name, item] as const)),
+    );
+    let totalCents = 0;
+    for (const line of parsed.lines) {
+      const item = byName.get(line.item.name);
+      expect(item, line.item.name).toBeTruthy();
+      const meal = line.isMeal ? (item!.mealUpgradeCents ?? 0) : 0;
+      totalCents += (item!.priceCents + meal) * line.quantity;
+    }
+    expect(totalCents).toBeGreaterThan(100_000);
+  });
+
   it("uses one spice for every item when the customer says all hot", () => {
     const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
     expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });
@@ -613,6 +677,43 @@ describe("whatsapp messages", () => {
     expect(buttons.body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
     expect(buttons.body).toContain("14 items");
     expect(buttons.body).not.toContain("Chicken Schwarma Burger 1");
+  });
+
+  it("splits a huge confirmation receipt instead of cutting items off", () => {
+    const items = Array.from({ length: 80 }, (_, index) => ({
+      quantity: 2,
+      nameSnapshot: `Office Party Platter Line ${index + 1} with Extra Hot and Buddy`,
+      lineTotalCents: 12_990,
+      modifiers: [{ groupNameSnapshot: "Zee Flavours", optionNameSnapshot: "Extra Hot" }],
+      menuItem: { modifierLinks: [] },
+      isMeal: true,
+      notes: index % 3 === 0 ? "no tomato" : null,
+    }));
+    const order = {
+      totalCents: 1_039_200,
+      fulfilment: "COLLECTION",
+      items,
+      notes: null,
+      deliveryFeeCents: 0,
+      deliveryAddress: null,
+      deliveryNotes: null,
+    } as unknown as Parameters<typeof confirmationMessages>[0];
+    const messages = confirmationMessages(order, store, 25);
+    const texts = messages.filter((message) => message.kind === "text");
+    const buttons = messages.find((message) => message.kind === "buttons");
+    expect(texts.length).toBeGreaterThan(1);
+    expect(buttons?.kind).toBe("buttons");
+    const joined = texts.map((message) => (message.kind === "text" ? message.text : "")).join("\n");
+    expect(joined).toContain("Office Party Platter Line 1");
+    expect(joined).toContain("Office Party Platter Line 80");
+    expect(joined).toContain("R10 392.00");
+    for (const message of texts) {
+      if (message.kind === "text") expect(message.text.length).toBeLessThanOrEqual(WA_LIMITS.textBody);
+    }
+    if (buttons?.kind === "buttons") {
+      expect(buttons.body.length).toBeLessThanOrEqual(WA_LIMITS.interactiveBody);
+      expect(buttons.buttons.map((button) => button.title)).toEqual(["Accept", "Decline"]);
+    }
   });
 
   it("breaks a cut-off menu row on a word", () => {

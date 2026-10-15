@@ -599,10 +599,39 @@ export function confirmationMessages(order: FullOrder, store: Store, prepMinutes
   if (inline.length <= MAX_SUMMARY_IN_BODY) {
     return [{ kind: "buttons", body: inline, buttons }];
   }
+
+  // Large baskets (often over R1 000) must not be truncated off the receipt.
+  const header = "🧾 *Your receipt*\n\n";
+  const chunks = chunkWhatsAppText(`${header}${summary}`, WA_LIMITS.textBody);
   return [
-    { kind: "text", text: `🧾 *Your receipt*\n\n${summary}` },
-    { kind: "buttons", body: question, buttons },
+    ...chunks.map((text) => ({ kind: "text" as const, text })),
+    { kind: "buttons", body: clamp(question, WA_LIMITS.interactiveBody), buttons },
   ];
+}
+
+/** Split a long receipt on line breaks so every item still reaches WhatsApp. */
+function chunkWhatsAppText(text: string, max: number): string[] {
+  if (text.length <= max) return [text];
+  const lines = text.split("\n");
+  const chunks: string[] = [];
+  let current = "";
+  for (const line of lines) {
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length <= max) {
+      current = next;
+      continue;
+    }
+    if (current) chunks.push(current);
+    if (line.length <= max) {
+      current = line;
+      continue;
+    }
+    // A single oversized line — hard-split rather than drop it.
+    for (let i = 0; i < line.length; i += max) chunks.push(line.slice(i, i + max));
+    current = "";
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [clamp(text, max)];
 }
 
 // ---------------------------------------------------------------- Order progress

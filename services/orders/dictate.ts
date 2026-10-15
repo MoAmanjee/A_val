@@ -115,7 +115,9 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
   if (isQuestionWithoutItem(trimmed, catalog)) return { ...empty, ignoredAsQuestion: true };
 
   const peeled = peelFulfilment(trimmed);
-  const clauses = splitClauses(peeled.text, catalog);
+  // Newline / "2x" lists must become separate clauses, or every line inherits the
+  // first quantity and big orders (often over R1 000) lose items and totals.
+  const clauses = splitClauses(tidyOrderText(peeled.text), catalog);
   const lines: ParsedLine[] = [];
   const unmatched: string[] = [];
   const ambiguous: { clause: string; names: string[] }[] = [];
@@ -648,6 +650,23 @@ function collapse(value: string): string {
   return value.replace(/\s+/g, " ").replace(/\s+,/g, ",").trim();
 }
 
+/**
+ * Turn pasted lists into comma clauses the splitter already understands.
+ * Keeps "1/4 chicken" intact (no spaces around the slash) while splitting
+ * "burger / chips" and newline lists so each line keeps its own quantity.
+ */
+function tidyOrderText(raw: string): string {
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\n+/g, ", ")
+    .replace(/\s+\/\s+/g, ", ")
+    .replace(/\b(\d{1,2})\s*[x×]\s*/gi, "$1 x ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/,+/g, ",")
+    .trim();
+}
+
 function splitClauses(raw: string, catalog: DictationItem[]): string[] {
   const parts = raw
     .split(/,|\b(?:\+|plus|also)\b|\band\b/i)
@@ -682,7 +701,7 @@ function linesFromClause(clause: string, catalog: DictationItem[]): ParsedLine[]
     const isMeal = readMeal(clause, hit.item, selections);
     return {
       item: hit.item,
-      quantity: readQuantity(clause),
+      quantity: readQuantityNear(clause, norm, hit.index),
       isMeal,
       selections,
       forceNew: ANOTHER.test(clause),
@@ -973,6 +992,8 @@ function readMeal(raw: string, item: DictationItem, selections: ParsedSelection[
 
 function readQuantity(raw: string): number {
   const withoutFractions = raw.replace(/\d+\s*\/\s*\d+/g, " ").replace(/\b1\.5\b/g, " ");
+  const times = withoutFractions.match(/\b(\d{1,2})\s*x\b/i);
+  if (times) return clampQuantity(Number(times[1]));
   const digit = withoutFractions.match(/\b(\d{1,2})\b/);
   if (digit) return clampQuantity(Number(digit[1]));
   const word = normalise(raw).match(/\b(one|two|three|four|five|six)\b/);
@@ -980,9 +1001,19 @@ function readQuantity(raw: string): number {
   return 1;
 }
 
+/** Prefer the "2 x" / "3" sitting just before this item when several share one clause. */
+function readQuantityNear(raw: string, normalised: string, itemIndex: number): number {
+  const before = normalised.slice(0, Math.max(0, itemIndex));
+  const times = before.match(/(\d{1,2})\s*x\s*$/i);
+  if (times) return clampQuantity(Number(times[1]));
+  const digit = before.match(/(\d{1,2})\s*$/);
+  if (digit) return clampQuantity(Number(digit[1]));
+  return readQuantity(raw);
+}
+
 function clampQuantity(value: number): number {
   if (!Number.isFinite(value) || value < 1) return 1;
-  return Math.min(20, Math.floor(value));
+  return Math.min(50, Math.floor(value));
 }
 
 function indexOfPhrase(haystack: string, phrase: string): number {

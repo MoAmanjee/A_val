@@ -27,6 +27,8 @@ const bodySchema = z.object({
   fulfilment: z.enum(["COLLECTION", "DELIVERY"]).optional(),
   deliveryAddress: z.string().max(240).optional(),
   deliveryNotes: z.string().max(240).optional(),
+  /** Stripe PaymentIntent id after Apple Pay / Samsung Pay / card succeeded. */
+  paymentIntentId: z.string().min(3).max(120).optional(),
   lines: z.array(lineSchema).min(1).max(40),
 });
 
@@ -43,6 +45,8 @@ export async function POST(req: Request) {
       status: order.status,
       quotedPrepMinutes: order.quotedPrepMinutes,
       fulfilment: order.fulfilment,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
       items: order.items.map((item) => ({
         name: item.nameSnapshot,
         quantity: item.quantity,

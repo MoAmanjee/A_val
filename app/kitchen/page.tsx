@@ -10,6 +10,8 @@ type Ticket = {
   status: "SENT_TO_KITCHEN" | "ACKNOWLEDGED" | "PREPARING" | "READY_FOR_COLLECTION";
   totalCents: number;
   notes: string | null;
+  paymentStatus: "UNPAID" | "PENDING" | "PAID" | "FAILED";
+  paymentMethod: string | null;
   fulfilment: "COLLECTION" | "DELIVERY" | null;
   deliveryAddress: string | null;
   deliveryNotes: string | null;
@@ -261,6 +263,13 @@ export default function KitchenPage() {
                       ) : ticket.fulfilment === "COLLECTION" ? (
                         <p className="text-sm text-amber-200">Collection</p>
                       ) : null}
+                      {ticket.paymentStatus === "PAID" ? (
+                        <p className="order-paid-badge">
+                          Paid{ticket.paymentMethod ? ` · ${ticket.paymentMethod.replace(/_/g, " ")}` : " online"}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-neutral-500">Pay at till</p>
+                      )}
                     </div>
                     <p className="font-semibold">{money(ticket.totalCents, board.store.currencySymbol)}</p>
                   </div>

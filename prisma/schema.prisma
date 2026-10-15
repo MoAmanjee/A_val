@@ -428,6 +428,16 @@ enum Fulfilment {
   DELIVERY
 }
 
+enum PaymentStatus {
+  /// Pay at the till / driver — nothing taken online.
+  UNPAID
+  /// Stripe PaymentIntent created, not finished yet.
+  PENDING
+  /// Online payment succeeded (Apple Pay, Samsung Pay, card, etc.).
+  PAID
+  FAILED
+}
+
 /// A picture, a note, or both, sent to people who have already messaged the shop.
 model Promotion {
   id        String   @id @default(cuid())
@@ -488,6 +498,12 @@ model Order {
 
   /// Free-text notes from the customer ("no mayo please").
   notes String?
+
+  /// Online vs pay-at-collection. Mini-site can mark PAID after Stripe.
+  paymentStatus PaymentStatus @default(UNPAID)
+  /// apple_pay | google_pay | samsung_pay | card | collection | …
+  paymentMethod String?
+  stripePaymentIntentId String? @unique
 
   /// Null until the customer says collection or delivery.
   fulfilment Fulfilment?

@@ -537,6 +537,44 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+.order-wallet {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin: 0.5rem 0 0.25rem;
+  padding: 0.85rem;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(26, 18, 12, 0.08);
+}
+
+.order-express {
+  min-height: 48px;
+}
+
+.order-wallet-or {
+  margin: 0;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(26, 18, 12, 0.45);
+}
+
+.order-paid-badge {
+  display: inline-block;
+  margin-top: 0.35rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #123d2a;
+  color: #7dffb2;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 @media (min-width: 760px) {
   .order-sheet {
     align-items: center;

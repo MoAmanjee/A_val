@@ -13,6 +13,7 @@ import { confirmOrder } from "@/services/orders/lifecycle";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
 import type { FullOrder } from "@/services/orders/query";
 import { isReadyToConfirm } from "@/services/orders/requirements";
+import { assertPaidIntent } from "@/services/orders/web-payment";
 import { normalizePhone } from "@/utils/phone";
 
 export interface WebLineChoice {
@@ -37,6 +38,8 @@ export interface WebCheckoutInput {
   deliveryAddress?: string;
   deliveryNotes?: string;
   lines: WebCartLine[];
+  /** When set, order is only placed after this Stripe PaymentIntent has succeeded. */
+  paymentIntentId?: string;
 }
 
 /**
@@ -148,6 +151,36 @@ export async function placeWebOrder(input: WebCheckoutInput): Promise<FullOrder>
 
   if (!isReadyToConfirm(order)) {
     throw new InvalidStateError("Some items still need a flavour, size, or meal choice");
+  }
+
+  // Re-load totals after modifiers / meal upgrades so Stripe amount matches.
+  order = await loadOrder(draft.id);
+
+  if (input.paymentIntentId) {
+    const existing = await db.order.findFirst({
+      where: { stripePaymentIntentId: input.paymentIntentId, status: { not: "DRAFT" } },
+    });
+    if (existing) {
+      throw new InvalidStateError("This payment was already used for an order");
+    }
+
+    const { method } = await assertPaidIntent(input.paymentIntentId, order.totalCents);
+    await db.order.update({
+      where: { id: draft.id },
+      data: {
+        paymentStatus: "PAID",
+        paymentMethod: method,
+        stripePaymentIntentId: input.paymentIntentId,
+      },
+    });
+  } else {
+    await db.order.update({
+      where: { id: draft.id },
+      data: {
+        paymentStatus: "UNPAID",
+        paymentMethod: "collection",
+      },
+    });
   }
 
   order = await confirmOrder(draft.id, { notify: true });

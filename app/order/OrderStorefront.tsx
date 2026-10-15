@@ -9,6 +9,7 @@ import {
   type OrderMenuPayload,
   lineTotalCents,
 } from "./types";
+import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
 
 function formatR(cents: number): string {
   const n = Math.round(cents);
@@ -38,13 +39,20 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [kitchenNotes, setKitchenNotes] = useState("");
+  const [payMode, setPayMode] = useState<"collection" | "online">("collection");
+  const [wallet, setWallet] = useState<{ clientSecret: string; publishableKey: string; paymentIntentId: string } | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [placed, setPlaced] = useState<{
     orderNumber: string | null;
     totalCents: number;
     quotedPrepMinutes: number | null;
+    paymentStatus?: string | null;
+    paymentMethod?: string | null;
   } | null>(null);
   const [pending, startTransition] = useTransition();
+  const onlinePayments = useOnlinePaymentsAvailable();
 
   const totalCents = useMemo(() => cart.reduce((sum, line) => sum + lineTotalCents(line), 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -68,7 +76,20 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     setCart((prev) => prev.filter((l) => l.key !== key));
   }
 
-  function placeOrder() {
+  function cartPayload() {
+    return cart.map((line) => ({
+      menuItemId: line.menuItemId,
+      quantity: line.quantity,
+      isMeal: line.isMeal,
+      notes: line.notes,
+      modifiers: line.modifiers.map((m) => ({
+        groupId: m.groupId,
+        optionIds: m.optionIds,
+      })),
+    }));
+  }
+
+  function placeOrder(paymentIntentId?: string) {
     setError(null);
     startTransition(async () => {
       try {
@@ -80,16 +101,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
             name: name.trim() || undefined,
             notes: kitchenNotes.trim() || undefined,
             fulfilment: "COLLECTION",
-            lines: cart.map((line) => ({
-              menuItemId: line.menuItemId,
-              quantity: line.quantity,
-              isMeal: line.isMeal,
-              notes: line.notes,
-              modifiers: line.modifiers.map((m) => ({
-                groupId: m.groupId,
-                optionIds: m.optionIds,
-              })),
-            })),
+            paymentIntentId,
+            lines: cartPayload(),
           }),
         });
         const data = await res.json();
@@ -98,12 +111,45 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           orderNumber: data.orderNumber,
           totalCents: data.totalCents,
           quotedPrepMinutes: data.quotedPrepMinutes,
+          paymentStatus: data.paymentStatus,
+          paymentMethod: data.paymentMethod,
         });
         setCart([]);
+        setWallet(null);
         setShowCheckout(false);
         setShowCart(false);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not place the order");
+      }
+    });
+  }
+
+  function startOnlinePayment() {
+    setError(null);
+    if (!phone.trim()) {
+      setError("Enter your mobile number first");
+      return;
+    }
+    startTransition(async () => {
+      try {
+        const res = await fetch("/api/order/payment", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            amountCents: totalCents,
+            phone,
+            name: name.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Could not start online payment");
+        setWallet({
+          clientSecret: data.clientSecret,
+          publishableKey: data.publishableKey,
+          paymentIntentId: data.paymentIntentId,
+        });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not start online payment");
       }
     });
   }
@@ -122,6 +168,9 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               : null}
           </p>
           <p className="order-muted">
+            {placed.paymentStatus === "PAID"
+              ? `Paid online${placed.paymentMethod ? ` (${placed.paymentMethod.replace(/_/g, " ")})` : ""}.`
+              : "Pay at the till when you collect."}{" "}
             We WhatsApp status updates to the number you gave — confirmed, cooking, and ready.
           </p>
           <button
@@ -287,15 +336,78 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 placeholder="One note for the whole order — e.g. no onion, nut allergy"
               />
             </label>
+
+            <fieldset className="order-choice-set">
+              <legend>Payment</legend>
+              <div className="order-chips">
+                <button
+                  type="button"
+                  className={payMode === "collection" ? "is-on" : undefined}
+                  onClick={() => {
+                    setPayMode("collection");
+                    setWallet(null);
+                  }}
+                >
+                  Pay at collection
+                </button>
+                <button
+                  type="button"
+                  className={payMode === "online" ? "is-on" : undefined}
+                  disabled={onlinePayments === false}
+                  onClick={() => setPayMode("online")}
+                  title={
+                    onlinePayments === false
+                      ? "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY to enable wallets"
+                      : "Apple Pay, Samsung Pay, Google Pay, card"
+                  }
+                >
+                  Apple / Samsung Pay
+                </button>
+              </div>
+              {onlinePayments === false ? (
+                <p className="order-muted">Online wallets need Stripe keys on the server — pay at collection still works.</p>
+              ) : (
+                <p className="order-muted">Apple Pay, Samsung Pay, Google Pay, and cards when you choose online pay.</p>
+              )}
+            </fieldset>
+
             {error ? <p className="order-error">{error}</p> : null}
+
+            {payMode === "online" && wallet ? (
+              <WalletCheckout
+                clientSecret={wallet.clientSecret}
+                publishableKey={wallet.publishableKey}
+                totalCents={totalCents}
+                pending={pending}
+                onError={(message) => setError(message || null)}
+                onPaid={(paymentIntentId) => placeOrder(paymentIntentId)}
+              />
+            ) : null}
+
             <footer>
               <div className="order-total-row">
-                <span>Pay at collection</span>
+                <span>{payMode === "online" ? "Pay online" : "Pay at collection"}</span>
                 <strong>{formatR(totalCents)}</strong>
               </div>
-              <button type="button" className="order-btn-primary" disabled={pending || !phone.trim()} onClick={placeOrder}>
-                {pending ? "Sending to kitchen…" : "Place order"}
-              </button>
+              {payMode === "collection" ? (
+                <button
+                  type="button"
+                  className="order-btn-primary"
+                  disabled={pending || !phone.trim()}
+                  onClick={() => placeOrder()}
+                >
+                  {pending ? "Sending to kitchen…" : "Place order"}
+                </button>
+              ) : !wallet ? (
+                <button
+                  type="button"
+                  className="order-btn-primary"
+                  disabled={pending || !phone.trim() || onlinePayments === false}
+                  onClick={startOnlinePayment}
+                >
+                  {pending ? "Preparing wallets…" : "Continue to Apple / Samsung Pay"}
+                </button>
+              ) : null}
             </footer>
           </div>
         </aside>

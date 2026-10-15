@@ -917,8 +917,8 @@ export const MOCHACHOS_MENU: MenuSeed = {
     {
       question: "How do I pay?",
       answer:
-        "You pay at the till when you collect — cash, card or SnapScan. There is no payment in the chat. Delivery is off for now.",
-      keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint", "pay in the chat", "pay on whatsapp"],
+        "On the online menu you can pay with Apple Pay, Samsung Pay, Google Pay or card, or choose pay at collection. In WhatsApp chat there is no payment — you pay at the till when you collect (cash, card or SnapScan). Delivery is off for now.",
+      keywords: ["pay", "payment", "how do i pay", "card", "cash", "snapscan", "eft", "speedpoint", "pay in the chat", "pay on whatsapp", "apple pay", "samsung pay"],
     },
     {
       question: "How do I order on WhatsApp?",

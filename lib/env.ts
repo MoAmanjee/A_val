@@ -54,4 +54,16 @@ export const env = {
   get whatsappAppSecret() {
     return read("WHATSAPP_APP_SECRET");
   },
+  /** Stripe secret key (sk_…). Empty = online wallets disabled, pay at collection only. */
+  get stripeSecretKey() {
+    return read("STRIPE_SECRET_KEY");
+  },
+  /** Stripe publishable key (pk_…). Safe for the browser when online pay is on. */
+  get stripePublishableKey() {
+    return read("STRIPE_PUBLISHABLE_KEY");
+  },
+  /** Optional webhook signing secret for payment_intent.succeeded. */
+  get stripeWebhookSecret() {
+    return read("STRIPE_WEBHOOK_SECRET");
+  },
 };

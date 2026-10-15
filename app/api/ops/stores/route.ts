@@ -7,8 +7,16 @@ export async function GET() {
   if (!(await readOpsSession())) {
     return Response.json({ error: "Sign in with the ops PIN." }, { status: 401 });
   }
-  const stores = await listOpsStores();
-  return Response.json({ stores });
+  try {
+    const stores = await listOpsStores();
+    return Response.json({ stores });
+  } catch (e) {
+    console.error("[ops] list stores failed", e);
+    return Response.json(
+      { error: e instanceof Error ? e.message : "Could not load stores." },
+      { status: 500 },
+    );
+  }
 }
 
 export async function PATCH(req: Request) {

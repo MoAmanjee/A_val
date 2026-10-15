@@ -44,16 +44,17 @@ export default function OpsPage() {
     const res = await fetch("/api/ops/stores");
     if (res.status === 401) {
       setAuthed(false);
-      return;
+      return false;
     }
+    const data = (await res.json().catch(() => null)) as { stores?: OpsStore[]; error?: string } | null;
     if (!res.ok) {
-      setError("Could not load stores.");
-      return;
+      setError(data?.error ?? "Could not load stores. Try again in a moment.");
+      return false;
     }
-    const data = (await res.json()) as { stores: OpsStore[] };
-    setStores(data.stores);
+    setStores(data?.stores ?? []);
     setAuthed(true);
     setError(null);
+    return true;
   }, []);
 
   useEffect(() => {

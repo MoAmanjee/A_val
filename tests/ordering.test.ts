@@ -335,6 +335,17 @@ describe("typed orders", () => {
     expect(chosen(two.lines[0])).toContain("Coke");
   });
 
+  it("reads a pasted list with x quantities, beeg chips and shawarmas", () => {
+    const parsed = parseUtterance("1 x Chicken burger\n2 x beeg chips\n2x shawarmas", catalog);
+    expect(parsed.unmatched).toEqual([]);
+    expect(parsed.lines.map((line) => ({ name: line.item.name, qty: line.quantity }))).toEqual([
+      { name: "Chicken Burger", qty: 1 },
+      { name: "Chips", qty: 2 },
+      { name: "Schwarma", qty: 2 },
+    ]);
+    expect(chosen(parsed.lines[1])).toContain("Beeg");
+  });
+
   it("uses one spice for every item when the customer says all hot", () => {
     const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
     expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });

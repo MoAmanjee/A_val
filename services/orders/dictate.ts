@@ -110,7 +110,7 @@ export function parseUtterance(raw: string, catalog: DictationItem[]): ParsedUtt
     unmatched: [],
     ambiguous: [],
   };
-  const trimmed = raw.trim();
+  const trimmed = tidyOrderText(raw);
   if (!trimmed) return empty;
   if (isQuestionWithoutItem(trimmed, catalog)) return { ...empty, ignoredAsQuestion: true };
 
@@ -655,6 +655,22 @@ function collapse(value: string): string {
   return value.replace(/\s+/g, " ").replace(/\s+,/g, ",").trim();
 }
 
+/**
+ * Customers paste lists like:
+ * 1 x Chicken burger
+ * 2 x beeg chips
+ * 2x shawarmas
+ */
+function tidyOrderText(raw: string): string {
+  return raw
+    .replace(/\r\n/g, "\n")
+    .replace(/\n+/g, ", ")
+    .replace(/\b(\d{1,2})\s*[x×]\s*/gi, "$1 x ")
+    .replace(/\s+/g, " ")
+    .replace(/\s+,/g, ",")
+    .trim();
+}
+
 function splitClauses(raw: string, catalog: DictationItem[]): string[] {
   const parts = raw
     .split(/,|\b(?:\+|plus|also)\b|\band\b/i)
@@ -689,7 +705,7 @@ function linesFromClause(clause: string, catalog: DictationItem[]): ParsedLine[]
     const isMeal = readMeal(clause, hit.item, selections);
     return {
       item: hit.item,
-      quantity: readQuantity(clause),
+      quantity: readQuantityNear(clause, norm, hit.index),
       isMeal,
       selections,
       forceNew: ANOTHER.test(clause),
@@ -980,11 +996,23 @@ function readMeal(raw: string, item: DictationItem, selections: ParsedSelection[
 
 function readQuantity(raw: string): number {
   const withoutFractions = raw.replace(/\d+\s*\/\s*\d+/g, " ").replace(/\b1\.5\b/g, " ");
+  const times = withoutFractions.match(/\b(\d{1,2})\s*[x×]\b/i);
+  if (times) return clampQuantity(Number(times[1]));
   const digit = withoutFractions.match(/\b(\d{1,2})\b/);
   if (digit) return clampQuantity(Number(digit[1]));
   const word = normalise(raw).match(/\b(one|two|three|four|five|six)\b/);
   if (word) return NUMBER_WORDS[word[1]] ?? 1;
   return 1;
+}
+
+/** Prefer the number written just before this dish, e.g. "2 x beeg chips". */
+function readQuantityNear(raw: string, normalised: string, itemIndex: number): number {
+  const before = normalised.slice(0, Math.max(0, itemIndex));
+  const times = before.match(/(\d{1,2})\s*x\s*$/i);
+  if (times) return clampQuantity(Number(times[1]));
+  const digit = before.match(/(\d{1,2})\s*$/);
+  if (digit) return clampQuantity(Number(digit[1]));
+  return readQuantity(raw);
 }
 
 function clampQuantity(value: number): number {

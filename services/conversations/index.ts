@@ -66,6 +66,9 @@ export function describeOutbound(message: OutboundMessage): string {
   if (message.kind === "text") return message.text;
   if (message.kind === "image") return message.caption ? `[Image] ${message.caption}` : "[Image]";
   if (message.kind === "document") return message.caption ? `[Document] ${message.caption}` : `[Document] ${message.filename}`;
+  if (message.kind === "cta_url") {
+    return `${message.body}\n[Open: ${message.buttonText} → ${message.url}]`;
+  }
   const options =
     message.kind === "buttons"
       ? message.buttons.map((b) => b.title)

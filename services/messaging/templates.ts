@@ -103,36 +103,36 @@ export function orderSummaryText(order: FullOrder, store: Store): string {
 export function welcomeMessage(
   store: Store,
   name: string | null,
-  opts: { returning?: boolean; openNote?: string } = {},
+  opts: { returning?: boolean; openNote?: string; orderUrl: string },
 ): OutboundMessage {
   const hello = name ? `Hi ${name}!` : "Hi there!";
   const intro = opts.returning
     ? `${hello} 👋 Welcome back to ${storeName(store)}.`
     : `${hello} 👋 Welcome to ${storeName(store)} in ${store.city}.`;
-  const body = `${intro}\n\nType the order here, tap through WhatsApp, or open the online photo menu — spice, meals, and kitchen notes are all there.`;
+  const body = [
+    intro,
+    "",
+    "Tap Order online for the photo menu — spice, meals, and kitchen notes are there.",
+    "Or type your order here, or say menu to browse in WhatsApp.",
+  ].join("\n");
 
+  // CTA URL opens the mini-site in WhatsApp's browser — no second "here is the link" message.
   return {
-    kind: "buttons",
+    kind: "cta_url",
     body,
+    buttonText: "Order online",
+    url: opts.orderUrl,
     footer: opts.openNote,
-    buttons: [
-      { id: encodeReplyId({ kind: "typeOrder" }), title: "Type my order" },
-      { id: encodeReplyId({ kind: "categories" }), title: "Browse the menu" },
-      { id: encodeReplyId({ kind: "onlineMenu" }), title: "Order online" },
-    ],
   };
 }
 
-/** Link to the mini-site so customers can tap-order with photos (fewer WhatsApp turns). */
+/** Fallback if an old Order online reply button is tapped — still opens as a CTA, not a plain link text. */
 export function onlineMenuMessage(orderUrl: string): OutboundMessage {
   return {
-    kind: "text",
-    text: [
-      "Prefer to tap and order yourself? Open our online menu:",
-      orderUrl,
-      "",
-      "Pick Zee Flavours, make it a meal, add kitchen notes, then place — it lands on the same kitchen screen. Or stay here and type your order.",
-    ].join("\n"),
+    kind: "cta_url",
+    body: "Photo menu with Zee Flavours, meals, and kitchen notes — same kitchen as WhatsApp.",
+    buttonText: "Order online",
+    url: orderUrl,
   };
 }
 

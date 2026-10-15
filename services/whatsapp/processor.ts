@@ -1,5 +1,6 @@
 import type { MessageType, Store } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { answerFaqWithLlm, getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
 import {
@@ -353,6 +354,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
           ? welcomeMessage(conv.store, name, {
               returning: customer.orderCount > 0,
               openNote: openState.closesAt ? `Open until ${openState.closesAt} today` : undefined,
+              orderUrl: `${env.appUrl.replace(/\/$/, "")}/order`,
             })
           : categoryPickerMessage(conv.store, categories),
         "AI",

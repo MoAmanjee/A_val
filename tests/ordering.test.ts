@@ -483,13 +483,24 @@ describe("whatsapp messages", () => {
     expect(secondTitles).toEqual(["Burger 9", "Burger 10", "Burger 11", "Burger 12", "← Back to menu"]);
   });
 
-  it("offers typing or browsing as the first choice", () => {
-    const message = welcomeMessage(store, "Thabo");
-    expect(message.kind).toBe("buttons");
-    if (message.kind !== "buttons") return;
-    expect(message.buttons.map((button) => button.title)).toEqual(["Type my order", "Browse the menu", "Order online"]);
-    expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "typeOrder" });
-    expect(message.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
+  it("opens the photo menu with a CTA URL on greeting", () => {
+    const message = welcomeMessage(store, "Thabo", { orderUrl: "https://example.com/order" });
+    expect(message.kind).toBe("cta_url");
+    if (message.kind !== "cta_url") return;
+    expect(message.buttonText).toBe("Order online");
+    expect(message.url).toBe("https://example.com/order");
+    expect(message.buttonText.length).toBeLessThanOrEqual(WA_LIMITS.ctaUrlButton);
+    const graph = toGraphMessage(message);
+    expect(graph).toMatchObject({
+      type: "interactive",
+      interactive: {
+        type: "cta_url",
+        action: {
+          name: "cta_url",
+          parameters: { display_text: "Order online", url: "https://example.com/order" },
+        },
+      },
+    });
   });
 
   it("puts menu pictures on the category list without exceeding 10 rows", () => {

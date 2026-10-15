@@ -9,6 +9,8 @@ export const WA_LIMITS = {
   headerText: 60,
   footerText: 60,
   buttonTitle: 20,
+  /** CTA URL button label (Order online). */
+  ctaUrlButton: 20,
   maxButtons: 3,
   listButtonLabel: 20,
   sectionTitle: 24,

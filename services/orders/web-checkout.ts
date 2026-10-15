@@ -14,6 +14,7 @@ import { DELIVERY_ENABLED } from "@/services/orders/features";
 import type { FullOrder } from "@/services/orders/query";
 import { isReadyToConfirm } from "@/services/orders/requirements";
 import { assertPaidIntent } from "@/services/orders/web-payment";
+import { stripeConfigured } from "@/lib/stripe";
 import { normalizePhone } from "@/utils/phone";
 
 export interface WebLineChoice {
@@ -30,6 +31,8 @@ export interface WebCartLine {
   notes?: string;
 }
 
+export type OnlineWalletChoice = "apple_pay" | "samsung_pay" | "google_pay" | "card";
+
 export interface WebCheckoutInput {
   phone: string;
   name?: string;
@@ -40,6 +43,11 @@ export interface WebCheckoutInput {
   lines: WebCartLine[];
   /** When set, order is only placed after this Stripe PaymentIntent has succeeded. */
   paymentIntentId?: string;
+  /**
+   * Pay-online without a Stripe intent — only accepted when Stripe keys are not
+   * configured (local demo). With live Stripe, use paymentIntentId instead.
+   */
+  onlineWallet?: OnlineWalletChoice;
 }
 
 /**
@@ -171,6 +179,18 @@ export async function placeWebOrder(input: WebCheckoutInput): Promise<FullOrder>
         paymentStatus: "PAID",
         paymentMethod: method,
         stripePaymentIntentId: input.paymentIntentId,
+      },
+    });
+  } else if (input.onlineWallet) {
+    // Live Stripe must confirm a PaymentIntent — wallet label alone is not enough.
+    if (stripeConfigured()) {
+      throw new InvalidStateError("Finish Apple Pay / Samsung Pay / card in the payment sheet first");
+    }
+    await db.order.update({
+      where: { id: draft.id },
+      data: {
+        paymentStatus: "PAID",
+        paymentMethod: input.onlineWallet,
       },
     });
   } else {

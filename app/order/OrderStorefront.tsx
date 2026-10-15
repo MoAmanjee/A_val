@@ -89,7 +89,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     }));
   }
 
-  function placeOrder(paymentIntentId?: string) {
+  function placeOrder(opts?: { paymentIntentId?: string; onlineWallet?: "apple_pay" | "samsung_pay" | "google_pay" | "card" }) {
     setError(null);
     startTransition(async () => {
       try {
@@ -101,7 +101,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
             name: name.trim() || undefined,
             notes: kitchenNotes.trim() || undefined,
             fulfilment: "COLLECTION",
-            paymentIntentId,
+            paymentIntentId: opts?.paymentIntentId,
+            onlineWallet: opts?.onlineWallet,
             lines: cartPayload(),
           }),
         });
@@ -353,35 +354,57 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <button
                   type="button"
                   className={payMode === "online" ? "is-on" : undefined}
-                  disabled={onlinePayments === false}
                   onClick={() => setPayMode("online")}
-                  title={
-                    onlinePayments === false
-                      ? "Add STRIPE_SECRET_KEY and STRIPE_PUBLISHABLE_KEY to enable wallets"
-                      : "Apple Pay, Samsung Pay, Google Pay, card"
-                  }
                 >
-                  Apple / Samsung Pay
+                  Pay online
                 </button>
               </div>
-              {onlinePayments === false ? (
-                <p className="order-muted">Online wallets need Stripe keys on the server — pay at collection still works.</p>
-              ) : (
-                <p className="order-muted">Apple Pay, Samsung Pay, Google Pay, and cards when you choose online pay.</p>
-              )}
+              <p className="order-muted">
+                {payMode === "online"
+                  ? "Apple Pay, Samsung Pay, Google Pay, or card — then we ticket the kitchen."
+                  : "Pay at the till when you collect. Or switch to Pay online."}
+              </p>
             </fieldset>
 
             {error ? <p className="order-error">{error}</p> : null}
 
-            {payMode === "online" && wallet ? (
+            {payMode === "online" && onlinePayments === true && wallet ? (
               <WalletCheckout
                 clientSecret={wallet.clientSecret}
                 publishableKey={wallet.publishableKey}
                 totalCents={totalCents}
                 pending={pending}
                 onError={(message) => setError(message || null)}
-                onPaid={(paymentIntentId) => placeOrder(paymentIntentId)}
+                onPaid={(paymentIntentId) => placeOrder({ paymentIntentId })}
               />
+            ) : null}
+
+            {payMode === "online" && onlinePayments === false ? (
+              <div className="order-wallet">
+                <p className="order-muted">
+                  Choose how you want to pay online. Add Stripe keys later for live Apple Pay / Samsung Pay charges —
+                  for now picking a wallet marks the kitchen ticket as paid.
+                </p>
+                <div className="order-chips">
+                  {(
+                    [
+                      ["apple_pay", "Apple Pay"],
+                      ["samsung_pay", "Samsung Pay"],
+                      ["google_pay", "Google Pay"],
+                      ["card", "Card"],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      disabled={pending || !phone.trim()}
+                      onClick={() => placeOrder({ onlineWallet: id })}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : null}
 
             <footer>
@@ -398,14 +421,14 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 >
                   {pending ? "Sending to kitchen…" : "Place order"}
                 </button>
-              ) : !wallet ? (
+              ) : onlinePayments === true && !wallet ? (
                 <button
                   type="button"
                   className="order-btn-primary"
-                  disabled={pending || !phone.trim() || onlinePayments === false}
+                  disabled={pending || !phone.trim()}
                   onClick={startOnlinePayment}
                 >
-                  {pending ? "Preparing wallets…" : "Continue to Apple / Samsung Pay"}
+                  {pending ? "Preparing wallets…" : "Continue to wallets"}
                 </button>
               ) : null}
             </footer>

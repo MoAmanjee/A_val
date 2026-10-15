@@ -29,6 +29,8 @@ const bodySchema = z.object({
   deliveryNotes: z.string().max(240).optional(),
   /** Stripe PaymentIntent id after Apple Pay / Samsung Pay / card succeeded. */
   paymentIntentId: z.string().min(3).max(120).optional(),
+  /** Demo / no-Stripe path: mark paid online with this wallet label. */
+  onlineWallet: z.enum(["apple_pay", "samsung_pay", "google_pay", "card"]).optional(),
   lines: z.array(lineSchema).min(1).max(40),
 });
 

@@ -1,0 +1,626 @@
+{
+  "files": {
+    "hero-sa": "/order-food/hero-sa.jpg",
+    "cat-plato-ligero": "/order-food/cat-plato-ligero.jpg",
+    "cat-ensaladas": "/order-food/cat-ensaladas.jpg",
+    "cat-bambino": "/order-food/cat-bambino.jpg",
+    "cat-schwarmas": "/order-food/cat-schwarmas.jpg",
+    "cat-pollo-pueblo": "/order-food/cat-pollo-pueblo.jpg",
+    "cat-burgers": "/order-food/cat-burgers.jpg",
+    "cat-combinacion": "/order-food/cat-combinacion.jpg",
+    "cat-mexican": "/order-food/cat-mexican.jpg",
+    "cat-familia": "/order-food/cat-familia.jpg",
+    "cat-sides": "/order-food/cat-sides.jpg",
+    "cat-dessert": "/order-food/cat-dessert.jpg",
+    "brand-logo": "/order-food/brand-logo.png",
+    "brand-logo-mark": "/order-food/brand-logo-mark.jpg",
+    "zee-flavours": "/order-food/zee-flavours.png",
+    "pollo-hero": "/order-food/pollo-hero.jpg",
+    "burger-cheese-pine": "/order-food/burger-cheese-pine.jpg",
+    "wings-chips": "/order-food/wings-chips.jpg",
+    "item-extra": "/order-food/item-extra.jpg",
+    "bambino-scaled": "/order-food/bambino-scaled.jpg",
+    "burrito-chips": "/order-food/burrito-chips.jpg",
+    "fajita": "/order-food/fajita.jpg",
+    "family-variety": "/order-food/family-variety.jpg",
+    "chips": "/order-food/chips.jpg",
+    "chocolate": "/order-food/chocolate.jpg",
+    "bg-pattern": "/order-food/bg-pattern.jpg",
+    "item-amig1c": "/order-food/item-amig1c.png",
+    "item-appgrap": "/order-food/item-appgrap.png",
+    "item-bburgc01": "/order-food/item-bburgc01.png",
+    "item-bmjose": "/order-food/item-bmjose.png",
+    "item-bmspeed": "/order-food/item-bmspeed.png",
+    "item-budvari": "/order-food/item-budvari.png",
+    "item-canvari": "/order-food/item-canvari.png",
+    "item-capfuze": "/order-food/item-capfuze.png",
+    "item-chbur8": "/order-food/item-chbur8.png",
+    "item-chench": "/order-food/item-chench.png",
+    "item-chick2c": "/order-food/item-chick2c.png",
+    "item-chick4b": "/order-food/item-chick4b.png",
+    "item-chick4bw": "/order-food/item-chick4bw.png",
+    "item-chick4c": "/order-food/item-chick4c.png",
+    "item-chick4p": "/order-food/item-chick4p.png",
+    "item-chick8bw": "/order-food/item-chick8bw.png",
+    "item-chickfc": "/order-food/item-chickfc.png",
+    "item-chicksalcomb": "/order-food/item-chicksalcomb.png",
+    "item-churr1": "/order-food/item-churr1.png",
+    "item-ckchim": "/order-food/item-ckchim.png",
+    "item-cklvr": "/order-food/item-cklvr.png",
+    "item-ckques": "/order-food/item-ckques.png",
+    "item-coffee": "/order-food/item-coffee.png",
+    "item-cscdp3": "/order-food/item-cscdp3.png",
+    "item-cscdp5": "/order-food/item-cscdp5.png",
+    "item-csmach5": "/order-food/item-csmach5.png",
+    "item-cspdp7": "/order-food/item-cspdp7.png",
+    "item-dips1": "/order-food/item-dips1.png",
+    "item-fajit": "/order-food/item-fajit.png",
+    "item-famfe": "/order-food/item-famfe.png",
+    "item-famfi": "/order-food/item-famfi.png",
+    "item-famsm": "/order-food/item-famsm.png",
+    "item-famtr": "/order-food/item-famtr.png",
+    "item-famva": "/order-food/item-famva.png",
+    "item-fbbqw3": "/order-food/item-fbbqw3.png",
+    "item-fllch21": "/order-food/item-fllch21.png",
+    "item-freezo": "/order-food/item-freezo.png",
+    "item-halch15": "/order-food/item-halch15.png",
+    "item-hmqchr": "/order-food/item-hmqchr.png",
+    "item-kidpasta": "/order-food/item-kidpasta.png",
+    "item-kidtsts": "/order-food/item-kidtsts.png",
+    "item-lsgndf": "/order-food/item-lsgndf.png",
+    "item-ltronefive": "/order-food/item-ltronefive.png",
+    "item-mgcsr9": "/order-food/item-mgcsr9.png",
+    "item-mlkshk": "/order-food/item-mlkshk.png",
+    "item-mocsau": "/order-food/item-mocsau.png",
+    "item-mozstick": "/order-food/item-mozstick.png",
+    "item-pstalfrd": "/order-food/item-pstalfrd.png",
+    "item-pstarbta": "/order-food/item-pstarbta.png",
+    "item-pstblgns": "/order-food/item-pstblgns.png",
+    "item-pstcm": "/order-food/item-pstcm.png",
+    "item-pstdpll": "/order-food/item-pstdpll.png",
+    "item-pstfrtdmr": "/order-food/item-pstfrtdmr.png",
+    "item-pstnpltn": "/order-food/item-pstnpltn.png",
+    "item-pstprmvra": "/order-food/item-pstprmvra.png",
+    "item-pzabcni": "/order-food/item-pzabcni.png",
+    "item-pzachcav": "/order-food/item-pzachcav.png",
+    "item-pzacmy": "/order-food/item-pzacmy.png",
+    "item-pzacrnvre": "/order-food/item-pzacrnvre.png",
+    "item-pzafccia": "/order-food/item-pzafccia.png",
+    "item-pzafrdmre": "/order-food/item-pzafrdmre.png",
+    "item-pzaitlia": "/order-food/item-pzaitlia.png",
+    "item-pzamdtn": "/order-food/item-pzamdtn.png",
+    "item-chickavo": "/order-food/item-chickavo.png",
+    "item-colesml": "/order-food/item-colesml.png",
+    "item-grchsld3": "/order-food/item-grchsld3.png",
+    "item-grdsld8": "/order-food/item-grdsld8.png",
+    "item-grsld5": "/order-food/item-grsld5.png",
+    "item-burgbg": "/order-food/item-burgbg.png",
+    "item-burgbjs": "/order-food/item-burgbjs.png",
+    "item-burgbs": "/order-food/item-burgbs.png",
+    "item-burgcb": "/order-food/item-burgcb.png",
+    "item-burgcjs": "/order-food/item-burgcjs.png",
+    "item-burggc": "/order-food/item-burggc.png",
+    "item-burgncg": "/order-food/item-burgncg.png",
+    "item-burgvs": "/order-food/item-burgvs.png",
+    "item-djvburg01": "/order-food/item-djvburg01.png",
+    "item-dvburg01": "/order-food/item-dvburg01.png",
+    "item-mexcrumburg": "/order-food/item-mexcrumburg.png",
+    "item-mexlamburg": "/order-food/item-mexlamburg.png",
+    "item-mocbeefribs400": "/order-food/item-mocbeefribs400.png",
+    "item-mocrump300": "/order-food/item-mocrump300.png",
+    "item-mocsroll110": "/order-food/item-mocsroll110.png",
+    "item-moctbone350": "/order-food/item-moctbone350.png"
+  },
+  "products": [
+    {
+      "code": "AMIG1C",
+      "name": "AMIGO COMBO",
+      "summary": "1/2 Chicken, Medium Chips & 2 Buns",
+      "key": "item-amig1c"
+    },
+    {
+      "code": "APPGRAP",
+      "name": "Appletiser/Grapetiser",
+      "summary": "A sparkling Fruit Juice.",
+      "key": "item-appgrap"
+    },
+    {
+      "code": "BBURGC01",
+      "name": "BEEF BURGER",
+      "summary": "Beef Burger, small chips & buddy",
+      "key": "item-bburgc01"
+    },
+    {
+      "code": "BMJOSE",
+      "name": "JOSE BURGER",
+      "summary": "Mini Chicken Fillet Burger, Kiddies Chips, Kiddies Juice & a Free Toy.",
+      "key": "item-bmjose"
+    },
+    {
+      "code": "BMSPEED",
+      "name": "SPEEDY CHICKEN STRIPS",
+      "summary": "4 Battered Chicken Strips, Kiddies Chips, Kiddies Juice & a Free Toy.",
+      "key": "item-bmspeed"
+    },
+    {
+      "code": "BUDVARI",
+      "name": "BUDDY",
+      "summary": "440ml Soft Drink.",
+      "key": "item-budvari"
+    },
+    {
+      "code": "CANVARI",
+      "name": "CANS",
+      "summary": "300ml Soft Drink.",
+      "key": "item-canvari"
+    },
+    {
+      "code": "CAPFUZE",
+      "name": "CAPPY",
+      "summary": "330 ml Juice.",
+      "key": "item-capfuze"
+    },
+    {
+      "code": "CHBUR8",
+      "name": "BURRITO",
+      "summary": "Burrito.",
+      "key": "item-chbur8"
+    },
+    {
+      "code": "CHENCH",
+      "name": "ENCHILADA",
+      "summary": "Enchilada.",
+      "key": "item-chench"
+    },
+    {
+      "code": "CHICK2C",
+      "name": "1/2 CHICKEN COMBO",
+      "summary": "1/2 Chicken, Small Chips & a Buddy Colddrink.",
+      "key": "item-chick2c"
+    },
+    {
+      "code": "CHICK4B",
+      "name": "1/4 CHICKEN, SMALL CHIPS",
+      "summary": "1/4 Chicken & Small Chips.",
+      "key": "item-chick4b"
+    },
+    {
+      "code": "CHICK4BW",
+      "name": "4 FULL BBQ WINGS SMALL CHIPS",
+      "summary": "Bbq Wings & Chips.",
+      "key": "item-chick4bw"
+    },
+    {
+      "code": "CHICK4C",
+      "name": "1/4 CHICKEN COMBO",
+      "summary": "1/4 Chicken, Small Chips & a Buddy Colddrink.",
+      "key": "item-chick4c"
+    },
+    {
+      "code": "CHICK4P",
+      "name": "1/4 CHICKEN, PAP MEXICAN SAUCE",
+      "summary": "",
+      "key": "item-chick4p"
+    },
+    {
+      "code": "CHICK8BW",
+      "name": "8 FULL BBQ WINGS MED CHIPS",
+      "summary": "Bbq Wings & Med Chips.",
+      "key": "item-chick8bw"
+    },
+    {
+      "code": "CHICKFC",
+      "name": "2 CHICKEN FILLET COMBO",
+      "summary": "2 Chicken Fillets & Chips.",
+      "key": "item-chickfc"
+    },
+    {
+      "code": "CHICKSALCOMB",
+      "name": "GRILLED CHICKEN SALAD COMBO",
+      "summary": "Grilled Chicken Salad & Water.",
+      "key": "item-chicksalcomb"
+    },
+    {
+      "code": "CHURR1",
+      "name": "DESSERTS",
+      "summary": "3 or 6 Churros, dusted in Cinnamon & Sugar.",
+      "key": "item-churr1"
+    },
+    {
+      "code": "CKCHIM",
+      "name": "CHIMICHANGA",
+      "summary": "Chimichanga.",
+      "key": "item-ckchim"
+    },
+    {
+      "code": "CKLVR",
+      "name": "MEXICAN CHICKEN LIVERS BUN",
+      "summary": "Spiced Chicken Livers & Bun.",
+      "key": "item-cklvr"
+    },
+    {
+      "code": "CKQUES",
+      "name": "QUESADILLA",
+      "summary": "Quesadilla.",
+      "key": "item-ckques"
+    },
+    {
+      "code": "COFFEE",
+      "name": "COFFEE",
+      "summary": "Americano, Cappuccino or Cafe Latte.",
+      "key": "item-coffee"
+    },
+    {
+      "code": "CSCDP3",
+      "name": "6 CHICKEN STRIPS, CHIPS DIP",
+      "summary": "",
+      "key": "item-cscdp3"
+    },
+    {
+      "code": "CSCDP5",
+      "name": "6 STRIPS n DIP",
+      "summary": "",
+      "key": "item-cscdp5"
+    },
+    {
+      "code": "CSMACH5",
+      "name": "NACHOS",
+      "summary": "Nachos.",
+      "key": "item-csmach5"
+    },
+    {
+      "code": "CSPDP7",
+      "name": "3 CHICKEN STRIPS and DIP",
+      "summary": "",
+      "key": "item-cspdp7"
+    },
+    {
+      "code": "DIPS1",
+      "name": "SIDES",
+      "summary": "Dipz.",
+      "key": "item-dips1"
+    },
+    {
+      "code": "FAJIT",
+      "name": "FAJITA",
+      "summary": "Fajita.",
+      "key": "item-fajit"
+    },
+    {
+      "code": "FAMFE",
+      "name": "FAMILY FEAST",
+      "summary": "Full Chicken, Large Chips and 4 Buns.",
+      "key": "item-famfe"
+    },
+    {
+      "code": "FAMFI",
+      "name": "FAMILY FIESTA",
+      "summary": "Full Chicken, Large Chips, 4 Buns, Coleslaw or Garden Salad.",
+      "key": "item-famfi"
+    },
+    {
+      "code": "FAMSM",
+      "name": "FAMILY SHARE MEAL",
+      "summary": "2 Chicken Burgers, 2 Kiddies Chicken Burgers, 6 Strips & Dip, Large Chips",
+      "key": "item-famsm"
+    },
+    {
+      "code": "FAMTR",
+      "name": "FAMILY TREAT",
+      "summary": "2 Full Chickens, 2 Large Chips, 8 Buns, Large Coleslaw or Garden Salad.",
+      "key": "item-famtr"
+    },
+    {
+      "code": "FAMVA",
+      "name": "FAMILY VARIETY",
+      "summary": "1/2 Chicken, 2 Chicken Burgers & Large Chips.",
+      "key": "item-famva"
+    },
+    {
+      "code": "FBBQW3",
+      "name": "4 FULL BBQ WINGS",
+      "summary": "Bbq Wings.",
+      "key": "item-fbbqw3"
+    },
+    {
+      "code": "FLLCH21",
+      "name": "FULL CHICKEN",
+      "summary": "Full Chicken.",
+      "key": "item-fllch21"
+    },
+    {
+      "code": "FREEZO",
+      "name": "FREEZOS",
+      "summary": "Freezos.",
+      "key": "item-freezo"
+    },
+    {
+      "code": "HALCH15",
+      "name": "1/2 CHICKEN",
+      "summary": "Succulent 1/2 Chicken spiced according to your taste buds.",
+      "key": "item-halch15"
+    },
+    {
+      "code": "HMQCHR",
+      "name": "HOMEMADE QUENCHERS",
+      "summary": "350ml Home Made Quenchers.",
+      "key": "item-hmqchr"
+    },
+    {
+      "code": "KIDPASTA",
+      "name": "KIDDIES PASTA",
+      "summary": "Only in Spaghetti.",
+      "key": "item-kidpasta"
+    },
+    {
+      "code": "KIDTSTS",
+      "name": "KIDDIES TOASTIES",
+      "summary": "Kiddies Toasted Sandwich, served with Chips.",
+      "key": "item-kidtsts"
+    },
+    {
+      "code": "LSGNDF",
+      "name": "LASAGNE",
+      "summary": "Beef or Chicken & Mushroom.",
+      "key": "item-lsgndf"
+    },
+    {
+      "code": "LTRONEFIVE",
+      "name": "1.5L",
+      "summary": "1.5L Soft Drink.",
+      "key": "item-ltronefive"
+    },
+    {
+      "code": "MGCSR9",
+      "name": "MEXICAN CHICKEN PIECES AND RICE",
+      "summary": "Grilled Chicken pieces and Rice.",
+      "key": "item-mgcsr9"
+    },
+    {
+      "code": "MLKSHK",
+      "name": "MILK SHAKES",
+      "summary": "350ml Milk Shakes",
+      "key": "item-mlkshk"
+    },
+    {
+      "code": "MOCSAU",
+      "name": "BOTTLE SAUCES",
+      "summary": "250ml Bottle Sauces.",
+      "key": "item-mocsau"
+    },
+    {
+      "code": "MOZSTICK",
+      "name": "3 MOZARELLA STICKS AND DIP",
+      "summary": "",
+      "key": "item-mozstick"
+    },
+    {
+      "code": "PSTALFRD",
+      "name": "CRAZY MEXICAN",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstalfrd"
+    },
+    {
+      "code": "PSTARBTA",
+      "name": "PASTA ARRABIATA",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstarbta"
+    },
+    {
+      "code": "PSTBLGNS",
+      "name": "PASTA BOLOGNESE",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstblgns"
+    },
+    {
+      "code": "PSTCM",
+      "name": "PASTA ALFREDO",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstcm"
+    },
+    {
+      "code": "PSTDPLL",
+      "name": "PASTA DE POLLO",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstdpll"
+    },
+    {
+      "code": "PSTFRTDMR",
+      "name": "PASTA FRUTTI DI MARE",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstfrtdmr"
+    },
+    {
+      "code": "PSTNPLTN",
+      "name": "PASTA NAPOLITANA",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstnpltn"
+    },
+    {
+      "code": "PSTPRMVRA",
+      "name": "PASTA PRIMAVERA",
+      "summary": "Pasta dish in choice of Spaghetti, Fettucini or Penne.",
+      "key": "item-pstprmvra"
+    },
+    {
+      "code": "PZABCNI",
+      "name": "PIZZA BACINI",
+      "summary": "Bacini.",
+      "key": "item-pzabcni"
+    },
+    {
+      "code": "PZACHCAV",
+      "name": "CHICKEN AND AVO PIZZA",
+      "summary": "Chicken and Avo.",
+      "key": "item-pzachcav"
+    },
+    {
+      "code": "PZACMY",
+      "name": "CHICKEN MAYO PIZZA",
+      "summary": "Chicken, Mayonnaise.",
+      "key": "item-pzacmy"
+    },
+    {
+      "code": "PZACRNVRE",
+      "name": "CARNIVORE PIZZA",
+      "summary": "Carnivore.",
+      "key": "item-pzacrnvre"
+    },
+    {
+      "code": "PZAFCCIA",
+      "name": "PIZZA FOCCACIA",
+      "summary": "Only available in Large.",
+      "key": "item-pzafccia"
+    },
+    {
+      "code": "PZAFRDMRE",
+      "name": "FRUTTI DE MARE",
+      "summary": "Seafood.",
+      "key": "item-pzafrdmre"
+    },
+    {
+      "code": "PZAITLIA",
+      "name": "PIZZA ITALIA",
+      "summary": "Italia.",
+      "key": "item-pzaitlia"
+    },
+    {
+      "code": "PZAMDTN",
+      "name": "MEDITERRANEAN PIZZA",
+      "summary": "Mediterranean.",
+      "key": "item-pzamdtn"
+    },
+    {
+      "code": "CHICKAVO",
+      "name": "CHICKEN AVO",
+      "summary": "Chicken & Avo Salad.",
+      "key": "item-chickavo"
+    },
+    {
+      "code": "COLESML",
+      "name": "COLESLAW",
+      "summary": "",
+      "key": "item-colesml"
+    },
+    {
+      "code": "GRCHSLD3",
+      "name": "GRILLED CHICKEN SALAD",
+      "summary": "Grilled Chicken Salad.",
+      "key": "item-grchsld3"
+    },
+    {
+      "code": "GRDSLD8",
+      "name": "GARDEN SALAD",
+      "summary": "Garden Salad.",
+      "key": "item-grdsld8"
+    },
+    {
+      "code": "GRSLD5",
+      "name": "GREEK SALAD",
+      "summary": "Greek Salad.",
+      "key": "item-grsld5"
+    },
+    {
+      "code": "ITALSAL",
+      "name": "ITALIAN",
+      "summary": "Italian.",
+      "key": "item-italsal"
+    },
+    {
+      "code": "BURGBG",
+      "name": "GOURMET BEEF BURGER SINGLE",
+      "summary": "Gourmet Beef Burger.",
+      "key": "item-burgbg"
+    },
+    {
+      "code": "BURGBJS",
+      "name": "JALAPENO CHEESE BEEF BURGER SINGLE",
+      "summary": "Jalapeno Beef Cheese Burger.",
+      "key": "item-burgbjs"
+    },
+    {
+      "code": "BURGBS",
+      "name": "BEEF BURGER SINGLE",
+      "summary": "Beef Burger.",
+      "key": "item-burgbs"
+    },
+    {
+      "code": "BURGCB",
+      "name": "CHICKEN BURGER SINGLE",
+      "summary": "Chicken Burger.",
+      "key": "item-burgcb"
+    },
+    {
+      "code": "BURGCJS",
+      "name": "JALAPENO CHICKEN CHEESE BURGER",
+      "summary": "Jalapeno Chicken Cheese Burger.",
+      "key": "item-burgcjs"
+    },
+    {
+      "code": "BURGGC",
+      "name": "GOURMET CHICKEN BURGER SINGLE",
+      "summary": "Gourmet Chicken Burger.",
+      "key": "item-burggc"
+    },
+    {
+      "code": "BURGNCG",
+      "name": "NACHO CRUNCH BURGER",
+      "summary": "Nacho Crunch Burger.",
+      "key": "item-burgncg"
+    },
+    {
+      "code": "BURGVS",
+      "name": "VEG BURGER SINGLE",
+      "summary": "Veg Burger Single.",
+      "key": "item-burgvs"
+    },
+    {
+      "code": "DJVBURG01",
+      "name": "JALAPENO VEGEE CHEESE BURGER",
+      "summary": "Jalapeno Veg Cheese Burger.",
+      "key": "item-djvburg01"
+    },
+    {
+      "code": "DVBURG01",
+      "name": "GOURMET VEG BURGER",
+      "summary": "Vegee Gourmet Burger (Topped with Feta Cheese, Guacamole and sliced Jalapeno).",
+      "key": "item-dvburg01"
+    },
+    {
+      "code": "MEXCRUMBURG",
+      "name": "MEXICAN CRUMBED BURGER",
+      "summary": "Fried chicken fillet burger",
+      "key": "item-mexcrumburg"
+    },
+    {
+      "code": "MEXLAMBURG",
+      "name": "MEXICAN LAMB BURGER",
+      "summary": "",
+      "key": "item-mexlamburg"
+    },
+    {
+      "code": "MOCBEEFRIBS400",
+      "name": "Ribs and Chips 400G",
+      "summary": "400G Beef Ribs & Chips",
+      "key": "item-mocbeefribs400"
+    },
+    {
+      "code": "MOCRUMP300",
+      "name": "Rump Steak and Chips 300g",
+      "summary": "Rump 300G Small Chips",
+      "key": "item-mocrump300"
+    },
+    {
+      "code": "MOCSROLL110",
+      "name": "Steak Roll and Chips",
+      "summary": "Steak Roll Small Chips",
+      "key": "item-mocsroll110"
+    },
+    {
+      "code": "MOCTBONE350",
+      "name": "T-Bone and Chips 350G",
+      "summary": "T-Bone 350G Small Chips",
+      "key": "item-moctbone350"
+    }
+  ]
+}

@@ -109,7 +109,7 @@ export function welcomeMessage(
   const intro = opts.returning
     ? `${hello} 👋 Welcome back to ${storeName(store)}.`
     : `${hello} 👋 Welcome to ${storeName(store)} in ${store.city}.`;
-  const body = `${intro}\n\nType the whole order in one message, or tap through the menu. If you leave a spice out, I ask for that item on its own.`;
+  const body = `${intro}\n\nType the order here, tap through WhatsApp, or open the online photo menu — spice, meals, and kitchen notes are all there.`;
 
   return {
     kind: "buttons",
@@ -118,8 +118,21 @@ export function welcomeMessage(
     buttons: [
       { id: encodeReplyId({ kind: "typeOrder" }), title: "Type my order" },
       { id: encodeReplyId({ kind: "categories" }), title: "Browse the menu" },
-      { id: encodeReplyId({ kind: "menuPhotos" }), title: "Menu pictures" },
+      { id: encodeReplyId({ kind: "onlineMenu" }), title: "Order online" },
     ],
+  };
+}
+
+/** Link to the mini-site so customers can tap-order with photos (fewer WhatsApp turns). */
+export function onlineMenuMessage(orderUrl: string): OutboundMessage {
+  return {
+    kind: "text",
+    text: [
+      "Prefer to tap and order yourself? Open our online menu:",
+      orderUrl,
+      "",
+      "Pick Zee Flavours, make it a meal, add kitchen notes, then place — it lands on the same kitchen screen. Or stay here and type your order.",
+    ].join("\n"),
   };
 }
 

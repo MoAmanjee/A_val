@@ -1,5 +1,6 @@
 import { Prisma, type Conversation } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { handOverToHuman, sendToCustomer, setPendingQuestion } from "@/services/conversations";
 import { readAnythingElse, readConfirmation, readFulfilment, wantsCancel } from "@/services/conversations/understanding";
@@ -22,6 +23,7 @@ import {
   KEEP_ORDER_MESSAGE,
   interactiveBasket,
   mealUpgradeMessage,
+  onlineMenuMessage,
   orderProgressMessages,
   modifierQuestionMessage,
   STALE_TAP_MESSAGE,
@@ -245,6 +247,13 @@ export async function applyReplyAction(
       await sendToCustomer(conversationId, TYPE_ORDER_MESSAGE, "AI");
       await setPendingQuestion(conversationId, "NONE");
       return { sent: true };
+
+    case "onlineMenu": {
+      const orderUrl = `${env.appUrl.replace(/\/$/, "")}/order`;
+      await sendToCustomer(conversationId, onlineMenuMessage(orderUrl), "AI");
+      await setPendingQuestion(conversationId, "NONE");
+      return { sent: true };
+    }
 
     case "menuPhotos": {
       const sent = await sendMenuPictures(conversationId, { force: true });

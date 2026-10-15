@@ -15,6 +15,8 @@ export type ReplyAction =
   | { kind: "categories"; page?: number }
   /** Send the printed menu pictures. */
   | { kind: "menuPhotos" }
+  /** Send the branded /order mini-site link (photo menu + cart). */
+  | { kind: "onlineMenu" }
   /** The customer would rather type the whole order than tap the menu. */
   | { kind: "typeOrder" }
   /** Add a menu item to the basket. */
@@ -50,6 +52,8 @@ export function encodeReplyId(action: ReplyAction): string {
       return action.page ? `cats:${action.page}` : "cats";
     case "menuPhotos":
       return "photos";
+    case "onlineMenu":
+      return "online";
     case "typeOrder":
       return "type";
     case "item":
@@ -94,6 +98,8 @@ export function decodeReplyId(raw: string | undefined | null): ReplyAction | nul
     }
     case "photos":
       return { kind: "menuPhotos" };
+    case "online":
+      return { kind: "onlineMenu" };
     case "type":
       return { kind: "typeOrder" };
     case "item":

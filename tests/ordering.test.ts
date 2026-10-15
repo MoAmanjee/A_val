@@ -487,7 +487,7 @@ describe("whatsapp messages", () => {
     const message = welcomeMessage(store, "Thabo");
     expect(message.kind).toBe("buttons");
     if (message.kind !== "buttons") return;
-    expect(message.buttons.map((button) => button.title)).toEqual(["Type my order", "Browse the menu", "Menu pictures"]);
+    expect(message.buttons.map((button) => button.title)).toEqual(["Type my order", "Browse the menu", "Order online"]);
     expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "typeOrder" });
     expect(message.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
   });

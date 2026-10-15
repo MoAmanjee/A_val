@@ -751,6 +751,14 @@ export function pausedMessage(store: Store): OutboundMessage {
   };
 }
 
+/** Ops cut-off (non-payment or channel kill switch) — not the kitchen pausing for the night. */
+export function suspendedMessage(store: Store, reason: string): OutboundMessage {
+  return {
+    kind: "text",
+    text: `Thanks for messaging ${storeName(store)}. Ordering is unavailable right now${reason ? ` \u2014 ${reason}` : ""}.`,
+  };
+}
+
 export function changeRequestMessage(order: FullOrder, store: Store): OutboundMessage {
   return {
     kind: "text",

@@ -199,7 +199,12 @@ export async function seedStore(prisma: PrismaClient, opts: { phoneNumberId?: st
   const store = existing
     ? await prisma.store.update({
         where: { id: existing.id },
-        data: { kitchenPinHash, whatsappPhoneNumberId: phoneNumberId },
+        data: {
+          kitchenPinHash,
+          whatsappPhoneNumberId: phoneNumberId,
+          slug: existing.slug ?? "mochachos-potch",
+          variant: existing.variant || "mochachos",
+        },
       })
     : await prisma.store.create({
         data: {
@@ -212,6 +217,8 @@ export async function seedStore(prisma: PrismaClient, opts: { phoneNumberId?: st
           postalCode: STORE_DEFAULTS.postalCode,
           whatsappPhoneNumberId: phoneNumberId,
           kitchenPinHash,
+          slug: "mochachos-potch",
+          variant: "mochachos",
         },
       });
 

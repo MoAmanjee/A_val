@@ -14,6 +14,7 @@ import { DELIVERY_ENABLED } from "@/services/orders/features";
 import type { FullOrder } from "@/services/orders/query";
 import { isReadyToConfirm } from "@/services/orders/requirements";
 import { assertPaidIntent } from "@/services/orders/web-payment";
+import { tenantGate } from "@/services/ops/tenant";
 import { stripeConfigured } from "@/lib/stripe";
 import { normalizePhone } from "@/utils/phone";
 
@@ -64,8 +65,9 @@ export async function placeWebOrder(input: WebCheckoutInput): Promise<FullOrder>
 
   const store = await db.store.findFirst({ orderBy: { createdAt: "asc" } });
   if (!store) throw new NotFoundError("Store");
-  if (!store.acceptingOrders) {
-    throw new InvalidStateError(store.pausedReason ?? "The kitchen is not taking orders right now");
+  const gate = tenantGate(store, "web");
+  if (!gate.ok) {
+    throw new InvalidStateError(gate.reason ?? "Online ordering is unavailable right now");
   }
 
   const customer = await db.customer.upsert({

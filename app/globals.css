@@ -595,3 +595,234 @@ body {
     height: 120px;
   }
 }
+
+/* ---------------------------------------------------------------- Ops console */
+
+.ops-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(900px 420px at 0% 0%, rgba(34, 197, 94, 0.08), transparent 55%),
+    linear-gradient(180deg, #0b1220 0%, #111827 45%, #0f172a 100%);
+  color: #e5e7eb;
+  padding: clamp(1.25rem, 4vw, 2.5rem);
+  font-family: var(--order-body);
+}
+
+.ops-kicker {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #86efac;
+  font-weight: 700;
+}
+
+.ops-shell h1 {
+  margin: 0.35rem 0 0.5rem;
+  font-family: var(--order-display);
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  color: #fff;
+}
+
+.ops-login {
+  max-width: 24rem;
+  margin: 12vh auto;
+  display: grid;
+  gap: 0.85rem;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid #1f2937;
+  border-radius: 18px;
+  padding: 1.5rem;
+}
+
+.ops-login label,
+.ops-billing label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.9rem;
+}
+
+.ops-login input,
+.ops-billing input,
+.ops-billing select {
+  border-radius: 10px;
+  border: 1px solid #334155;
+  background: #0b1220;
+  color: #f8fafc;
+  padding: 0.65rem 0.75rem;
+}
+
+.ops-login button,
+.ops-header-actions button,
+.ops-actions button {
+  border: 0;
+  border-radius: 999px;
+  padding: 0.7rem 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.ops-login button {
+  background: #22c55e;
+  color: #052e16;
+}
+
+.ops-error {
+  color: #fecaca;
+  margin: 0;
+}
+
+.ops-banner {
+  margin-bottom: 1rem;
+}
+
+.ops-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.ops-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.ops-ghost {
+  background: transparent;
+  color: #e5e7eb;
+  border: 1px solid #334155 !important;
+}
+
+.ops-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+.ops-card {
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #1f2937;
+  border-radius: 18px;
+  padding: 1.1rem 1.2rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.ops-card.health-healthy {
+  border-top: 3px solid #22c55e;
+}
+
+.ops-card.health-warn {
+  border-top: 3px solid #f59e0b;
+}
+
+.ops-card.health-down {
+  border-top: 3px solid #ef4444;
+}
+
+.ops-card-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: flex-start;
+}
+
+.ops-card h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  color: #fff;
+}
+
+.ops-meta,
+.ops-detail {
+  margin: 0.2rem 0 0;
+  color: #94a3b8;
+  font-size: 0.88rem;
+}
+
+.ops-pill {
+  border-radius: 999px;
+  padding: 0.25rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.ops-pill.healthy {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+}
+
+.ops-pill.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+}
+
+.ops-pill.down {
+  background: rgba(239, 68, 68, 0.18);
+  color: #fecaca;
+}
+
+.ops-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.ops-stats div {
+  background: #0b1220;
+  border-radius: 12px;
+  padding: 0.55rem 0.65rem;
+}
+
+.ops-stats dt {
+  font-size: 0.7rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.ops-stats dd {
+  margin: 0.15rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.ops-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+}
+
+.ops-toggles label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.ops-billing {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.ops-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ops-danger {
+  background: #ef4444;
+  color: #fff;
+}
+
+.ops-ok {
+  background: #22c55e;
+  color: #052e16;
+}

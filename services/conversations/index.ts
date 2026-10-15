@@ -1,6 +1,7 @@
 import { Prisma, type Conversation, type MessageSender, type MessageType, type PendingQuestion } from "@prisma/client";
 import { db } from "@/lib/db";
 import { errorMessage } from "@/lib/errors";
+import { recordMessageUsage } from "@/services/ops/tenant";
 import { getCredentials, getWhatsAppService, type OutboundMessage } from "@/services/whatsapp";
 import { normalizePhone } from "@/utils/phone";
 
@@ -58,6 +59,8 @@ export async function recordInbound(conversationId: string, input: InboundRecord
     throw e;
   }
   await db.conversation.update({ where: { id: conversationId }, data: { lastInboundAt: new Date() } });
+  const conv = await db.conversation.findUnique({ where: { id: conversationId }, select: { storeId: true } });
+  if (conv) await recordMessageUsage(conv.storeId, "INBOUND").catch(() => undefined);
   return { duplicate: false };
 }
 
@@ -168,11 +171,13 @@ export async function sendToCustomer(
       data: { whatsappMessageId: result.messageId, deliveryStatus: "SENT" },
     });
     await db.conversation.update({ where: { id: conversationId }, data: { lastOutboundAt: new Date() } });
+    await recordMessageUsage(conv.storeId, "OUTBOUND").catch(() => undefined);
     return { sent: true, messageId: result.messageId };
   } catch (e) {
     const error = errorMessage(e);
     console.error("[whatsapp] send failed", e);
     await db.message.update({ where: { id: row.id }, data: { deliveryStatus: "FAILED", error } });
+    await recordMessageUsage(conv.storeId, "OUTBOUND", { failed: true }).catch(() => undefined);
     return { sent: false, error };
   }
 }

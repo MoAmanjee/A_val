@@ -30,6 +30,13 @@ export const env = {
   get kitchenPin() {
     return read("KITCHEN_PIN", "1234");
   },
+  /**
+   * PIN for /ops (your console across every restaurant site).
+   * Falls back to KITCHEN_PIN so local demos work without a second secret.
+   */
+  get opsPin() {
+    return read("OPS_PIN") || read("KITCHEN_PIN", "1234");
+  },
   get openaiApiKey() {
     return read("OPENAI_API_KEY");
   },

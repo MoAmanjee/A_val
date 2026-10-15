@@ -17,6 +17,15 @@ datasource db {
 
 // ---------------------------------------------------------------- Store
 
+enum BillingStatus {
+  /// Paying / trial — full access.
+  ACTIVE
+  /// Missed a payment — warn, still online until you suspend.
+  PAST_DUE
+  /// Cut off: WhatsApp + web ordering blocked until you restore them.
+  SUSPENDED
+}
+
 model Store {
   id             String  @id @default(cuid())
   name           String
@@ -28,6 +37,11 @@ model Store {
   postalCode     String?
   currencySymbol String  @default("R")
   timezone       String  @default("Africa/Johannesburg")
+
+  /// Public key for multi-site URLs later, e.g. /order/mochachos-potch.
+  slug String? @unique
+  /// Which product variant this site runs (e.g. mochachos, woodies-style).
+  variant String @default("mochachos")
 
   /// Meta phone_number_id for this branch's WhatsApp number. Inbound webhooks
   /// are routed to the store by this value.
@@ -47,6 +61,15 @@ model Store {
   /// Shown to the customer when acceptingOrders is false.
   pausedReason       String?
 
+  /// Channel kill switches (ops console). Independent of kitchen pause.
+  whatsappEnabled Boolean @default(true)
+  webEnabled      Boolean @default(true)
+  billingStatus   BillingStatus @default(ACTIVE)
+  /// Shown when billingStatus is SUSPENDED or a channel is off.
+  suspendedReason String?
+  /// Soft monthly outbound cap. Null = unlimited. Ops can still hard-cut with SUSPENDED.
+  monthlyMessageCap Int?
+
   kitchenPinHash String?
 
   createdAt DateTime @default(now())
@@ -62,8 +85,27 @@ model Store {
   orders        Order[]
   faqs          FaqEntry[]
   promotions    Promotion[]
+  usageDays     StoreUsageDay[]
 
   @@map("stores")
+}
+
+/// Daily WhatsApp message counts per store — for the ops console and caps.
+model StoreUsageDay {
+  id            String   @id @default(cuid())
+  storeId       String
+  /// Calendar day in the store timezone, stored as UTC midnight of that date.
+  day           DateTime @db.Date
+  inboundCount  Int      @default(0)
+  outboundCount Int      @default(0)
+  failedCount   Int      @default(0)
+  updatedAt     DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, day])
+  @@index([day])
+  @@map("store_usage_days")
 }
 
 model TradingHour {

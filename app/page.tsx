@@ -33,6 +33,9 @@ export default async function HomePage() {
         <Link href="/order" className="rounded-full bg-orange-600 px-5 py-3 font-semibold text-white">
           Customer order menu
         </Link>
+        <Link href="/ops" className="rounded-full border border-emerald-700 bg-emerald-950 px-5 py-3 font-semibold text-emerald-100">
+          Ops console
+        </Link>
         <a href="/menu/mochachos-menu-1.jpg" className="rounded-full border border-neutral-300 px-5 py-3 font-semibold">
           Menu, page 1
         </a>

@@ -30,11 +30,13 @@ import {
   clarifyItemsMessage,
   missedItemsMessage,
   pausedMessage,
+  suspendedMessage,
   welcomeMessage,
 } from "@/services/messaging/templates";
 import { findDraft } from "@/services/orders/cart";
 import { LEAN_ORDERING } from "@/services/orders/features";
 import { findActiveOrder } from "@/services/orders/lifecycle";
+import { tenantGate } from "@/services/ops/tenant";
 import { getCredentials, getWhatsAppService, type InboundMessage, type StatusUpdate } from "@/services/whatsapp";
 import { firstName } from "@/utils/phone";
 import { isOpenAt } from "@/utils/time";
@@ -260,8 +262,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
-    if (!conv.store.acceptingOrders && !activeOrder) {
-      await sendToCustomer(conv.id, pausedMessage(conv.store), "AI");
+    // Ops cut-off (billing / channel kill) comes before kitchen pause.
+    const gate = tenantGate(conv.store, "whatsapp");
+    if (!gate.ok && !activeOrder) {
+      const cutOff =
+        conv.store.billingStatus === "SUSPENDED" || !conv.store.whatsappEnabled
+          ? suspendedMessage(conv.store, gate.reason ?? "")
+          : pausedMessage(conv.store);
+      await sendToCustomer(conv.id, cutOff, "AI");
       return;
     }
 

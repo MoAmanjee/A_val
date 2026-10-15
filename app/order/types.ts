@@ -45,6 +45,9 @@ export interface OrderMenuPayload {
     addressLine: string;
     acceptingOrders: boolean;
     pausedReason: string | null;
+    webEnabled: boolean;
+    billingStatus: "ACTIVE" | "PAST_DUE" | "SUSPENDED";
+    suspendedReason: string | null;
     defaultPrepMinutes: number;
     deliveryEnabled: boolean;
     deliveryFeeCents: number;

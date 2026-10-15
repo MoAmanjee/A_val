@@ -200,7 +200,11 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
             Potchefstroom CBD · pick spice, make it a meal, add kitchen notes — then we ticket the same kitchen as
             WhatsApp.
           </p>
-          {!initial.store.acceptingOrders ? (
+          {initial.store.billingStatus === "SUSPENDED" || !initial.store.webEnabled ? (
+            <p className="order-paused">
+              {initial.store.suspendedReason ?? "Online ordering is unavailable right now."}
+            </p>
+          ) : !initial.store.acceptingOrders ? (
             <p className="order-paused">{initial.store.pausedReason ?? "Kitchen paused"}</p>
           ) : (
             <a className="order-btn-primary" href={`#cat-${categories[0]?.id ?? ""}`}>
@@ -289,7 +293,12 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               <button
                 type="button"
                 className="order-btn-primary"
-                disabled={!cart.length || !initial.store.acceptingOrders}
+                disabled={
+                  !cart.length ||
+                  !initial.store.acceptingOrders ||
+                  !initial.store.webEnabled ||
+                  initial.store.billingStatus === "SUSPENDED"
+                }
                 onClick={() => {
                   setShowCart(false);
                   setShowCheckout(true);

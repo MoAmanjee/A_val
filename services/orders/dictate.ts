@@ -3,8 +3,8 @@ import { db } from "@/lib/db";
 import { normalise } from "@/services/conversations/understanding";
 import { normaliseMenuText, tokensRoughlyEqual } from "@/services/menu/matching";
 import type { MenuSeed } from "@/db/menu";
-import { addItem, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setItemNotes, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
-import { DELIVERY_ENABLED } from "@/services/orders/features";
+import { addItem, appendOrderNotes, findDraft, getOrCreateDraft, loadOrder, setFulfilment, setItemNotes, setMealUpgrade, setModifierSelection, setQuantity } from "@/services/orders/cart";
+import { DELIVERY_ENABLED, LEAN_ORDERING } from "@/services/orders/features";
 import { missingRequirements, nextRequirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem } from "@/services/orders/query";
 
@@ -485,9 +485,11 @@ async function upsertLine(order: FullOrder, line: ParsedLine): Promise<boolean> 
       menuItemId: line.item.id,
       quantity: line.quantity,
       isMeal: line.isMeal ?? undefined,
-      notes: line.notes ?? undefined,
+      // Lean mode keeps one kitchen note on the order, not on each line.
+      notes: LEAN_ORDERING ? undefined : (line.notes ?? undefined),
     });
     await applySelections(order.id, created.id, line, created);
+    if (LEAN_ORDERING && line.notes) await appendOrderNotes(order.id, line.notes);
     return true;
   }
   return writeOnto(order.id, target, line);
@@ -506,10 +508,15 @@ async function writeOnto(orderId: string, target: FullOrderItem, line: ParsedLin
   }
   if (await applySelections(orderId, target.id, line, target)) changed = true;
   if (line.notes) {
-    const combined = appendNote(target.notes, line.notes);
-    if (combined !== target.notes) {
-      await setItemNotes(orderId, target.id, combined);
+    if (LEAN_ORDERING) {
+      await appendOrderNotes(orderId, line.notes);
       changed = true;
+    } else {
+      const combined = appendNote(target.notes, line.notes);
+      if (combined !== target.notes) {
+        await setItemNotes(orderId, target.id, combined);
+        changed = true;
+      }
     }
   }
   return changed;

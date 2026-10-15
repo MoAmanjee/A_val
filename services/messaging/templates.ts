@@ -1,6 +1,7 @@
 import type { MenuCategory, MenuItem, Store } from "@prisma/client";
 import { encodeReplyId } from "@/services/messaging/reply-ids";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
+import { LEAN_ORDERING } from "@/services/orders/features";
 import { clamp, WA_LIMITS, type ListRow, type OutboundMessage } from "@/services/whatsapp";
 import { formatCents } from "@/utils/money";
 import { formatClock } from "@/utils/time";
@@ -309,11 +310,13 @@ export function interactiveBasket(order: FullOrder, store: Store): string {
   return `${order.items.length} items so far.\n*Total: ${money(store, order.totalCents)}*`;
 }
 
-const CONFIRM_PROMPT = "Confirm this order, add another item, or cancel.";
+const CONFIRM_PROMPT = LEAN_ORDERING
+  ? "Place this order, add another item, or cancel. I will ask for kitchen notes next."
+  : "Confirm this order, add another item, or cancel.";
 
 function orderActionButtons(): { id: string; title: string }[] {
   return [
-    { id: encodeReplyId({ kind: "anythingElse", done: true }), title: "Confirm order" },
+    { id: encodeReplyId({ kind: "anythingElse", done: true }), title: LEAN_ORDERING ? "Place order" : "Confirm order" },
     { id: encodeReplyId({ kind: "anythingElse", done: false }), title: "Add to order" },
     { id: encodeReplyId({ kind: "confirm", answer: "cancel" }), title: "Cancel order" },
   ];
@@ -505,6 +508,19 @@ export function itemNotesMessage(item: FullOrderItem): OutboundMessage {
     kind: "buttons",
     body: `${named}. Anything to leave out, or an allergy? Type it, for example no tomato or no lettuce. Tap No notes if it can be made as it is.`,
     buttons: [{ id: encodeReplyId({ kind: "itemNote", orderItemId: item.id, skip: true }), title: "No notes" }],
+  };
+}
+
+/** One kitchen note for the whole order (lean checkout). */
+export function orderNotesMessage(order: FullOrder): OutboundMessage {
+  const already = order.notes?.trim();
+  const lead = already
+    ? `You already noted: ${already}. Any other notes for the kitchen (allergies or leave-outs)? Type them, or tap No notes.`
+    : "Any notes for the kitchen? Allergies or leave-outs for this order — for example no tomato on the burger, or a peanut allergy. Type them, or tap No notes.";
+  return {
+    kind: "buttons",
+    body: clamp(lead, WA_LIMITS.interactiveBody),
+    buttons: [{ id: encodeReplyId({ kind: "orderNote", skip: true }), title: "No notes" }],
   };
 }
 

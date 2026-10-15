@@ -228,7 +228,28 @@ export async function setItemNotes(orderId: string, orderItemId: string, notes: 
 export async function setOrderNotes(orderId: string, notes: string | null): Promise<FullOrder> {
   const order = await loadOrder(orderId);
   assertEditable(order);
+  await db.order.update({ where: { id: orderId }, data: { notes: notes?.trim().slice(0, 500) || null } });
+  return loadOrder(orderId);
+}
+
+/** Append a leave-out typed with an item onto the one kitchen note for the order. */
+export async function appendOrderNotes(orderId: string, extra: string): Promise<FullOrder> {
+  const order = await loadOrder(orderId);
+  assertEditable(order);
+  const bit = extra.trim().slice(0, 240);
+  if (!bit) return order;
+  const current = order.notes?.trim() ?? "";
+  if (current.toLowerCase().includes(bit.toLowerCase())) return order;
+  const notes = (current ? `${current}; ${bit}` : bit).slice(0, 500);
   await db.order.update({ where: { id: orderId }, data: { notes } });
+  return loadOrder(orderId);
+}
+
+/** Marks every line so the end-of-order kitchen note is not asked again. */
+export async function markOrderNotesOffered(orderId: string): Promise<FullOrder> {
+  const order = await loadOrder(orderId);
+  assertEditable(order);
+  await db.orderItem.updateMany({ where: { orderId }, data: { notesOffered: true } });
   return loadOrder(orderId);
 }
 

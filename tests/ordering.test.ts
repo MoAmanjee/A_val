@@ -3,7 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { MOCHACHOS_MENU } from "@/db/menu";
 import { resolveStorePhoneId } from "@/db/seed";
-import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, modifierQuestionMessage, orderActionsMessage, orderProgressMessages, welcomeMessage } from "@/services/messaging/templates";
+import { addingSectionRows, categoryItemsMessage, categoryListRows, categoryPickerMessage, deliveryAddressMessage, deliveryNoteMessage, fulfilmentMessage, fulfilmentSummary, itemNotesMessage, keepAddingBody, mealUpgradeMessage, modifierQuestionMessage, orderActionsMessage, orderNotesMessage, orderProgressMessages, welcomeMessage } from "@/services/messaging/templates";
 import { isSkippedDriverNote, parseDeliveryText, pinLabel } from "@/services/orders/delivery-text";
 import { isSkippedItemNote } from "@/services/orders/item-notes";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
@@ -12,7 +12,7 @@ import { catalogFromMenu, parseUtterance, sharedChoice, type ParsedLine } from "
 import { decodeReplyId, encodeReplyId } from "@/services/messaging/reply-ids";
 import { clampDeliveryFeeCents, lineTotalCents, orderTotals } from "@/services/orders/pricing";
 import { deliveryFeeLine } from "@/services/messaging/templates";
-import { isReadyToConfirm, nextRequirement, type Requirement } from "@/services/orders/requirements";
+import { isReadyToConfirm, nextRequirement, orderNotesDone, type Requirement } from "@/services/orders/requirements";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 import { toGraphMessage } from "@/services/whatsapp/cloud";
 import { verifyWebhookSignature } from "@/services/whatsapp";
@@ -335,6 +335,17 @@ describe("typed orders", () => {
     expect(chosen(two.lines[0])).toContain("Coke");
   });
 
+  it("reads a pasted list with x quantities, beeg chips and shawarmas", () => {
+    const parsed = parseUtterance("1 x Chicken burger\n2 x beeg chips\n2x shawarmas", catalog);
+    expect(parsed.unmatched).toEqual([]);
+    expect(parsed.lines.map((line) => ({ name: line.item.name, qty: line.quantity }))).toEqual([
+      { name: "Chicken Burger", qty: 1 },
+      { name: "Chips", qty: 2 },
+      { name: "Schwarma", qty: 2 },
+    ]);
+    expect(chosen(parsed.lines[1])).toContain("Beeg");
+  });
+
   it("uses one spice for every item when the customer says all hot", () => {
     const parsed = parseUtterance("quarter chicken and a chicken burger all hot", catalog);
     expect(sharedChoice("quarter chicken and a chicken burger all hot", catalog)).toEqual({ groupId: "Zee Flavours", optionName: "Hot" });
@@ -428,6 +439,7 @@ describe("reply ids", () => {
       { kind: "confirm" as const, answer: "yes" as const },
       { kind: "cancelOrder" as const, yes: true },
       { kind: "human" as const },
+      { kind: "orderNote" as const, skip: true as const },
     ];
     for (const action of actions) {
       expect(decodeReplyId(encodeReplyId(action))).toEqual(action.kind === "category" ? action : action);
@@ -565,7 +577,7 @@ describe("whatsapp messages", () => {
     if (actions.kind === "buttons") expect(actions.body).toContain("Chicken Burger");
     expect(actions.kind).toBe("buttons");
     if (actions.kind !== "buttons") return;
-    expect(actions.buttons.map((button) => button.title)).toEqual(["Confirm order", "Add to order", "Cancel order"]);
+    expect(actions.buttons.map((button) => button.title)).toEqual(["Place order", "Add to order", "Cancel order"]);
     expect(actions.buttons.every((button) => button.title.length <= WA_LIMITS.buttonTitle)).toBe(true);
     expect(decodeReplyId(actions.buttons[0]?.id)).toEqual({ kind: "anythingElse", done: true });
     expect(decodeReplyId(actions.buttons[1]?.id)).toEqual({ kind: "anythingElse", done: false });
@@ -780,8 +792,8 @@ describe("what an order still needs", () => {
     if (drinkReq.kind === "MODIFIER") expect(drinkReq.link.modifierGroupId).toBe("drink");
 
     order.items[0].modifiers.push({ groupId: "drink" } as FullOrderItem["modifiers"][number]);
-    expect(nextRequirement(order)?.kind).toBe("ITEM_NOTES");
-    order.items[0].notesOffered = true;
+    // Lean ordering asks one kitchen note at checkout, not per item.
+    expect(nextRequirement(order)).toBeNull();
     expect(isReadyToConfirm(order)).toBe(true);
   });
 
@@ -799,18 +811,25 @@ describe("what an order still needs", () => {
     if (message.kind === "buttons") expect(message.body).toContain("beeg chips and a buddy drink");
   });
 
-  it("asks what to leave out after the spice and the meal, and No notes is a skip", () => {
+  it("asks one kitchen note for the whole order, and No notes is a skip", () => {
     const order = {
       items: [line({ links: [link("ALWAYS", "flavour", ["Hot"])], chosen: ["flavour"], isMeal: false, nameSnapshot: "Beef Burger" })],
+      notes: null,
     } as FullOrder;
-    const note = nextRequirement(order);
-    expect(note?.kind).toBe("ITEM_NOTES");
-    if (note?.kind !== "ITEM_NOTES") return;
-    const message = itemNotesMessage(note.item);
+    // Lean mode: per-item notes are not a requirement.
+    expect(nextRequirement(order)).toBeNull();
+    expect(orderNotesDone(order)).toBe(false);
+
+    const message = orderNotesMessage(order);
     expect(message.kind).toBe("buttons");
     if (message.kind !== "buttons") return;
-    expect(message.body).toContain("Beef Burger");
-    expect(message.body).toContain("no tomato");
+    expect(message.body).toMatch(/notes for the kitchen|allerg/i);
+    expect(message.buttons[0]?.title).toBe("No notes");
+    expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "orderNote", skip: true });
+
+    const withPrior = orderNotesMessage({ ...order, notes: "no tomato on the burger" } as FullOrder);
+    expect(withPrior.kind).toBe("buttons");
+    if (withPrior.kind === "buttons") expect(withPrior.body).toContain("no tomato on the burger");
 
     const chosen = line({
       links: [],
@@ -823,8 +842,6 @@ describe("what an order still needs", () => {
       expect(named.body).toContain("Milkshake (Strawberry)");
       expect(named.body).not.toContain("Lime");
     }
-    expect(message.buttons[0]?.title).toBe("No notes");
-    expect(decodeReplyId(message.buttons[0]?.id)).toEqual({ kind: "itemNote", orderItemId: "line", skip: true });
     expect(isSkippedItemNote("no")).toBe(true);
     expect(isSkippedItemNote("No notes")).toBe(true);
     expect(isSkippedItemNote("no tomato")).toBe(false);

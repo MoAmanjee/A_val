@@ -1,3 +1,4 @@
+import { LEAN_ORDERING } from "@/services/orders/features";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 
 /**
@@ -10,7 +11,8 @@ import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orde
  *
  * Within one item the order is: the always-asked choices (basting), then the
  * meal upgrade, then the choices that only exist inside a meal (side, drink),
- * then an optional leave-out or allergy. Items are completed one at a time.
+ * then an optional leave-out or allergy (unless LEAN_ORDERING asks one note
+ * for the whole order at the end). Items are completed one at a time.
  */
 
 export type Requirement =
@@ -49,10 +51,18 @@ function requirementsForItem(item: FullOrderItem): Requirement[] {
     }
   }
 
-  if (out.length === 0 && !item.notesOffered && !item.notes?.trim()) {
+  // Lean mode asks one kitchen note for the whole order at checkout instead.
+  if (!LEAN_ORDERING && out.length === 0 && !item.notesOffered && !item.notes?.trim()) {
     out.push({ kind: "ITEM_NOTES", item });
   }
   return out;
+}
+
+/** True once the end-of-order kitchen note has been offered (or every item was asked the old way). */
+export function orderNotesDone(order: FullOrder): boolean {
+  if (!order.items.length) return true;
+  if (LEAN_ORDERING) return order.items.every((item) => item.notesOffered);
+  return order.items.every((item) => item.notesOffered || Boolean(item.notes?.trim()));
 }
 
 export function missingRequirements(order: FullOrder): Requirement[] {

@@ -138,6 +138,7 @@ describe("confirmation words", () => {
     expect(wantsMenuPictures("send me the menu pictures")).toBe(true);
     expect(wantsMenuPictures("quarter chicken hot")).toBe(false);
     expect(wantsMenu("menu please")).toBe(true);
+    expect(wantsMenu("Menu")).toBe(true);
     expect(wantsMenu("hi")).toBe(false);
   });
 });

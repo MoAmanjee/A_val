@@ -278,11 +278,15 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
+    // "menu" / "hi" must not be read as a missed food item. Dictation runs first
+    // for real orders, but browse intents fall through to the menu handlers below.
+    const browseIntent = wantsMenu(text) || wantsMenuPictures(text) || isGreeting(text);
+
     // A typed order fills every slot it already names (item, flavour, meal,
     // drink, collection or delivery) so we only ask for the rest.
     try {
       const dictated = await applyDictation(conv.id, text);
-      if (!dictated.changed && dictated.unmatched.length && (isLLMConfigured() || opts.llm)) {
+      if (!dictated.changed && dictated.unmatched.length && !browseIntent && (isLLMConfigured() || opts.llm)) {
         const recovered = await recoverMissedOrder(conv.id, draft?.items.length ?? 0, opts.llm);
         if (recovered) return;
       }
@@ -292,7 +296,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       const stillMissed = dictated.unmatched.filter(
         (clause) => !dictated.ambiguous.some((group) => group.clause === clause),
       );
-      if (stillMissed.length) {
+      if (stillMissed.length && !browseIntent) {
         await sendToCustomer(conv.id, missedItemsMessage(stillMissed), "AI");
       }
       if (dictated.deliveryPaused) {
@@ -302,7 +306,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
         await advanceFlow(conv.id);
         return;
       }
-      if (dictated.unmatched.length || dictated.deliveryPaused) return;
+      if ((dictated.unmatched.length || dictated.deliveryPaused) && !browseIntent) return;
     } catch (e) {
       console.error("[flow] could not read the typed order", e);
       await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not add that \u2014 ${errorMessage(e)}` }, "AI");

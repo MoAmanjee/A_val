@@ -1098,9 +1098,14 @@ body {
   color: #3f342c;
 }
 
+.payfast-guide-template-wrap {
+  position: relative;
+  margin-top: 0.75rem;
+}
+
 .payfast-guide-template {
-  margin: 0.75rem 0 0;
-  padding: 1rem 1.1rem;
+  margin: 0;
+  padding: 1rem 1.1rem 3rem;
   border-radius: 0.85rem;
   background: #1a120c;
   color: #fff7f0;
@@ -1108,6 +1113,20 @@ body {
   line-height: 1.55;
   white-space: pre-wrap;
   overflow-x: auto;
+}
+
+.payfast-guide-copy {
+  position: absolute;
+  right: 0.65rem;
+  bottom: 0.65rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  background: var(--flame);
+  color: #fff;
+  cursor: pointer;
 }
 
 .payfast-guide-tips ul {

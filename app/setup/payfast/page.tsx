@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PAYFAST_LINKS } from "@/services/payments/payfast";
+import { PayfastTemplateCopy } from "./template-copy";
 
 export const metadata: Metadata = {
   title: "PayFast setup — restaurant guide",
@@ -62,15 +63,17 @@ export default function PayfastSetupPage() {
 
       <section className="payfast-guide-section" aria-labelledby="send-heading">
         <h2 id="send-heading">Message template</h2>
-        <p>Copy this, fill in the blanks, and send it to us:</p>
-        <pre className="payfast-guide-template">{`Hi — here are my PayFast details for online ordering:
+        <p>Fill this in and WhatsApp it back to us:</p>
+        <PayfastTemplateCopy
+          text={`Hi — here are my PayFast details for online ordering:
 
 Shop name:
 Merchant ID:
 Merchant Key:
-Salt Passphrase: (or “none”)
+Salt Passphrase: (or "none")
 Mode: sandbox / live
-`}</pre>
+`}
+        />
       </section>
 
       <section className="payfast-guide-section payfast-guide-tips" aria-labelledby="tips-heading">

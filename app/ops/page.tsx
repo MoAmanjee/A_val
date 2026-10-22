@@ -52,10 +52,19 @@ export default function OpsPage() {
   const [payfastDraft, setPayfastDraft] = useState<
     Record<string, { merchantId: string; merchantKey: string; passphrase: string; mode: "sandbox" | "live" }>
   >({});
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"link" | "wa" | null>(null);
 
   const setupLink =
     typeof window !== "undefined" ? `${window.location.origin}/setup/payfast` : "/setup/payfast";
+
+  const whatsappInvite = `Hi — please set up PayFast so we can turn on card payments on your ordering link.
+
+1. Open this guide: ${setupLink}
+2. Create / log into PayFast
+3. Copy Merchant ID, Merchant Key, and Salt Passphrase (if you set one)
+4. Reply here with those three + say sandbox or live
+
+Money settles to *your* PayFast / bank account. We only wire the keys on our side.`;
 
   function draftFor(store: OpsStore) {
     return (
@@ -68,13 +77,13 @@ export default function OpsPage() {
     );
   }
 
-  async function copySetupLink() {
+  async function copyText(text: string, kind: "link" | "wa") {
     try {
-      await navigator.clipboard.writeText(setupLink);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2500);
     } catch {
-      setError("Could not copy — select the link manually.");
+      setError("Could not copy — select the text manually.");
     }
   }
 
@@ -193,8 +202,11 @@ export default function OpsPage() {
           <p>Usage, health, WhatsApp / web kill switches, billing cut-off.</p>
         </div>
         <div className="ops-header-actions">
-          <button type="button" className="ops-ghost" onClick={() => void copySetupLink()}>
-            {copied ? "Copied PayFast link" : "Copy PayFast setup link"}
+          <button type="button" className="ops-ghost" onClick={() => void copyText(setupLink, "link")}>
+            {copied === "link" ? "Copied link" : "Copy PayFast link"}
+          </button>
+          <button type="button" className="ops-ghost" onClick={() => void copyText(whatsappInvite, "wa")}>
+            {copied === "wa" ? "Copied WhatsApp text" : "Copy WhatsApp invite"}
           </button>
           <button type="button" className="ops-ghost" onClick={() => void load()} disabled={busy}>
             Refresh
@@ -210,6 +222,7 @@ export default function OpsPage() {
         <a href="/setup/payfast" target="_blank" rel="noreferrer">
           {setupLink}
         </a>
+        . Or use <strong>Copy WhatsApp invite</strong> and paste it straight to the owner.
       </p>
 
       {error ? <p className="ops-error ops-banner">{error}</p> : null}

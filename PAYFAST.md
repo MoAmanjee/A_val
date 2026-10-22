@@ -6,6 +6,8 @@ Send this link to a shop so they can open PayFast and send you the keys:
 
 Example: `https://your-tunnel.trycloudflare.com/setup/payfast`
 
+On **`/ops`** use **Copy PayFast link** or **Copy WhatsApp invite** (full message ready to paste).
+
 ## What they send you
 
 1. **Merchant ID**

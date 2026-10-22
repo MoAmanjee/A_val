@@ -465,7 +465,7 @@ export default function KitchenPage() {
         <section className="kitchen-history">
           <div className="kitchen-history-summary">
             <div>
-              <p className="label">Past 7 days</p>
+              <p className="label">This week’s slips</p>
               <p className="value">{history.summary.collectedCount} made</p>
               <p className="hint">
                 {history.summary.cancelledCount} cancelled · {money(history.summary.collectedTotalCents, symbol)} collected
@@ -476,7 +476,9 @@ export default function KitchenPage() {
             </button>
           </div>
           {history.orders.length === 0 ? (
-            <p className="text-sm text-neutral-500">No confirmed slips in the last week yet.</p>
+            <p className="text-sm text-neutral-500">
+              No confirmed slips yet this week. When you mark an order Collected (or cancel it), it shows up here.
+            </p>
           ) : (
             <div className="kitchen-history-list">
               {history.orders.map((ticket) => (

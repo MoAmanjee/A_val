@@ -15,8 +15,17 @@ Health probe (no login): **`GET /api/health`**.
 | **Billing → Suspended** / **Cut off** | Turns off WhatsApp + web and shows your reason |
 | **Restore service** | Sets billing Active and turns channels back on |
 | **Message stats** | Inbound/outbound today, 7 days, month (+ optional monthly cap warning) |
+| **PayFast** | Paste a shop’s Merchant ID / Key / passphrase after they finish `/setup/payfast` |
 
 Every WhatsApp send/receive increments `store_usage_days` so you can see who burns Meta messages.
+
+## PayFast for a new restaurant
+
+1. Send them **`/setup/payfast`** (Copy link from the ops header)
+2. They open a PayFast account and WhatsApp you Merchant ID + Key (+ passphrase)
+3. On `/ops` → that site’s **PayFast** block → paste keys → Save → tick **PayFast on** when ready
+
+See `PAYFAST.md`.
 
 ## When a restaurant stops paying
 

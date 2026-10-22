@@ -1,5 +1,6 @@
 import type { BillingStatus, Store } from "@prisma/client";
 import { db } from "@/lib/db";
+import { payfastStatus } from "@/services/payments/payfast";
 
 export type TenantChannel = "whatsapp" | "web";
 
@@ -181,6 +182,11 @@ export async function listOpsStores() {
       monthlyMessageCap: true,
       whatsappPhoneNumberId: true,
       whatsappAccessTokenEnc: true,
+      payfastMerchantId: true,
+      payfastMerchantKeyEnc: true,
+      payfastPassphraseEnc: true,
+      payfastMode: true,
+      payfastEnabled: true,
       updatedAt: true,
     },
   });
@@ -208,11 +214,15 @@ export async function listOpsStores() {
       lastOutboundAt: lastConv?.lastOutboundAt ?? null,
       lastInboundAt: lastConv?.lastInboundAt ?? null,
     });
+    const payfast = payfastStatus(store);
     results.push({
       ...store,
+      payfastMerchantKeyEnc: undefined,
+      payfastPassphraseEnc: undefined,
       usage,
       health,
       whatsapp: wa,
+      payfast,
     });
   }
   return results;

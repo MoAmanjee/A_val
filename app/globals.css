@@ -826,3 +826,304 @@ body {
   background: #22c55e;
   color: #052e16;
 }
+
+.ops-setup-link {
+  margin: 0 0 1.25rem;
+  font-size: 0.95rem;
+  color: #44403c;
+}
+
+.ops-setup-link a {
+  color: var(--flame-dark);
+  font-weight: 600;
+  word-break: break-all;
+}
+
+.ops-payfast {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #e7e5e4;
+}
+
+.ops-payfast-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ops-payfast h3 {
+  margin: 0;
+  font-family: var(--order-display);
+  font-size: 1.05rem;
+}
+
+.ops-payfast label {
+  display: grid;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.ops-payfast input,
+.ops-payfast select {
+  border: 1px solid #d6d3d1;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.7rem;
+  font: inherit;
+  background: #fff;
+}
+
+.ops-payfast-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ops-payfast-actions button {
+  background: var(--ink);
+  color: #fff;
+  border: 0;
+  border-radius: 0.55rem;
+  padding: 0.55rem 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ops-inline-check {
+  display: flex !important;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+}
+
+.kitchen-tabs {
+  display: inline-flex;
+  border: 1px solid #3a3a3a;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.kitchen-tabs button {
+  border: 0;
+  background: transparent;
+  color: #d4d4d4;
+  padding: 0.45rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kitchen-tabs button.active {
+  background: var(--gold);
+  color: #111;
+}
+
+.kitchen-history-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid #2e2e2e;
+  border-radius: 1rem;
+  background: #1c1c1c;
+}
+
+.kitchen-history-summary .label {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.kitchen-history-summary .value {
+  margin: 0.2rem 0 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+}
+
+.kitchen-history-summary .hint {
+  margin: 0.15rem 0 0;
+  font-size: 0.85rem;
+  color: #a3a3a3;
+}
+
+.kitchen-history-list {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.ticket.history.done {
+  border-top-color: #3ddc84;
+}
+
+.ticket.history.void {
+  border-top-color: #737373;
+  opacity: 0.9;
+}
+
+.payfast-guide {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  padding: 2.5rem 1.25rem 3.5rem;
+  color: var(--ink);
+  font-family: var(--order-body);
+}
+
+.payfast-guide-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 50% at 10% -10%, rgba(255, 106, 0, 0.35), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(225, 6, 0, 0.22), transparent 50%),
+    linear-gradient(180deg, #fff4ea 0%, #ffe8d2 45%, #fff7f0 100%);
+}
+
+.payfast-guide-hero {
+  max-width: 40rem;
+  margin: 0 auto 2.5rem;
+}
+
+.payfast-guide-brand {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--flame-dark);
+}
+
+.payfast-guide h1 {
+  margin: 0;
+  font-family: var(--order-display);
+  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+}
+
+.payfast-guide-lede {
+  margin: 0.9rem 0 0;
+  font-size: 1.1rem;
+  line-height: 1.45;
+  max-width: 34rem;
+}
+
+.payfast-guide-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.4rem;
+}
+
+.payfast-guide-primary,
+.payfast-guide-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.85rem 1.2rem;
+  border-radius: 0.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.payfast-guide-primary {
+  background: var(--flame);
+  color: #fff;
+}
+
+.payfast-guide-secondary {
+  border: 1.5px solid var(--ink);
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.payfast-guide-section {
+  max-width: 40rem;
+  margin: 0 auto 2rem;
+}
+
+.payfast-guide-section h2 {
+  margin: 0 0 0.85rem;
+  font-family: var(--order-display);
+  font-size: 1.45rem;
+}
+
+.payfast-guide-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 1rem;
+}
+
+.payfast-guide-steps li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  align-items: start;
+}
+
+.payfast-guide-num {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--gold);
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.payfast-guide-steps h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.payfast-guide-steps p,
+.payfast-guide-section > p,
+.payfast-guide-tips li {
+  margin: 0;
+  line-height: 1.5;
+  color: #3f342c;
+}
+
+.payfast-guide-template {
+  margin: 0.75rem 0 0;
+  padding: 1rem 1.1rem;
+  border-radius: 0.85rem;
+  background: #1a120c;
+  color: #fff7f0;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.payfast-guide-tips ul {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.payfast-guide-tips a {
+  color: var(--flame-dark);
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .payfast-guide {
+    padding-top: 1.75rem;
+  }
+}

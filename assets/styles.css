@@ -262,8 +262,14 @@ h1, h2, h3, .wordmark, .case-index {
 
 .thread {
   min-height: 390px;
-  max-height: 430px;
+  max-height: 460px;
   overflow: auto;
+  scrollbar-width: none;
+}
+
+.thread::-webkit-scrollbar {
+  display: none;
+}
   display: flex;
   flex-direction: column;
   gap: 0.45rem;

@@ -26,6 +26,160 @@ body {
   color: #f6f1e7;
 }
 
+/* Promotions — confirm before send */
+.promo-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.72);
+  animation: promoConfirmFade 160ms ease-out;
+}
+
+.promo-confirm-panel {
+  width: min(28rem, 100%);
+  max-height: min(92vh, 720px);
+  overflow: auto;
+  border-radius: 1.1rem;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  padding: 1.25rem 1.25rem 1.1rem;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  animation: promoConfirmRise 200ms ease-out;
+}
+
+.promo-confirm-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #fbbf24;
+}
+
+.promo-confirm-panel h2 {
+  margin: 0.35rem 0 0;
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+
+.promo-confirm-audience {
+  margin: 0.4rem 0 1rem;
+  font-size: 0.875rem;
+  color: #a3a3a3;
+}
+
+.promo-wa-preview {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(18, 140, 126, 0.25), transparent 45%),
+    #0b141a;
+  border-radius: 0.9rem;
+  padding: 1rem 0.85rem 1.1rem;
+  border: 1px solid #243642;
+}
+
+.promo-wa-bubble {
+  background: #005c4b;
+  border-radius: 0.65rem 0.65rem 0.2rem 0.65rem;
+  padding: 0.45rem;
+  color: #e9ffef;
+  max-width: 100%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.promo-wa-image {
+  display: block;
+  width: 100%;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 0.45rem;
+  margin-bottom: 0.35rem;
+  background: #063c32;
+}
+
+.promo-wa-text {
+  margin: 0;
+  padding: 0.35rem 0.45rem 0.5rem;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.promo-wa-buttons {
+  display: grid;
+  gap: 1px;
+  margin-top: 0.25rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 0 0 0.45rem 0.45rem;
+  overflow: hidden;
+}
+
+.promo-wa-buttons span {
+  display: block;
+  text-align: center;
+  padding: 0.55rem 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #53bdeb;
+  background: #005c4b;
+}
+
+.promo-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1.1rem;
+}
+
+.promo-confirm-cancel,
+.promo-confirm-send {
+  flex: 1 1 8rem;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1rem;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.promo-confirm-cancel {
+  border: 1px solid #525252;
+  background: transparent;
+  color: #e5e5e5;
+}
+
+.promo-confirm-send {
+  border: none;
+  background: #b91c1c;
+  color: white;
+}
+
+.promo-confirm-cancel:disabled,
+.promo-confirm-send:disabled {
+  opacity: 0.55;
+}
+
+@keyframes promoConfirmFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes promoConfirmRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 .ticket {
   background: #1c1c1c;
   border: 1px solid #2e2e2e;

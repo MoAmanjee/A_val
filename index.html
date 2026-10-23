@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en-ZA">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Amanjee — WhatsApp agents for the counter</title>
+  <meta name="description" content="Portfolio of WhatsApp agents built for South African businesses: restaurant ordering, parts quotations, and appointment reminders.">
+  <meta name="theme-color" content="#16352a">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,620;9..144,700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<!-- Studio WhatsApp: digits only, country code included. Example: 27821234567 -->
+<body data-studio-whatsapp="">
+  <a class="skip" href="#work">Skip to the agents</a>
+
+  <header class="site-header">
+    <div class="wrap header-bar">
+      <a class="wordmark" href="#top">Amanjee</a>
+      <nav class="nav-links" aria-label="Page">
+        <a href="#work">Work</a>
+        <a href="#rules">Rules</a>
+        <a href="#process">Process</a>
+        <a class="nav-brief" href="#contact">Brief me</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="kicker">WhatsApp agents · South Africa</p>
+          <h1>Built to take the shift your phone keeps interrupting.</h1>
+          <p class="lede">I build chat agents for the counter. One reads a food order in a single message. One drafts a parts quote and waits for a person to send it. One books the chair and reminds the customer the day before.</p>
+          <div class="hero-actions">
+            <a class="button button-light" href="#work">See the agents</a>
+            <a class="button button-ghost" href="#contact">Start a brief</a>
+          </div>
+        </div>
+
+        <div class="hero-stage">
+          <div class="phone" aria-labelledby="phone-shop">
+            <div class="phone-top">
+              <span class="phone-avatar" aria-hidden="true"></span>
+              <div>
+                <p id="phone-shop" class="phone-shop">Mochachos Potch</p>
+                <p id="phone-status" class="phone-status">orders</p>
+              </div>
+            </div>
+            <div id="thread" class="thread" aria-live="polite">
+              <article class="bubble bubble-them">
+                <p>Hot quarter chicken meal with a Coke, collection</p>
+                <span class="bubble-meta">18:02</span>
+              </article>
+              <article class="bubble bubble-bot">
+                <p>1/4 chicken meal, hot, with a Coke.
+Collection · 17 Nelson Mandela Drive
+Total R95.90
+
+Reply yes and I’ll send it to the kitchen.</p>
+                <span class="bubble-meta">18:02</span>
+              </article>
+              <article class="bubble bubble-them">
+                <p>Sharp</p>
+                <span class="bubble-meta">18:03</span>
+              </article>
+              <p class="note">Kitchen accepted · 18 min</p>
+              <article class="bubble bubble-bot">
+                <p>The kitchen has it. About 18 minutes, then collect at 17 Nelson Mandela Drive.</p>
+                <span class="bubble-meta">18:04</span>
+              </article>
+            </div>
+            <div class="composer" aria-hidden="true">
+              <span>Message</span>
+            </div>
+          </div>
+          <div class="scene-switch" role="tablist" aria-label="Sample chats">
+            <button type="button" role="tab" data-scene="counter" aria-selected="true">Counter</button>
+            <button type="button" role="tab" data-scene="parts" aria-selected="false">Parts</button>
+            <button type="button" role="tab" data-scene="bookings" aria-selected="false">Bookings</button>
+            <button type="button" id="replay" class="replay">Replay</button>
+          </div>
+          <p class="phone-caption">Sample chats from agents already built. Food totals use the 2026 Mochachos board. The kitchen’s own minutes replace the sample time.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="strip" aria-label="What is already built">
+      <div class="wrap strip-grid">
+        <a href="#counter">
+          <span>01</span>
+          <strong>Restaurant ordering</strong>
+          <em>Menu, ticket, kitchen screen</em>
+        </a>
+        <a href="#parts">
+          <span>02</span>
+          <strong>Parts quotations</strong>
+          <em>Fitment first, then a person sends it</em>
+        </a>
+        <a href="#bookings">
+          <span>03</span>
+          <strong>Bookings</strong>
+          <em>A public link and a day-before reminder</em>
+        </a>
+      </div>
+    </section>
+
+    <section class="work" id="work">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker">Portfolio</p>
+          <h2>Three agents, already on the bench.</h2>
+          <p>Each one is a working build: a WhatsApp conversation on the customer side, and a screen a person still runs.</p>
+        </header>
+
+        <article class="case case-forest" id="counter">
+          <div class="case-copy">
+            <p class="case-index">01</p>
+            <h3>Counter</h3>
+            <p class="case-where">Restaurant ordering · written for Mochachos Potchefstroom CBD</p>
+            <p>A customer messages the branch. The agent can send the two menu pages, then read an order typed in one go — item, flavour, meal, drink, collection or delivery — and only ask for what was left out. The kitchen screen accepts the ticket and later marks it ready. Both of those steps message the customer.</p>
+            <ul class="lexicon" aria-label="Words that count as yes">
+              <li>Ja</li>
+              <li>Yebo</li>
+              <li>Sharp</li>
+            </ul>
+            <p class="aside">“Yes but make it hot” does not place the order. A change is a change.</p>
+            <ul class="facts">
+              <li>Prices come from the menu database. The agent does not invent them. A hot 1/4 chicken meal with a Coke is R95.90 on the 2026 board.</li>
+              <li>Collection is 17 Nelson Mandela Drive. Delivery in Potchefstroom uses the street address, and the kitchen sets the fee, including free, before the customer confirms.</li>
+              <li>Pay at the till, or pay the driver. A later pass adds PayFast into the shop’s own account, plus a small order page beside the chat.</li>
+              <li>Ask for a person and the chat is left for staff. A halaal question is handed over too — the menu has no answer on file, so the agent does not guess.</li>
+              <li>Promotions go only to people who messaged in the last day, which is the window WhatsApp allows for a free-form note.</li>
+            </ul>
+          </div>
+          <div class="case-stage">
+            <div class="board" aria-label="Kitchen screen">
+              <header class="board-head">
+                <strong>Kitchen</strong>
+                <span>Potchefstroom CBD</span>
+              </header>
+              <div class="ticket ticket-new">
+                <p class="ticket-label">New</p>
+                <h4>1/4 chicken meal · hot · Coke</h4>
+                <p>Collection · 17 Nelson Mandela Drive</p>
+                <p class="ticket-total">R95.90</p>
+                <span class="ticket-action">Accept · set the minutes</span>
+              </div>
+              <div class="ticket">
+                <p class="ticket-label">Cooking</p>
+                <h4>Nachos · chicken</h4>
+                <p>Delivery · Kock Street</p>
+                <span class="ticket-action quiet">Ready</span>
+              </div>
+              <p class="board-note">Accept tells the customer the time. Ready tells them to collect, or that the delivery is on the way. Cannot-make-it cancels it and says nothing will be charged.</p>
+            </div>
+          </div>
+        </article>
+
+        <article class="case" id="parts">
+          <div class="case-copy">
+            <p class="case-index">02</p>
+            <h3>AutoQuote</h3>
+            <p class="case-where">Parts and quoting · for a spares counter with its own stock</p>
+            <p>A customer messages the business. The agent collects the person and the vehicle. The search then runs against that shop’s inventory and fitment list. A draft quotation lands on the dashboard. Staff review it, edit it, and press Approve &amp; send. Only then does the customer receive the official PDF on WhatsApp.</p>
+            <ul class="facts">
+              <li>The agent cannot approve, send, price, or discount. Those actions are not available to it.</li>
+              <li>Totals are recalculated on the server. A number typed in the browser does not become the quote.</li>
+              <li>Stock, fitment, and price live in the shop’s database. The model never runs SQL.</li>
+              <li>Every record stays inside that business. A second shop on the same platform cannot see the first shop’s quotes.</li>
+              <li>If a send fails, the quote is not marked sent. If the agent hits a fault, the customer gets a plain reply and the chat is flagged for a person.</li>
+            </ul>
+          </div>
+          <div class="case-stage">
+            <div class="quote-sheet" aria-label="Draft quotation">
+              <p class="quote-kicker">Draft · not sent</p>
+              <h4>2018 Volkswagen Polo 1.4</h4>
+              <p class="quote-line">Front brake pads</p>
+              <p class="quote-meta">Fitment: 2 matches on this shelf</p>
+              <dl>
+                <div><dt>Source</dt><dd>Your stock and fitment list</dd></div>
+                <div><dt>Who prices it</dt><dd>The server, after a person approves</dd></div>
+                <div><dt>Customer sees</dt><dd>Nothing official until Approve &amp; send</dd></div>
+              </dl>
+              <span class="ticket-action">Approve &amp; send</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="case case-sand" id="bookings">
+          <div class="case-copy">
+            <p class="case-index">03</p>
+            <h3>BookBot</h3>
+            <p class="case-where">Appointments · salons, barbers, tutors, mechanics</p>
+            <p>The shop adds services, prices, and opening hours, then gets a booking link for WhatsApp, Instagram, and Facebook. Customers pick a service and a free slot. Two people cannot take the same chair. A WhatsApp reminder goes out about 24 hours before.</p>
+            <ul class="facts">
+              <li>Built for a 14-day trial, then a monthly fee. The build defaults to R299, and that figure is a setting.</li>
+              <li>Reminders use the WhatsApp Cloud API. Outside the 24-hour chat window they need a template approved in Meta.</li>
+              <li>The clock is South African. The server is set to Johannesburg.</li>
+              <li>Anything that spends money — ads, refunds, payouts — waits in an owner queue and runs only after approval.</li>
+            </ul>
+          </div>
+          <div class="case-stage">
+            <div class="diary" aria-label="Booking day">
+              <header class="board-head">
+                <strong>Thursday</strong>
+                <span>Reminders queued</span>
+              </header>
+              <ol>
+                <li>
+                  <time>09:30</time>
+                  <div>
+                    <strong>Lesson</strong>
+                    <span>Confirmed · reminder tomorrow morning</span>
+                  </div>
+                </li>
+                <li>
+                  <time>14:00</time>
+                  <div>
+                    <strong>Fade and beard</strong>
+                    <span>Confirmed · Cool Cuts</span>
+                  </div>
+                </li>
+                <li class="open-slot">
+                  <time>15:30</time>
+                  <div>
+                    <strong>Open</strong>
+                    <span>Still on the public link</span>
+                  </div>
+                </li>
+              </ol>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="rules" id="rules">
+      <div class="wrap">
+        <header class="section-head">
+          <p class="kicker">Guardrails</p>
+          <h2>The agent stops where a person should start.</h2>
+        </header>
+        <ol class="rule-list">
+          <li>
+            <h3>Prices are yours</h3>
+            <p>Menu prices, shelf prices, and service prices are read from your data. The chat does not make up a figure to keep the conversation moving.</p>
+          </li>
+          <li>
+            <h3>Sending is a decision</h3>
+            <p>A parts quote stays a draft until someone at the counter approves it. A kitchen ticket waits for a clear yes. A spending request waits for the owner.</p>
+          </li>
+          <li>
+            <h3>Silence is a handover</h3>
+            <p>If the menu, the fitment list, or the diary has no answer, the chat goes to staff. That includes a customer who simply asks for a person.</p>
+          </li>
+          <li>
+            <h3>The money lands with the shop</h3>
+            <p>On the restaurant build, PayFast is the shop’s own merchant account. Keys are stored encrypted. The public setup page never shows them back.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="process" id="process">
+      <div class="wrap process-grid">
+        <header class="section-head">
+          <p class="kicker">A build</p>
+          <h2>Your counter, then the chat, then your number.</h2>
+        </header>
+        <ol>
+          <li>
+            <span>1</span>
+            <h3>The thing you already sell</h3>
+            <p>The menu board, the parts list, or the appointment book. The agent charges what you already charge.</p>
+          </li>
+          <li>
+            <span>2</span>
+            <h3>The questions staff repeat</h3>
+            <p>Flavour, vehicle, or which hour is free. Written the way customers already talk, including ja, yebo, and sharp.</p>
+          </li>
+          <li>
+            <span>3</span>
+            <h3>The screen that stays with the team</h3>
+            <p>Kitchen tickets, a quote to approve, or the day’s bookings. The phone is not the only place the work exists.</p>
+          </li>
+          <li>
+            <span>4</span>
+            <h3>The WhatsApp number you answer</h3>
+            <p>Meta’s Cloud API, on your business number. Inbound messages are checked, and a retry does not place the order twice.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="contact" id="contact">
+      <div class="wrap contact-grid">
+        <div>
+          <p class="kicker">Brief</p>
+          <h2>Tell me which counter is drowning in chats.</h2>
+          <p>A restaurant line, a parts desk, a booking book, or something that does not fit those three. I’ll reply on WhatsApp.</p>
+        </div>
+        <form id="brief" novalidate>
+          <label>
+            <span>Your name</span>
+            <input name="name" type="text" autocomplete="name" required aria-describedby="name-error">
+            <small id="name-error" data-error-for="name" hidden>Add your name.</small>
+          </label>
+          <label>
+            <span>Business</span>
+            <input name="business" type="text" autocomplete="organization" required aria-describedby="business-error">
+            <small id="business-error" data-error-for="business" hidden>Add the business name.</small>
+          </label>
+          <label>
+            <span>What should the agent do?</span>
+            <select name="agent" required aria-describedby="agent-error">
+              <option value="">Choose one</option>
+              <option>Restaurant ordering</option>
+              <option>Parts quoting</option>
+              <option>Bookings and reminders</option>
+              <option>Something else</option>
+            </select>
+            <small id="agent-error" data-error-for="agent" hidden>Choose what the agent should take on.</small>
+          </label>
+          <label>
+            <span>What is eating the day? <em>Optional</em></span>
+            <textarea name="note" rows="4" placeholder="Orders after the rush, quotes that sit in a notebook, customers who forget the chair…"></textarea>
+          </label>
+          <button class="button button-solid" type="submit">Send on WhatsApp</button>
+          <div id="brief-result" class="brief-result" hidden>
+            <p id="brief-status"></p>
+            <pre id="brief-text"></pre>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-bar">
+      <p>Amanjee · WhatsApp agents · South Africa</p>
+      <p>© <span id="year">2026</span></p>
+    </div>
+  </footer>
+
+  <script src="assets/site.js"></script>
+</body>
+</html>

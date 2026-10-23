@@ -1,0 +1,604 @@
+// Machachos Potchefstroom - WhatsApp ordering agent.
+//
+// Single-store deployment: one row in Store describes the branch, its trading
+// hours and its WhatsApp connection. The menu is fully data-driven (categories,
+// items, modifier groups and options) so the kitchen can change what the bot
+// offers without a code change, and every order the bot takes is written here
+// as the system of record before it reaches the kitchen screen.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------- Store
+
+model Store {
+  id             String  @id @default(cuid())
+  name           String
+  tradingName    String?
+  phone          String?
+  addressLine    String
+  suburb         String?
+  city           String  @default("Potchefstroom")
+  postalCode     String?
+  currencySymbol String  @default("R")
+  timezone       String  @default("Africa/Johannesburg")
+
+  /// Meta phone_number_id for this branch's WhatsApp number. Inbound webhooks
+  /// are routed to the store by this value.
+  whatsappPhoneNumberId  String? @unique
+  /// AES-256-GCM ciphertext. Falls back to WHATSAPP_ACCESS_TOKEN when unset.
+  whatsappAccessTokenEnc String?
+
+  /// Added to a delivery order. 0 means delivery is free. The kitchen can change it.
+  deliveryFeeCents   Int     @default(0)
+  /// Minutes the kitchen normally needs, quoted to customers before the kitchen
+  /// accepts the order. Once accepted the kitchen's own estimate is used.
+  defaultPrepMinutes Int     @default(20)
+  /// Customers can still cancel themselves this many minutes after placing,
+  /// provided the kitchen has not started cooking.
+  cancelGraceMinutes Int     @default(5)
+  acceptingOrders    Boolean @default(true)
+  /// Shown to the customer when acceptingOrders is false.
+  pausedReason       String?
+
+  kitchenPinHash String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tradingHours  TradingHour[]
+  categories    MenuCategory[]
+  menuItems     MenuItem[]
+  modifierGroups ModifierGroup[]
+  menuImages    MenuImage[]
+  customers     Customer[]
+  conversations Conversation[]
+  orders        Order[]
+  faqs          FaqEntry[]
+  promotions    Promotion[]
+
+  @@map("stores")
+}
+
+model TradingHour {
+  id        String  @id @default(cuid())
+  storeId   String
+  /// 0 = Sunday ... 6 = Saturday.
+  dayOfWeek Int
+  opensAt   String  @default("10:00")
+  closesAt  String  @default("21:00")
+  closed    Boolean @default(false)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, dayOfWeek])
+  @@map("trading_hours")
+}
+
+/// Photos of the printed menu, sent to customers who would rather look at the
+/// menu than tap through it.
+///
+/// Meta needs either a publicly reachable URL or one of its own media ids. We
+/// upload the file once and cache the id, because an id keeps working even when
+/// the app is not reachable from the internet, and it saves re-uploading the
+/// same picture for every customer.
+model MenuImage {
+  id      String @id @default(cuid())
+  storeId String
+  /// Path under /public, e.g. "menu/mochachos-menu-1.jpg". Uploaded from disk.
+  filePath String
+  mimeType String @default("image/jpeg")
+  caption  String?
+  sortOrder Int   @default(0)
+  active   Boolean @default(true)
+  /// True for the whole menu as a PDF rather than a page image.
+  isDocument Boolean @default(false)
+  fileName   String?
+
+  /// Cached Meta media id and when it was uploaded. Media ids expire, so this
+  /// is refreshed when it gets old.
+  whatsappMediaId String?
+  mediaUploadedAt DateTime?
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, active, sortOrder])
+  @@map("menu_images")
+}
+
+/// Free-form answers staff can maintain for questions the agent gets asked a
+/// lot (parking, halaal, card machine, delivery). Retrieved by the AI as facts.
+model FaqEntry {
+  id       String  @id @default(cuid())
+  storeId  String
+  question String
+  answer   String
+  /// Extra words customers use that should match this entry.
+  keywords String[]
+  active   Boolean @default(true)
+  sortOrder Int    @default(0)
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, active])
+  @@map("faq_entries")
+}
+
+// ---------------------------------------------------------------- Menu
+
+model MenuCategory {
+  id          String  @id @default(cuid())
+  storeId     String
+  name        String
+  description String?
+  sortOrder   Int     @default(0)
+  active      Boolean @default(true)
+
+  store Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  items MenuItem[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, sortOrder])
+  @@map("menu_categories")
+}
+
+model MenuItem {
+  id          String  @id @default(cuid())
+  storeId     String
+  categoryId  String
+  /// Full menu-board name, which is also what the kitchen ticket shows.
+  name        String
+  /// Shorter label for WhatsApp list rows, which Meta caps at 24 characters.
+  shortName   String?
+  description String?
+  /// Price of the item on its own, in cents.
+  priceCents  Int
+  /// Code for this item in the till/POS, so tickets can be reconciled.
+  posCode     String?
+  sortOrder   Int     @default(0)
+  active      Boolean @default(true)
+  /// Staff can switch an item off for the night without deleting it.
+  available   Boolean @default(true)
+  soldOutNote String?
+
+  /// When set, the bot offers "make it a meal" and adds this to the line price.
+  /// Derived from the matching Combinacion combo, so ordering the combo directly
+  /// and upgrading an item to a meal cost the same.
+  mealUpgradeCents Int?
+  /// What that upgrade includes, e.g. "beeg chips and a buddy drink". Used in
+  /// the wording of the question, since not every combo includes a drink.
+  mealDescription  String?
+
+  store         Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      MenuCategory            @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  modifierLinks MenuItemModifierGroup[]
+  orderItems    OrderItem[]
+  promotions    Promotion[]
+
+  @@unique([storeId, name])
+  @@index([storeId, active, available])
+  @@map("menu_items")
+}
+
+enum ModifierSelection {
+  /// Exactly one option, asked as a WhatsApp list or buttons.
+  SINGLE
+  /// Zero or more options (extras, toppings).
+  MULTIPLE
+}
+
+enum ModifierScope {
+  /// Always asked for items linked to this group.
+  ALWAYS
+  /// Only asked once the customer upgrades the item to a meal.
+  MEAL_ONLY
+}
+
+/// A question the bot asks about an item: a flavour, a size, a filling, a
+/// drink, extras. Scope lives on the link rather than here, so one group (the
+/// buddy drink, say) can be always asked on a combo and only asked on an
+/// a la carte item once the customer upgrades it to a meal.
+model ModifierGroup {
+  id      String @id @default(cuid())
+  storeId String
+  name    String
+  /// Exact wording the bot sends, e.g. "Which of Zee Flavours would you like?".
+  prompt  String
+  selection ModifierSelection @default(SINGLE)
+  minSelect Int               @default(1)
+  maxSelect Int               @default(1)
+  sortOrder Int               @default(0)
+
+  store   Store                   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  options ModifierOption[]
+  links   MenuItemModifierGroup[]
+  selections OrderItemModifier[]
+
+  @@unique([storeId, name])
+  @@map("modifier_groups")
+}
+
+model ModifierOption {
+  id              String  @id @default(cuid())
+  groupId         String
+  name            String
+  description     String?
+  /// Added to (or subtracted from) the line price, in cents.
+  priceDeltaCents Int     @default(0)
+  posCode         String?
+  sortOrder       Int     @default(0)
+  available       Boolean @default(true)
+
+  group      ModifierGroup       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  selections OrderItemModifier[]
+
+  @@unique([groupId, name])
+  @@map("modifier_options")
+}
+
+model MenuItemModifierGroup {
+  id              String  @id @default(cuid())
+  menuItemId      String
+  modifierGroupId String
+  /// Required groups block confirmation until the customer has chosen.
+  required        Boolean @default(true)
+  /// MEAL_ONLY questions are only asked once this item becomes a meal.
+  scope           ModifierScope @default(ALWAYS)
+  sortOrder       Int     @default(0)
+
+  menuItem MenuItem      @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  group    ModifierGroup @relation(fields: [modifierGroupId], references: [id], onDelete: Cascade)
+
+  @@unique([menuItemId, modifierGroupId])
+  @@map("menu_item_modifier_groups")
+}
+
+// ---------------------------------------------------------------- Customers & chat
+
+model Customer {
+  id      String  @id @default(cuid())
+  storeId String
+  /// International format without "+", e.g. 27821234567.
+  phone   String
+  /// Name the customer told us, which wins over the WhatsApp profile name.
+  name    String?
+  /// Name from the customer's WhatsApp profile, used to greet them.
+  whatsappProfileName String?
+  orderCount Int    @default(0)
+  lastOrderAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  orders        Order[]
+  promotionDeliveries PromotionDelivery[]
+
+  @@unique([storeId, phone])
+  @@map("customers")
+}
+
+enum ConversationHandler {
+  AI
+  HUMAN
+}
+
+/// What the bot is waiting for. The flow engine derives the next question from
+/// the draft order, and stores it here so a button tap minutes later still maps
+/// back to the exact item and question it was asked about.
+enum PendingQuestion {
+  NONE
+  /// Waiting for a choice from a modifier group (basting, side, drink).
+  MODIFIER
+  /// Waiting for "would you like that as a meal?".
+  MEAL_UPGRADE
+  /// Waiting for "anything else?".
+  ANYTHING_ELSE
+  /// Waiting for "is this order correct?".
+  ORDER_CONFIRMATION
+  /// Waiting for "are you sure you want to cancel?".
+  CANCEL_CONFIRMATION
+  /// Waiting for collection or delivery.
+  FULFILMENT
+  /// Waiting for the street address when they chose delivery.
+  /// pendingContext.wantNote means the address is saved and a driver note is optional.
+  DELIVERY_ADDRESS
+  /// Waiting for an optional leave-out or allergy on one item.
+  ITEM_NOTES
+}
+
+model Conversation {
+  id         String              @id @default(cuid())
+  storeId    String
+  customerId String
+  phone      String
+  handler    ConversationHandler @default(AI)
+  /// Set when the bot hands over, so staff know why it is in their queue.
+  handoverReason String?
+
+  pendingQuestion PendingQuestion @default(NONE)
+  /// Identifies what the pending question is about:
+  /// { orderItemId, modifierGroupId } for MODIFIER, { orderId } for cancels.
+  pendingContext  Json?
+  /// Stops the bot asking "anything else?" on a loop.
+  askedAnythingElse Boolean @default(false)
+
+  lastInboundAt  DateTime?
+  lastOutboundAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  store    Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  messages Message[]
+  orders   Order[]
+
+  @@unique([storeId, phone])
+  @@map("conversations")
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum MessageSender {
+  CUSTOMER
+  AI
+  STAFF
+  /// Order progress updates triggered by the kitchen screen.
+  SYSTEM
+}
+
+enum MessageType {
+  TEXT
+  /// Buttons or a list the bot sent, or the reply a customer tapped.
+  INTERACTIVE
+  IMAGE
+  AUDIO
+  DOCUMENT
+  LOCATION
+  /// Internal note, never sent to the customer.
+  NOTE
+  OTHER
+}
+
+enum DeliveryStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  conversationId String
+  direction      MessageDirection
+  sender         MessageSender
+  messageType    MessageType      @default(TEXT)
+  content        String
+  /// Interactive payload we sent, or the reply id the customer tapped.
+  payload        Json?
+  whatsappMessageId String?       @unique
+  deliveryStatus DeliveryStatus   @default(PENDING)
+  error          String?
+  createdAt      DateTime         @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("messages")
+}
+
+// ---------------------------------------------------------------- Orders
+
+enum OrderStatus {
+  /// The basket being built in the chat. Not visible to the kitchen.
+  DRAFT
+  /// Summary sent, waiting for the customer to confirm.
+  AWAITING_CONFIRMATION
+  /// Customer confirmed. On the kitchen screen, not yet acknowledged.
+  SENT_TO_KITCHEN
+  /// Kitchen tapped accept and committed to a time.
+  ACKNOWLEDGED
+  /// Kitchen is cooking it.
+  PREPARING
+  READY_FOR_COLLECTION
+  COLLECTED
+  CANCELLED
+  /// Kitchen could not make it (sold out, closing).
+  REJECTED
+}
+
+enum CancelledBy {
+  CUSTOMER
+  KITCHEN
+  SYSTEM
+}
+
+enum Fulfilment {
+  COLLECTION
+  DELIVERY
+}
+
+/// A picture, a note, or both, sent to people who have already messaged the shop.
+model Promotion {
+  id        String   @id @default(cuid())
+  storeId   String
+  /// Optional words. On a picture this is the caption.
+  body      String?
+  /// Public path such as promotions/abc.jpg, served from /public.
+  imagePath String?
+  /// When set, the message includes Order this and the special joins a normal basket.
+  priceCents Int?
+  menuItemId String?
+  createdAt DateTime @default(now())
+
+  store      Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  menuItem   MenuItem?           @relation(fields: [menuItemId], references: [id], onDelete: SetNull)
+  deliveries PromotionDelivery[]
+
+  @@index([storeId, createdAt])
+  @@map("promotions")
+}
+
+enum PromotionDeliveryStatus {
+  SENT
+  /// Outside WhatsApp's 24-hour window, or the number is not connected.
+  SKIPPED
+  FAILED
+}
+
+model PromotionDelivery {
+  id          String                  @id @default(cuid())
+  promotionId String
+  customerId  String
+  status      PromotionDeliveryStatus
+  detail      String?
+  createdAt   DateTime                @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  customer  Customer  @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId])
+  @@map("promotion_deliveries")
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  storeId        String
+  customerId     String
+  conversationId String
+  /// Short human reference ("MP-0042"), assigned when the order is confirmed so
+  /// abandoned baskets never consume a number.
+  orderNumber    String?     @unique
+  status         OrderStatus @default(DRAFT)
+
+  subtotalCents Int @default(0)
+  totalCents    Int @default(0)
+  /// Copied from the shop when the customer is shown the total. 0 means free.
+  deliveryFeeCents Int @default(0)
+
+  /// Free-text notes from the customer ("no mayo please").
+  notes String?
+
+  /// Null until the customer says collection or delivery.
+  fulfilment Fulfilment?
+  /// Set when fulfilment is DELIVERY. A typed street address, or the label from a pin.
+  deliveryAddress String?
+  /// Optional instruction for the driver (gate code, flat, where to stop).
+  deliveryNotes String?
+  /// Set when the customer sends a WhatsApp location pin.
+  deliveryLatitude Float?
+  deliveryLongitude Float?
+
+  /// What the bot quoted before the kitchen accepted.
+  quotedPrepMinutes Int?
+  /// Kitchen's committed collection time, sent to the customer on acknowledge.
+  promisedReadyAt   DateTime?
+  acknowledgedBy    String?
+
+  confirmedAt   DateTime?
+  acknowledgedAt DateTime?
+  readyAt       DateTime?
+  collectedAt   DateTime?
+  cancelledAt   DateTime?
+  cancelledBy   CancelledBy?
+  cancelReason  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  store        Store        @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  items        OrderItem[]
+  events       OrderEvent[]
+
+  @@index([storeId, status, confirmedAt])
+  @@index([conversationId, status])
+  @@map("orders")
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  menuItemId String
+  /// Name and price are copied onto the line so a later menu edit never
+  /// rewrites the history of an order that was already placed.
+  nameSnapshot   String
+  unitPriceCents Int
+  quantity       Int    @default(1)
+
+  /// null = the bot has not asked about a meal upgrade yet, which is what
+  /// drives the "would you like that as a meal?" question.
+  isMeal           Boolean?
+  mealUpgradeCents Int      @default(0)
+
+  lineTotalCents Int     @default(0)
+  /// Leave-out or allergy for this item ("no tomato", "nut allergy").
+  notes          String?
+  /// True once the customer was asked, including when they tapped No notes.
+  notesOffered   Boolean @default(false)
+  sortOrder      Int     @default(0)
+
+  order     Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  menuItem  MenuItem            @relation(fields: [menuItemId], references: [id])
+  modifiers OrderItemModifier[]
+
+  @@index([orderId, sortOrder])
+  @@map("order_items")
+}
+
+model OrderItemModifier {
+  id          String @id @default(cuid())
+  orderItemId String
+  groupId     String
+  optionId    String
+  groupNameSnapshot  String
+  optionNameSnapshot String
+  priceDeltaCents    Int @default(0)
+
+  orderItem OrderItem      @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  group     ModifierGroup  @relation(fields: [groupId], references: [id])
+  option    ModifierOption @relation(fields: [optionId], references: [id])
+
+  @@unique([orderItemId, optionId])
+  @@index([orderItemId, groupId])
+  @@map("order_item_modifiers")
+}
+
+/// Audit trail for one order: who did what and when. Drives "what time will it
+/// be ready?" answers and gives staff a history when a customer disputes.
+model OrderEvent {
+  id      String      @id @default(cuid())
+  orderId String
+  status  OrderStatus
+  summary String
+  /// "customer", "kitchen", "ai" or a staff name.
+  actor   String
+  metadata Json?
+  createdAt DateTime @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+/// Per-store counter behind orderNumber. Kept in its own row so two confirmations
+/// landing at once cannot hand out the same number.
+model OrderSequence {
+  storeId String @id
+  prefix  String @default("MP")
+  next    Int    @default(1)
+
+  @@map("order_sequences")
+}

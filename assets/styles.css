@@ -201,6 +201,14 @@ main,
   align-items: center;
 }
 
+.nav-quote {
+  background: var(--mint);
+  color: var(--navy);
+  border-radius: 999px;
+  padding: 0 0.9rem;
+  font-weight: 500;
+}
+
 .story {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 320px;
@@ -675,11 +683,144 @@ form .button-solid {
   margin-top: 0.3rem;
 }
 
+.efficiency,
+.faq {
+  padding-block: 4.2rem;
+  scroll-margin-top: calc(var(--header) + 0.5rem);
+}
+
+.efficiency h2,
+.faq h2 {
+  font-size: clamp(2rem, 4vw, 3.15rem);
+  line-height: 1.02;
+  max-width: 16ch;
+}
+
+.compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-top: 1.8rem;
+}
+
+.compare article {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.2rem 1.2rem 1.35rem;
+}
+
+.compare-now {
+  border-color: rgba(46, 240, 192, 0.4);
+  background: rgba(46, 240, 192, 0.06);
+}
+
+.compare h3 {
+  font-family: var(--sans);
+  font-weight: 500;
+  letter-spacing: 0;
+  margin-bottom: 0.75rem;
+}
+
+.compare ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+}
+
+.compare li + li {
+  margin-top: 0.5rem;
+}
+
+.gains {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.2rem;
+  margin: 1.4rem 0 0;
+  padding: 0;
+}
+
+.gains li {
+  border-top: 1px solid var(--line);
+  padding-top: 0.9rem;
+}
+
+.gains strong,
+.gains span {
+  display: block;
+}
+
+.gains span {
+  color: var(--muted);
+  margin-top: 0.35rem;
+}
+
+.quote-points {
+  margin: 1.3rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.quote-points li {
+  color: var(--muted);
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--line);
+}
+
+.faq-list {
+  margin-top: 1.5rem;
+  border-top: 1px solid var(--line);
+}
+
+.faq-list details {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-list summary {
+  cursor: pointer;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  font-weight: 500;
+  list-style: none;
+}
+
+.faq-list summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-list summary::after {
+  content: "+";
+  color: var(--mint);
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.faq-list details[open] summary::after {
+  content: "–";
+}
+
+.faq-list details p {
+  color: var(--muted);
+  max-width: 42rem;
+  padding-bottom: 1rem;
+}
+
 .site-footer {
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 0.92rem;
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+.footer-bar a {
+  color: var(--mint);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 :focus-visible {
@@ -747,12 +888,22 @@ form .button-solid {
   }
 
   .wordmark {
-    font-size: 0.9rem;
+    font-size: 0.92rem;
+    white-space: nowrap;
   }
 
   .wordmark img {
     width: 32px;
     height: 32px;
+  }
+
+  .wordmark-rest,
+  .nav-links a[href="#approach"] {
+    display: none;
+  }
+
+  .nav-quote {
+    white-space: nowrap;
   }
 
   .nav-links {
@@ -785,9 +936,19 @@ form .button-solid {
   }
 
   .rows li,
-  .contact-grid {
+  .contact-grid,
+  .compare,
+  .gains {
     grid-template-columns: 1fr;
     gap: 0.35rem;
+  }
+
+  .nav-links {
+    gap: 0.55rem;
+  }
+
+  .nav-quote {
+    padding: 0 0.7rem;
   }
 
   form .button-solid {

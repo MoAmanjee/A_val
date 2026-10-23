@@ -243,7 +243,7 @@ const resultText = document.querySelector("#brief-text");
 const studioNumber = (document.body.dataset.studioWhatsapp || STUDIO_WHATSAPP).replace(/\D/g, "");
 const submitButton = brief?.querySelector("[type=submit]");
 
-if (!studioNumber && submitButton) submitButton.textContent = "Copy WhatsApp brief";
+if (submitButton) submitButton.textContent = "Request a quote";
 
 function fieldValue(name) {
   const field = brief.elements[name];
@@ -262,22 +262,32 @@ brief?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const name = fieldValue("name");
   const business = fieldValue("business");
+  const phone = fieldValue("phone");
   const agent = fieldValue("agent");
   const note = fieldValue("note");
+  const phoneDigits = phone.replace(/\D/g, "");
   const missingName = name.length < 2;
   const missingBusiness = business.length < 2;
+  const missingPhone = phoneDigits.length < 10;
   const missingAgent = agent === "";
 
   setInvalid("name", missingName);
   setInvalid("business", missingBusiness);
+  setInvalid("phone", missingPhone);
   setInvalid("agent", missingAgent);
 
-  if (missingName || missingBusiness || missingAgent) {
+  if (missingName || missingBusiness || missingPhone || missingAgent) {
     brief.querySelector("[aria-invalid='true']")?.focus();
     return;
   }
 
-  const lines = ["New agent brief", `Name: ${name}`, `Business: ${business}`, `Agent: ${agent}`];
+  const lines = [
+    "Quote request — M³ Technologies",
+    `Name: ${name}`,
+    `Business: ${business}`,
+    `WhatsApp: ${phone}`,
+    `Quote: ${agent}`,
+  ];
   if (note) lines.push("", note);
   const text = lines.join("\n");
   resultText.textContent = text;
@@ -285,7 +295,7 @@ brief?.addEventListener("submit", async (event) => {
 
   const status = document.querySelector("#brief-status");
   if (studioNumber) {
-    status.textContent = "Opening WhatsApp with this brief.";
+    status.textContent = "Opening WhatsApp with your quote request.";
     window.open(`https://wa.me/${studioNumber}?text=${encodeURIComponent(text)}`, "_blank", "noopener");
     return;
   }
@@ -298,8 +308,8 @@ brief?.addEventListener("submit", async (event) => {
     copied = false;
   }
   status.textContent = copied
-    ? "Copied. Paste it into WhatsApp."
-    : "Copy the brief below and paste it into WhatsApp.";
+    ? "Quote request copied. Paste it into WhatsApp and we will price the build."
+    : "Copy the quote request below and send it on WhatsApp. We will price the build.";
 });
 
 const year = document.querySelector("#year");

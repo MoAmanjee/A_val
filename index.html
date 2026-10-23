@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>M³ Technologies — Intelligent Solutions. Built Around You.</title>
-  <meta name="description" content="M³ Technologies builds a custom website and an AI chatbot around how your business already runs. Restaurants first. Ready for other industries.">
+  <meta name="description" content="M³ Technologies builds a custom website and an AI chatbot that answers customers, so your team stops typing the same reply. Request a quote.">
   <meta name="theme-color" content="#0d1a2c">
   <link rel="icon" href="assets/favicon.png" type="image/png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -22,12 +22,13 @@
     <div class="wrap header-bar">
       <a class="wordmark" href="#top">
         <img src="assets/logo.png" alt="" width="38" height="38">
-        <span>M<sup>3</sup> Technologies</span>
+        <span>M<sup>3</sup> <span class="wordmark-rest">Technologies</span></span>
       </a>
       <nav class="nav-links" aria-label="Page">
         <a href="#work">Work</a>
+        <a href="#why">Why</a>
         <a href="#approach">Approach</a>
-        <a href="#contact">Brief</a>
+        <a class="nav-quote" href="#quote">Get a quote</a>
       </nav>
     </div>
   </header>
@@ -37,10 +38,10 @@
       <section class="hero">
         <p class="kicker">M<sup>3</sup> Technologies</p>
         <h1>Intelligent solutions. Built around you.</h1>
-        <p class="lede">We build a fully customised website for your business, and an AI chatbot that assists customers, answers their questions, and follows how you already operate. Most of the work so far has been restaurants. The same build can be shaped for other industries.</p>
+        <p class="lede">The website and the AI chatbot answer the customer, so nobody has to stop and type the same reply. Orders, questions, and bookings are taken from how your business already runs. A person steps in only when a person should. Restaurants first. The same build can be shaped for another industry.</p>
         <div class="hero-actions">
-          <a class="button button-solid" href="#work">See the work</a>
-          <a class="button button-quiet" href="#contact">Start a brief</a>
+          <a class="button button-solid" href="#quote">Request a quote</a>
+          <a class="button button-quiet" href="#why">See the time it saves</a>
         </div>
       </section>
 
@@ -84,15 +85,15 @@ Reply yes and I’ll send it to the kitchen.</p>
             <button type="button" role="tab" id="tab-parts" data-scene="parts" aria-selected="false" aria-controls="thread">Parts</button>
             <button type="button" role="tab" id="tab-bookings" data-scene="bookings" aria-selected="false" aria-controls="thread">Bookings</button>
           </div>
-          <p class="phone-caption"><span class="swipe-hint">Swipe the chat. </span>A sample chatbot. Each one is written for that business.</p>
+          <p class="phone-caption"><span class="swipe-hint">Swipe the chat. </span>Answered without someone at the keyboard.</p>
           <p id="scene-status" class="visually-hidden" aria-live="polite"></p>
         </div>
       </div>
 
       <section class="work" id="work">
         <header class="offer">
-          <h2>A website and a chatbot, made for one business.</h2>
-          <p>Not a system you have to bend the shop around. The site and the chat are built from how that business already takes an order, a booking, or a question.</p>
+          <h2>The repetitive replies leave the team’s hands.</h2>
+          <p>Each build is a website plus a chatbot for one business. The chat knows the menu, the stock, or the diary. Staff keep the work a screen cannot do.</p>
         </header>
         <article class="case is-current" id="counter" data-scene="counter">
           <p class="case-index">01 · Restaurant</p>
@@ -157,6 +158,45 @@ Reply yes and I’ll send it to the kitchen.</p>
       </section>
     </div>
 
+    <section class="efficiency" id="why">
+      <div class="wrap">
+        <p class="kicker">Efficiency</p>
+        <h2>Less time on the phone. More time on the work.</h2>
+        <div class="compare">
+          <article>
+            <h3>By hand</h3>
+            <ul>
+              <li>Someone leaves the counter to answer WhatsApp.</li>
+              <li>The menu, the hours, and the price get typed again.</li>
+              <li>Orders and bookings sit in the chat until a person copies them out.</li>
+            </ul>
+          </article>
+          <article class="compare-now">
+            <h3>With M<sup>3</sup></h3>
+            <ul>
+              <li>The chatbot replies from your own prices and hours.</li>
+              <li>The order or booking lands on the screen the team already uses.</li>
+              <li>A person is called only when the answer is not in the business.</li>
+            </ul>
+          </article>
+        </div>
+        <ul class="gains">
+          <li>
+            <strong>First reply</strong>
+            <span>Goes out while the team stays on the job in front of them.</span>
+          </li>
+          <li>
+            <strong>Your website</strong>
+            <span>Custom-built for this business, with the chatbot beside it.</span>
+          </li>
+          <li>
+            <strong>A quote, not a package</strong>
+            <span>Priced for how you operate. Not one system every shop must fit.</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
     <section class="approach" id="approach">
       <div class="wrap">
         <h2>Built around the business. Not the other way around.</h2>
@@ -181,12 +221,17 @@ Reply yes and I’ll send it to the kitchen.</p>
       </div>
     </section>
 
-    <section class="contact" id="contact">
+    <section class="contact" id="quote">
       <div class="wrap contact-grid">
         <div>
-          <p class="kicker">Brief</p>
-          <h2>Tell us how the business runs.</h2>
-          <p>A restaurant, another trade, or something that does not fit either. We will reply on WhatsApp.</p>
+          <p class="kicker">Quote</p>
+          <h2>Get a quote for your business.</h2>
+          <p>Tell us the business and where customers message you. We come back with a price for the website and the chatbot, shaped around how you already work.</p>
+          <ul class="quote-points">
+            <li>A custom website</li>
+            <li>An AI chatbot on your WhatsApp</li>
+            <li>A person still in charge of the exceptions</li>
+          </ul>
         </div>
         <form id="brief" novalidate>
           <label>
@@ -200,20 +245,25 @@ Reply yes and I’ll send it to the kitchen.</p>
             <small id="business-error" data-error-for="business" hidden>Add the business name.</small>
           </label>
           <label>
-            <span>What should we build?</span>
-            <select name="agent" required aria-describedby="agent-error">
-              <option value="">Choose one</option>
-              <option>Restaurant website and chatbot</option>
-              <option>Another industry</option>
-              <option>Not sure yet</option>
-            </select>
-            <small id="agent-error" data-error-for="agent" hidden>Choose what we should build.</small>
+            <span>Your WhatsApp number</span>
+            <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="082 000 0000" required aria-describedby="phone-error">
+            <small id="phone-error" data-error-for="phone" hidden>Add a WhatsApp number we can reply on.</small>
           </label>
           <label>
-            <span>How does the business run? <em>Optional</em></span>
-            <textarea name="note" rows="3" placeholder="The menu, the counter, the hours, the questions staff repeat"></textarea>
+            <span>What should we quote?</span>
+            <select name="agent" required aria-describedby="agent-error">
+              <option value="">Choose one</option>
+              <option>Website and chatbot</option>
+              <option>Chatbot for the number I already answer</option>
+              <option>Not sure yet</option>
+            </select>
+            <small id="agent-error" data-error-for="agent" hidden>Choose what we should quote.</small>
           </label>
-          <button class="button button-solid" type="submit">Send on WhatsApp</button>
+          <label>
+            <span>What do customers ask all day? <em>Optional</em></span>
+            <textarea name="note" rows="3" placeholder="Menu questions, bookings, quotes, opening hours"></textarea>
+          </label>
+          <button class="button button-solid" type="submit">Request a quote</button>
           <div id="brief-result" class="brief-result" hidden>
             <p id="brief-status"></p>
             <pre id="brief-text"></pre>
@@ -221,11 +271,36 @@ Reply yes and I’ll send it to the kitchen.</p>
         </form>
       </div>
     </section>
+
+    <section class="faq" id="faq">
+      <div class="wrap">
+        <h2>Before you ask for the quote.</h2>
+        <div class="faq-list">
+          <details>
+            <summary>Does this replace my staff?</summary>
+            <p>No. It takes the replies a person should not have to type. People still cook, serve, approve a quote, and handle anything the chatbot should not guess.</p>
+          </details>
+          <details>
+            <summary>How is the price worked out?</summary>
+            <p>There is no single package. The quote follows the website and the chatbot your business actually needs. Send the form and we reply on WhatsApp.</p>
+          </details>
+          <details>
+            <summary>Is it only for restaurants?</summary>
+            <p>Restaurants are where most of the work has been built. The same approach already runs for a parts counter and for appointment bookings.</p>
+          </details>
+          <details>
+            <summary>What do you need from me to start?</summary>
+            <p>How customers reach you, what you sell, and the questions your team answers every day. We build around that, rather than handing you a system to adapt to.</p>
+          </details>
+        </div>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
     <div class="wrap footer-bar">
       <p>M<sup>3</sup> Technologies · Intelligent solutions. Built around you.</p>
+      <a href="#quote">Request a quote</a>
       <p>© <span id="year">2026</span></p>
     </div>
   </footer>

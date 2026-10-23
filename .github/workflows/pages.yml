@@ -44,16 +44,19 @@ jobs:
         with:
           path: _site
 
-      - name: Enable Pages for the workflow
-        continue-on-error: true
+      - name: Check Pages
+        id: pages
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set +e
-          gh api --method POST -H "Accept: application/vnd.github+json" "repos/${{ github.repository }}/pages" --raw-field build_type=workflow
-          echo "--- pages site ---"
-          gh api "repos/${{ github.repository }}/pages"
+          if gh api "repos/${{ github.repository }}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages is not switched on yet. Settings → Pages → Source: GitHub Actions, then re-run this workflow."
+          fi
 
       - name: Deploy
         id: deployment
+        if: steps.pages.outputs.enabled == 'true'
         uses: actions/deploy-pages@v4

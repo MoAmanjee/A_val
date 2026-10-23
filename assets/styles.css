@@ -788,6 +788,10 @@ label small {
   margin-top: 0.25rem;
 }
 
+label small[hidden] {
+  display: none;
+}
+
 .brief-result {
   background: var(--forest);
   color: var(--cream);

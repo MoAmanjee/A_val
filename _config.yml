@@ -1,0 +1,4 @@
+# Keeps a branch-based Pages build from publishing anything except the marketing site.
+exclude:
+  - willubev.html
+  - README.md

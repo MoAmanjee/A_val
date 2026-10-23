@@ -1,0 +1,4 @@
+{
+  "install": "npm install",
+  "start": "bash scripts/local-up.sh"
+}

@@ -4,20 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 type WhatsAppStatus = { live: boolean; detail: string };
-type PromotionRow = {
-  id: string;
-  body: string | null;
-  priceCents: number | null;
-  imageUrl: string | null;
-  createdAt: string;
-  sent: number;
-  skipped: number;
-  failed: number;
-};
 type Board = {
   whatsapp: WhatsAppStatus;
   audience: { messaged: number; insideWindow: number };
-  promotions: PromotionRow[];
 };
 
 export default function PromotionsPage() {
@@ -225,29 +214,6 @@ export default function PromotionsPage() {
           {busy ? "Sending…" : "Send promotion"}
         </button>
       </form>
-
-      <section className="mt-8 max-w-xl">
-        <h2 className="text-lg font-bold">Already sent</h2>
-        {board.promotions.length === 0 ? <p className="mt-2 text-sm text-neutral-500">Nothing yet.</p> : null}
-        <ul className="mt-3 space-y-3">
-          {board.promotions.map((promotion) => (
-            <li key={promotion.id} className="rounded-xl bg-neutral-900 p-4 text-sm">
-              {promotion.imageUrl ? (
-                <img src={promotion.imageUrl} alt="" className="mb-3 max-h-40 rounded-lg object-contain" />
-              ) : null}
-              {promotion.body ? <p>{promotion.body}</p> : <p className="text-neutral-500">Picture only</p>}
-              {promotion.priceCents != null ? (
-                <p className="mt-1 font-semibold">R{(promotion.priceCents / 100).toFixed(2)} · customers can order it</p>
-              ) : null}
-              <p className="mt-2 text-xs text-neutral-400">
-                {new Date(promotion.createdAt).toLocaleString("en-ZA", { timeZone: "Africa/Johannesburg" })}
-                {" · "}
-                {promotion.sent} sent · {promotion.skipped} not sent · {promotion.failed} failed
-              </p>
-            </li>
-          ))}
-        </ul>
-      </section>
     </main>
   );
 }

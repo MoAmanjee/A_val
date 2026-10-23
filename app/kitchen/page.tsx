@@ -27,7 +27,7 @@ type Ticket = {
 type HistoryTicket = {
   id: string;
   orderNumber: string | null;
-  status: "COLLECTED" | "CANCELLED" | "REJECTED";
+  status: "COLLECTED";
   totalCents: number;
   notes: string | null;
   paymentStatus: "UNPAID" | "PENDING" | "PAID" | "FAILED";
@@ -39,8 +39,6 @@ type HistoryTicket = {
   acknowledgedAt: string | null;
   readyAt: string | null;
   collectedAt: string | null;
-  cancelledAt: string | null;
-  cancelReason: string | null;
   customerName: string;
   items: { id: string; name: string; quantity: number; notes: string | null; isMeal: boolean | null; modifiers: string[] }[];
 };
@@ -56,7 +54,6 @@ type HistoryBoard = {
   summary: {
     orderCount: number;
     collectedCount: number;
-    cancelledCount: number;
     collectedTotalCents: number;
   };
   orders: HistoryTicket[];
@@ -87,12 +84,6 @@ function clock(iso: string | null) {
     minute: "2-digit",
     timeZone: "Africa/Johannesburg",
   }).format(new Date(iso));
-}
-
-function statusLabel(status: HistoryTicket["status"]) {
-  if (status === "COLLECTED") return "Collected";
-  if (status === "REJECTED") return "Could not make";
-  return "Cancelled";
 }
 
 export default function KitchenPage() {
@@ -465,11 +456,9 @@ export default function KitchenPage() {
         <section className="kitchen-history">
           <div className="kitchen-history-summary">
             <div>
-              <p className="label">This week’s slips</p>
-              <p className="value">{history.summary.collectedCount} made</p>
-              <p className="hint">
-                {history.summary.cancelledCount} cancelled · {money(history.summary.collectedTotalCents, symbol)} collected
-              </p>
+              <p className="label">This week’s completed orders</p>
+              <p className="value">{history.summary.collectedCount} collected</p>
+              <p className="hint">{money(history.summary.collectedTotalCents, symbol)} total</p>
             </div>
             <button type="button" className="rounded-full border border-neutral-600 px-4 py-2 text-sm" onClick={() => void loadHistory()}>
               Refresh
@@ -477,22 +466,19 @@ export default function KitchenPage() {
           </div>
           {history.orders.length === 0 ? (
             <p className="text-sm text-neutral-500">
-              No confirmed slips yet this week. When you mark an order Collected (or cancel it), it shows up here.
+              No completed orders yet this week. When you mark an order Collected, the slip shows up here.
             </p>
           ) : (
             <div className="kitchen-history-list">
               {history.orders.map((ticket) => (
-                <article key={ticket.id} className={`ticket history ${ticket.status === "COLLECTED" ? "done" : "void"}`}>
+                <article key={ticket.id} className="ticket history done">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-xl font-black">{ticket.orderNumber}</p>
-                      <p className="text-sm text-neutral-400">
-                        {ticket.customerName} · {statusLabel(ticket.status)}
-                      </p>
+                      <p className="text-sm text-neutral-400">{ticket.customerName} · Collected</p>
                       <p className="text-xs text-neutral-500">
                         Confirmed {clock(ticket.confirmedAt)}
                         {ticket.collectedAt ? ` · Collected ${clock(ticket.collectedAt)}` : ""}
-                        {ticket.cancelledAt ? ` · ${clock(ticket.cancelledAt)}` : ""}
                       </p>
                       {ticket.fulfilment === "DELIVERY" ? (
                         <p className="text-sm text-amber-200">
@@ -526,7 +512,6 @@ export default function KitchenPage() {
                     ))}
                   </ul>
                   {ticket.notes ? <p className="mt-3 text-sm text-amber-100">Kitchen note: {ticket.notes}</p> : null}
-                  {ticket.cancelReason ? <p className="mt-2 text-sm text-red-300">{ticket.cancelReason}</p> : null}
                 </article>
               ))}
             </div>

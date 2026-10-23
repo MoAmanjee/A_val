@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { readKitchenSession } from "@/lib/session";
 
-const HISTORY_STATUSES = ["COLLECTED", "CANCELLED", "REJECTED"] as const;
+/** Kitchen History is completed slips only — collected orders from the last 7 days. */
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export async function GET() {
@@ -16,7 +16,7 @@ export async function GET() {
   const orders = await db.order.findMany({
     where: {
       storeId: store.id,
-      status: { in: [...HISTORY_STATUSES] },
+      status: "COLLECTED",
       confirmedAt: { not: null, gte: since },
     },
     orderBy: [{ collectedAt: "desc" }, { confirmedAt: "desc" }],
@@ -26,12 +26,10 @@ export async function GET() {
     },
   });
 
-  const collected = orders.filter((o) => o.status === "COLLECTED");
   const summary = {
     orderCount: orders.length,
-    collectedCount: collected.length,
-    cancelledCount: orders.filter((o) => o.status === "CANCELLED" || o.status === "REJECTED").length,
-    collectedTotalCents: collected.reduce((sum, o) => sum + o.totalCents, 0),
+    collectedCount: orders.length,
+    collectedTotalCents: orders.reduce((sum, o) => sum + o.totalCents, 0),
   };
 
   return Response.json({
@@ -56,8 +54,6 @@ export async function GET() {
       acknowledgedAt: order.acknowledgedAt,
       readyAt: order.readyAt,
       collectedAt: order.collectedAt,
-      cancelledAt: order.cancelledAt,
-      cancelReason: order.cancelReason,
       customerName: order.customer.name || order.customer.whatsappProfileName || order.customer.phone,
       items: order.items.map((item) => ({
         id: item.id,

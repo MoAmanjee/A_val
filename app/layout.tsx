@@ -6,11 +6,13 @@ const siteUrl = process.env.APP_URL?.replace(/\/$/, "") || "https://mochachospot
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: "Mochachos Potch CBD",
+    default: "Mochachos Potch CBD | Order online for collection",
     template: "%s · Mochachos Potch CBD",
   },
-  description: "Order Mochachos Potchefstroom CBD online — photo menu, meals, and kitchen-ready notes. Same kitchen as WhatsApp.",
+  description:
+    "Mochachos Potchefstroom CBD — order flame-grilled Mexican chicken, burgers and meals online for collection at 17 Nelson Mandela Dr.",
   applicationName: "Mochachos Potch CBD",
+  keywords: ["Mochachos Potch", "Mochachos Potchefstroom", "Mochachos CBD order"],
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

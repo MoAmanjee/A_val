@@ -124,7 +124,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     function categoryInView(): string {
       let current = categories[0]?.slug ?? "";
       for (const cat of categories) {
-        const el = document.getElementById(`cat-${cat.slug}`);
+        const el = document.getElementById(cat.slug);
         if (!el) continue;
         if (el.getBoundingClientRect().top <= CATEGORY_SCROLL_OFFSET_PX + 12) {
           current = cat.slug;
@@ -153,7 +153,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   useEffect(() => {
     const nav = catsNavRef.current;
     if (!nav || !activeCategory) return;
-    const link = nav.querySelector<HTMLElement>(`a[href="#cat-${CSS.escape(activeCategory)}"]`);
+    const link = nav.querySelector<HTMLElement>(`a[href="#${CSS.escape(activeCategory)}"]`);
     if (!link) return;
     const navRect = nav.getBoundingClientRect();
     const linkRect = link.getBoundingClientRect();
@@ -385,7 +385,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         {categories.map((cat) => (
           <a
             key={cat.id}
-            href={`#cat-${cat.slug}`}
+            href={`#${cat.slug}`}
             className={activeCategory === cat.slug ? "is-active" : undefined}
             aria-current={activeCategory === cat.slug ? "true" : undefined}
             onClick={() => selectCategory(cat.slug)}
@@ -651,7 +651,7 @@ function CategoryBlock({
   disabled?: boolean;
 }) {
   return (
-    <section className="order-category" id={`cat-${category.slug}`}>
+    <section className="order-category" id={category.slug}>
       <div className="order-category-banner" style={{ backgroundImage: `url(${category.imageUrl})` }}>
         <div>
           <h2>{category.name}</h2>

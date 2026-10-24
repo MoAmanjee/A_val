@@ -8,7 +8,7 @@
 
 export const ORDER_BRAND = {
   logo: "/order-food/brand-logo.png",
-  mark: "/order-food/mrd/logo-mark.png",
+  mark: "/order-food/brand-logo-mark.png",
   hero: "/order-food/mrd/hero-banner.jpg",
   zeeFlavours: "/order-food/zee-flavours.png",
   pattern: "/order-food/bg-pattern.jpg",

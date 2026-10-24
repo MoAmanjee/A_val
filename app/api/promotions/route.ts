@@ -15,29 +15,11 @@ export async function GET() {
   const store = await authorisedStore();
   if (!store) return Response.json({ error: "Sign in" }, { status: 401 });
 
-  const [audience, promotions] = await Promise.all([
-    promotionAudience(store.id),
-    db.promotion.findMany({
-      where: { storeId: store.id },
-      orderBy: { createdAt: "desc" },
-      take: 12,
-      include: { deliveries: { select: { status: true } } },
-    }),
-  ]);
+  const audience = await promotionAudience(store.id);
 
   return Response.json({
     whatsapp: describeWhatsApp(store),
     audience,
-    promotions: promotions.map((promotion) => ({
-      id: promotion.id,
-      body: promotion.body,
-      priceCents: promotion.priceCents,
-      imageUrl: promotion.imagePath ? `/${promotion.imagePath}` : null,
-      createdAt: promotion.createdAt,
-      sent: promotion.deliveries.filter((row) => row.status === "SENT").length,
-      skipped: promotion.deliveries.filter((row) => row.status === "SKIPPED").length,
-      failed: promotion.deliveries.filter((row) => row.status === "FAILED").length,
-    })),
   });
 }
 

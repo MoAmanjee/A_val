@@ -70,6 +70,17 @@ model Store {
   /// Soft monthly outbound cap. Null = unlimited. Ops can still hard-cut with SUSPENDED.
   monthlyMessageCap Int?
 
+  /// PayFast merchant id (public). Empty = not configured for this site.
+  payfastMerchantId String?
+  /// AES-256-GCM ciphertext of the PayFast merchant key.
+  payfastMerchantKeyEnc String?
+  /// AES-256-GCM ciphertext of the PayFast salt passphrase (optional but recommended).
+  payfastPassphraseEnc String?
+  /// sandbox = testing; live = real money. Default sandbox until you flip it.
+  payfastMode String @default("sandbox")
+  /// When true and credentials are present, online PayFast can be offered for this site.
+  payfastEnabled Boolean @default(false)
+
   kitchenPinHash String?
 
   createdAt DateTime @default(now())

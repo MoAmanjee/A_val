@@ -4,6 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 
 type BillingStatus = "ACTIVE" | "PAST_DUE" | "SUSPENDED";
 
+interface PayfastStatus {
+  configured: boolean;
+  enabled: boolean;
+  mode: "sandbox" | "live";
+  merchantId: string | null;
+  hasMerchantKey: boolean;
+  hasPassphrase: boolean;
+}
+
 interface OpsStore {
   id: string;
   name: string;
@@ -30,6 +39,7 @@ interface OpsStore {
   };
   health: { level: "healthy" | "warn" | "down"; label: string; detail: string };
   whatsapp: { live: boolean; detail: string };
+  payfast: PayfastStatus;
 }
 
 export default function OpsPage() {
@@ -39,6 +49,59 @@ export default function OpsPage() {
   const [stores, setStores] = useState<OpsStore[]>([]);
   const [busy, setBusy] = useState(false);
   const [reasonDraft, setReasonDraft] = useState<Record<string, string>>({});
+  const [payfastDraft, setPayfastDraft] = useState<
+    Record<string, { merchantId: string; merchantKey: string; passphrase: string; mode: "sandbox" | "live" }>
+  >({});
+  const [copied, setCopied] = useState<"link" | "wa" | null>(null);
+
+  const setupLink =
+    typeof window !== "undefined" ? `${window.location.origin}/setup/payfast` : "/setup/payfast";
+
+  const whatsappInvite = `Hi — please set up PayFast so we can turn on card payments on your ordering link.
+
+1. Open this guide: ${setupLink}
+2. Create / log into PayFast
+3. Copy Merchant ID, Merchant Key, and Salt Passphrase (if you set one)
+4. Reply here with those three + say sandbox or live
+
+Money settles to *your* PayFast / bank account. We only wire the keys on our side.`;
+
+  function draftFor(store: OpsStore) {
+    return (
+      payfastDraft[store.id] ?? {
+        merchantId: store.payfast.merchantId ?? "",
+        merchantKey: "",
+        passphrase: "",
+        mode: store.payfast.mode,
+      }
+    );
+  }
+
+  async function copyText(text: string, kind: "link" | "wa") {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(kind);
+      window.setTimeout(() => setCopied(null), 2500);
+    } catch {
+      setError("Could not copy — select the text manually.");
+    }
+  }
+
+  async function savePayfast(store: OpsStore) {
+    const d = draftFor(store);
+    const body: Record<string, unknown> = {
+      payfastMerchantId: d.merchantId,
+      payfastMode: d.mode,
+      payfastEnabled: store.payfast.enabled,
+    };
+    if (d.merchantKey.trim()) body.payfastMerchantKey = d.merchantKey.trim();
+    if (d.passphrase.trim()) body.payfastPassphrase = d.passphrase.trim();
+    await patch(store.id, body);
+    setPayfastDraft((prev) => ({
+      ...prev,
+      [store.id]: { ...d, merchantKey: "", passphrase: "" },
+    }));
+  }
 
   const load = useCallback(async () => {
     const res = await fetch("/api/ops/stores");
@@ -139,6 +202,12 @@ export default function OpsPage() {
           <p>Usage, health, WhatsApp / web kill switches, billing cut-off.</p>
         </div>
         <div className="ops-header-actions">
+          <button type="button" className="ops-ghost" onClick={() => void copyText(setupLink, "link")}>
+            {copied === "link" ? "Copied link" : "Copy PayFast link"}
+          </button>
+          <button type="button" className="ops-ghost" onClick={() => void copyText(whatsappInvite, "wa")}>
+            {copied === "wa" ? "Copied WhatsApp text" : "Copy WhatsApp invite"}
+          </button>
           <button type="button" className="ops-ghost" onClick={() => void load()} disabled={busy}>
             Refresh
           </button>
@@ -147,6 +216,14 @@ export default function OpsPage() {
           </button>
         </div>
       </header>
+
+      <p className="ops-setup-link">
+        Send shops this guide:{" "}
+        <a href="/setup/payfast" target="_blank" rel="noreferrer">
+          {setupLink}
+        </a>
+        . Or use <strong>Copy WhatsApp invite</strong> and paste it straight to the owner.
+      </p>
 
       {error ? <p className="ops-error ops-banner">{error}</p> : null}
 
@@ -255,6 +332,104 @@ export default function OpsPage() {
                   placeholder="Shown when WhatsApp or web is blocked"
                 />
               </label>
+            </div>
+
+            <div className="ops-payfast">
+              <div className="ops-payfast-top">
+                <h3>PayFast</h3>
+                <span className={`ops-pill ${store.payfast.configured ? (store.payfast.enabled ? "healthy" : "warn") : "down"}`}>
+                  {!store.payfast.configured
+                    ? "Not set"
+                    : store.payfast.enabled
+                      ? `On · ${store.payfast.mode}`
+                      : `Saved · ${store.payfast.mode}`}
+                </span>
+              </div>
+              <p className="ops-detail">
+                Shop follows <a href="/setup/payfast">/setup/payfast</a>, then you paste their keys here.
+                {store.payfast.hasMerchantKey ? " Key on file." : ""}
+                {store.payfast.hasPassphrase ? " Passphrase on file." : ""}
+              </p>
+              <label>
+                Merchant ID
+                <input
+                  value={draftFor(store).merchantId}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setPayfastDraft((prev) => ({
+                      ...prev,
+                      [store.id]: { ...draftFor(store), merchantId: e.target.value },
+                    }))
+                  }
+                  placeholder="e.g. 10000100"
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                Merchant Key {store.payfast.hasMerchantKey ? "(leave blank to keep)" : ""}
+                <input
+                  type="password"
+                  value={draftFor(store).merchantKey}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setPayfastDraft((prev) => ({
+                      ...prev,
+                      [store.id]: { ...draftFor(store), merchantKey: e.target.value },
+                    }))
+                  }
+                  placeholder={store.payfast.hasMerchantKey ? "••••••••" : "Paste new key"}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                Salt passphrase {store.payfast.hasPassphrase ? "(leave blank to keep)" : "(optional)"}
+                <input
+                  type="password"
+                  value={draftFor(store).passphrase}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setPayfastDraft((prev) => ({
+                      ...prev,
+                      [store.id]: { ...draftFor(store), passphrase: e.target.value },
+                    }))
+                  }
+                  placeholder={store.payfast.hasPassphrase ? "••••••••" : "Optional"}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                Mode
+                <select
+                  value={draftFor(store).mode}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setPayfastDraft((prev) => ({
+                      ...prev,
+                      [store.id]: {
+                        ...draftFor(store),
+                        mode: e.target.value === "live" ? "live" : "sandbox",
+                      },
+                    }))
+                  }
+                >
+                  <option value="sandbox">Sandbox (testing)</option>
+                  <option value="live">Live (real money)</option>
+                </select>
+              </label>
+              <div className="ops-payfast-actions">
+                <button type="button" disabled={busy} onClick={() => void savePayfast(store)}>
+                  Save PayFast keys
+                </button>
+                <label className="ops-inline-check">
+                  <input
+                    type="checkbox"
+                    checked={store.payfast.enabled}
+                    disabled={busy || !store.payfast.configured}
+                    onChange={(e) => void patch(store.id, { payfastEnabled: e.target.checked })}
+                  />
+                  PayFast on
+                </label>
+              </div>
             </div>
 
             <div className="ops-actions">

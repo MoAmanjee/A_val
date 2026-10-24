@@ -29,6 +29,27 @@ function visibleModifiers(item: MenuItem, isMeal: boolean | null): MenuModifier[
   });
 }
 
+/** Featured picks drawn only from real menu categories already on the store. */
+function featuredFromMenu(categories: MenuCategory[]): { title: string; item: MenuItem }[] {
+  const preferred = ["Familia Fiesta", "Combinacion", "Burger El' Supremo", "Pollo Pueblo", "Mexican Meals"];
+  const picks: { title: string; item: MenuItem }[] = [];
+  for (const name of preferred) {
+    const cat = categories.find((c) => c.name === name);
+    if (!cat?.items[0]) continue;
+    picks.push({ title: cat.name, item: cat.items[0] });
+    if (picks.length >= 4) break;
+  }
+  if (picks.length < 4) {
+    for (const cat of categories) {
+      if (picks.some((p) => p.item.id === cat.items[0]?.id)) continue;
+      if (!cat.items[0]) continue;
+      picks.push({ title: cat.name, item: cat.items[0] });
+      if (picks.length >= 4) break;
+    }
+  }
+  return picks;
+}
+
 export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   const [categories] = useState(initial.categories);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -53,6 +74,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   } | null>(null);
   const [pending, startTransition] = useTransition();
   const onlinePayments = useOnlinePaymentsAvailable();
+  const featured = useMemo(() => featuredFromMenu(categories), [categories]);
 
   const totalCents = useMemo(() => cart.reduce((sum, line) => sum + lineTotalCents(line), 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -155,11 +177,16 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     });
   }
 
+  const orderingDisabled =
+    !initial.store.acceptingOrders ||
+    !initial.store.webEnabled ||
+    initial.store.billingStatus === "SUSPENDED";
+
   if (placed) {
     return (
       <main className="order-shell">
         <section className="order-success">
-          <img src={initial.brand.logo} alt="Mochachos" className="order-logo" />
+          <img src={initial.brand.logo} alt="Mochachos" className="order-logo" decoding="async" />
           <p className="order-kicker">Order received</p>
           <h1>{placed.orderNumber ?? "On the kitchen screen"}</h1>
           <p>
@@ -191,14 +218,41 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   return (
     <main className="order-shell">
+      <nav className="order-topnav" aria-label="Storefront">
+        <a href="#menu" className="order-topnav-brand">
+          <img src={initial.brand.mark} alt="Mochachos" width={40} height={40} decoding="async" />
+          <span>
+            <strong>Mochachos</strong>
+            <small>Potchefstroom CBD</small>
+          </span>
+        </a>
+        <div className="order-topnav-links">
+          <a href="#featured">Favourites</a>
+          <a href="#menu">Menu</a>
+          <button
+            type="button"
+            className="order-topnav-cart"
+            onClick={() => setShowCart(true)}
+            aria-label={itemCount ? `Open cart, ${itemCount} items` : "Open cart"}
+          >
+            Cart{itemCount > 0 ? ` · ${itemCount}` : ""}
+          </button>
+        </div>
+      </nav>
+
       <header className="order-hero" style={{ backgroundImage: `url(${initial.brand.hero})` }}>
         <div className="order-hero-veil" />
         <div className="order-hero-inner">
-          <img src={initial.brand.logo} alt="Mochachos" className="order-logo-hero" />
-          <h1>Order for collection</h1>
+          <img
+            src={initial.brand.logo}
+            alt="Mochachos"
+            className="order-logo-hero"
+            fetchPriority="high"
+            decoding="async"
+          />
+          <h1>Flame-Grilled. Full of Flavour.</h1>
           <p>
-            Potchefstroom CBD · pick spice, make it a meal, add kitchen notes — then we ticket the same kitchen as
-            WhatsApp.
+            {initial.store.name} · collection only at {initial.store.addressLine}, {initial.store.city}.
           </p>
           {initial.store.billingStatus === "SUSPENDED" || !initial.store.webEnabled ? (
             <p className="order-paused">
@@ -207,12 +261,40 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           ) : !initial.store.acceptingOrders ? (
             <p className="order-paused">{initial.store.pausedReason ?? "Kitchen paused"}</p>
           ) : (
-            <a className="order-btn-primary" href={`#cat-${categories[0]?.id ?? ""}`}>
-              Browse the menu
+            <a className="order-btn-primary" href="#menu">
+              Order now
             </a>
           )}
         </div>
       </header>
+
+      <p className="order-fulfil-banner" role="note">
+        Collection only — pay at the till or online, then collect at the counter. Prep is usually about{" "}
+        {initial.store.defaultPrepMinutes} minutes once the kitchen accepts.
+      </p>
+
+      {featured.length > 0 ? (
+        <section className="order-featured" id="featured" aria-labelledby="featured-heading">
+          <div className="order-section-head">
+            <h2 id="featured-heading">Kitchen favourites</h2>
+            <p>Popular picks from the live menu — tap to customise and add.</p>
+          </div>
+          <ul className="order-featured-grid">
+            {featured.map(({ title, item }) => (
+              <li key={item.id}>
+                <button type="button" className="order-featured-card" onClick={() => openItem(item)} disabled={orderingDisabled}>
+                  <img src={item.imageUrl} alt="" loading="lazy" decoding="async" />
+                  <span className="order-featured-copy">
+                    <small>{title}</small>
+                    <strong>{item.name}</strong>
+                    <em>{formatR(item.priceCents)}</em>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <nav className="order-cats" aria-label="Menu categories">
         {categories.map((cat) => (
@@ -227,16 +309,45 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         ))}
       </nav>
 
-      <div className="order-body">
+      <div className="order-body" id="menu">
         {categories.map((cat) => (
-          <CategoryBlock key={cat.id} category={cat} onPick={openItem} />
+          <CategoryBlock key={cat.id} category={cat} onPick={openItem} disabled={orderingDisabled} />
         ))}
       </div>
+
+      <footer className="order-footer">
+        <div className="order-footer-brand">
+          <img src={initial.brand.logo} alt="Mochachos" decoding="async" />
+          <div>
+            <strong>{initial.store.name}</strong>
+            <p>
+              {initial.store.addressLine}, {initial.store.city}
+            </p>
+            <p>Collection orders only — same kitchen as WhatsApp.</p>
+          </div>
+        </div>
+        <div className="order-footer-meta">
+          <p>
+            <span>Collection</span>
+            Collect at the till. Typical prep {initial.store.defaultPrepMinutes} minutes after kitchen accept.
+          </p>
+          {initial.store.whatsappDisplay ? (
+            <p>
+              <span>WhatsApp</span>
+              {initial.store.whatsappDisplay}
+            </p>
+          ) : null}
+          <p>
+            <span>Payment</span>
+            Pay at collection, or pay online at checkout when available.
+          </p>
+        </div>
+      </footer>
 
       {itemCount > 0 ? (
         <button type="button" className="order-cart-fab" onClick={() => setShowCart(true)}>
           <span>
-            {itemCount} item{itemCount === 1 ? "" : "s"}
+            View order · {itemCount} item{itemCount === 1 ? "" : "s"}
           </span>
           <strong>{formatR(totalCents)}</strong>
         </button>
@@ -290,15 +401,11 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <span>Total</span>
                 <strong>{formatR(totalCents)}</strong>
               </div>
+              <p className="order-muted order-cart-fulfil">Collection at {initial.store.addressLine}</p>
               <button
                 type="button"
-                className="order-btn-primary"
-                disabled={
-                  !cart.length ||
-                  !initial.store.acceptingOrders ||
-                  !initial.store.webEnabled ||
-                  initial.store.billingStatus === "SUSPENDED"
-                }
+                className="order-btn-primary order-btn-block"
+                disabled={!cart.length || orderingDisabled}
                 onClick={() => {
                   setShowCart(false);
                   setShowCheckout(true);
@@ -424,7 +531,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               {payMode === "collection" ? (
                 <button
                   type="button"
-                  className="order-btn-primary"
+                  className="order-btn-primary order-btn-block"
                   disabled={pending || !phone.trim()}
                   onClick={() => placeOrder()}
                 >
@@ -433,7 +540,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               ) : onlinePayments === true && !wallet ? (
                 <button
                   type="button"
-                  className="order-btn-primary"
+                  className="order-btn-primary order-btn-block"
                   disabled={pending || !phone.trim()}
                   onClick={startOnlinePayment}
                 >
@@ -448,7 +555,15 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   );
 }
 
-function CategoryBlock({ category, onPick }: { category: MenuCategory; onPick: (item: MenuItem) => void }) {
+function CategoryBlock({
+  category,
+  onPick,
+  disabled,
+}: {
+  category: MenuCategory;
+  onPick: (item: MenuItem) => void;
+  disabled?: boolean;
+}) {
   return (
     <section className="order-category" id={`cat-${category.id}`}>
       <div className="order-category-banner" style={{ backgroundImage: `url(${category.imageUrl})` }}>
@@ -460,13 +575,15 @@ function CategoryBlock({ category, onPick }: { category: MenuCategory; onPick: (
       <ul className="order-item-list">
         {category.items.map((item) => (
           <li key={item.id}>
-            <button type="button" className="order-item" onClick={() => onPick(item)}>
-              <img src={item.imageUrl} alt="" loading="lazy" />
+            <button type="button" className="order-item" onClick={() => onPick(item)} disabled={disabled}>
+              <img src={item.imageUrl} alt="" loading="lazy" decoding="async" />
               <span className="order-item-copy">
                 <strong>{item.name}</strong>
                 {item.description ? <small>{item.description}</small> : null}
                 {item.mealUpgradeCents != null ? (
-                  <em>Meal +{formatR(item.mealUpgradeCents)} · {item.mealDescription}</em>
+                  <em>
+                    Meal +{formatR(item.mealUpgradeCents)} · {item.mealDescription}
+                  </em>
                 ) : null}
               </span>
               <span className="order-item-price">{formatR(item.priceCents)}</span>
@@ -554,7 +671,8 @@ function ItemConfigurator({
   }
 
   const preview =
-    (item.priceCents + (isMeal ? item.mealUpgradeCents ?? 0 : 0) +
+    (item.priceCents +
+      (isMeal ? (item.mealUpgradeCents ?? 0) : 0) +
       mods.reduce((sum, mod) => {
         const ids = choices[mod.groupId] ?? [];
         return sum + mod.options.filter((o) => ids.includes(o.id)).reduce((s, o) => s + o.priceDeltaCents, 0);
@@ -578,11 +696,11 @@ function ItemConfigurator({
         <label className="order-field">
           Quantity
           <div className="order-qty">
-            <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))}>
+            <button type="button" onClick={() => setQuantity((q) => Math.max(1, q - 1))} aria-label="Decrease quantity">
               −
             </button>
             <span>{quantity}</span>
-            <button type="button" onClick={() => setQuantity((q) => Math.min(50, q + 1))}>
+            <button type="button" onClick={() => setQuantity((q) => Math.min(50, q + 1))} aria-label="Increase quantity">
               +
             </button>
           </div>
@@ -636,8 +754,8 @@ function ItemConfigurator({
         {localError ? <p className="order-error">{localError}</p> : null}
 
         <footer>
-          <button type="button" className="order-btn-primary" onClick={submit}>
-            Add · {formatR(preview)}
+          <button type="button" className="order-btn-primary order-btn-block" onClick={submit}>
+            Add to order · {formatR(preview)}
           </button>
         </footer>
       </div>

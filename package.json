@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "next dev --hostname 0.0.0.0 --port 3000",
     "local": "bash scripts/local-up.sh",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start --hostname 0.0.0.0 --port 3000",
+    "build:app": "prisma generate && next build",
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

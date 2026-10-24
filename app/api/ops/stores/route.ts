@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { readOpsSession } from "@/lib/session";
 import { listOpsStores } from "@/services/ops/tenant";
+import { buildPayfastUpdate, payfastStatus } from "@/services/payments/payfast";
 import type { BillingStatus } from "@prisma/client";
 
 export async function GET() {
@@ -33,6 +34,11 @@ export async function PATCH(req: Request) {
     suspendedReason?: unknown;
     pausedReason?: unknown;
     monthlyMessageCap?: unknown;
+    payfastMerchantId?: unknown;
+    payfastMerchantKey?: unknown;
+    payfastPassphrase?: unknown;
+    payfastMode?: unknown;
+    payfastEnabled?: unknown;
   } | null;
 
   const storeId = typeof body?.storeId === "string" ? body.storeId : "";
@@ -46,6 +52,11 @@ export async function PATCH(req: Request) {
     suspendedReason?: string | null;
     pausedReason?: string | null;
     monthlyMessageCap?: number | null;
+    payfastMerchantId?: string | null;
+    payfastMerchantKeyEnc?: string | null;
+    payfastPassphraseEnc?: string | null;
+    payfastMode?: string;
+    payfastEnabled?: boolean;
   } = {};
 
   if (body?.billingStatus === "ACTIVE" || body?.billingStatus === "PAST_DUE" || body?.billingStatus === "SUSPENDED") {
@@ -65,6 +76,15 @@ export async function PATCH(req: Request) {
     data.monthlyMessageCap = Math.max(0, Math.floor(body.monthlyMessageCap));
   }
 
+  const payfastPatch = buildPayfastUpdate({
+    merchantId: typeof body?.payfastMerchantId === "string" || body?.payfastMerchantId === null ? (body.payfastMerchantId as string | null) : undefined,
+    merchantKey: typeof body?.payfastMerchantKey === "string" || body?.payfastMerchantKey === null ? (body.payfastMerchantKey as string | null) : undefined,
+    passphrase: typeof body?.payfastPassphrase === "string" || body?.payfastPassphrase === null ? (body.payfastPassphrase as string | null) : undefined,
+    mode: typeof body?.payfastMode === "string" ? body.payfastMode : undefined,
+    enabled: typeof body?.payfastEnabled === "boolean" ? body.payfastEnabled : undefined,
+  });
+  Object.assign(data, payfastPatch);
+
   if (!Object.keys(data).length) {
     return Response.json({ error: "Nothing to update." }, { status: 400 });
   }
@@ -81,6 +101,7 @@ export async function PATCH(req: Request) {
       suspendedReason: store.suspendedReason,
       pausedReason: store.pausedReason,
       monthlyMessageCap: store.monthlyMessageCap,
+      payfast: payfastStatus(store),
     },
   });
 }

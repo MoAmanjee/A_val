@@ -353,7 +353,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         </div>
       </header>
 
-      <p className="order-fulfil-banner" role="note">
+      <p className="order-fulfill-banner" role="note">
         Collection only — pay at the till or online, then collect at the counter. Prep is usually about{" "}
         {initial.store.defaultPrepMinutes} minutes once the kitchen accepts.
       </p>
@@ -382,17 +382,19 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       ) : null}
 
       <nav className="order-cats" aria-label="Menu categories" ref={catsNavRef}>
-        {categories.map((cat) => (
-          <a
-            key={cat.id}
-            href={`#${cat.slug}`}
-            className={activeCategory === cat.slug ? "is-active" : undefined}
-            aria-current={activeCategory === cat.slug ? "true" : undefined}
-            onClick={() => selectCategory(cat.slug)}
-          >
-            {cat.name}
-          </a>
-        ))}
+        <div className="order-cats-track">
+          {categories.map((cat) => (
+            <a
+              key={cat.id}
+              href={`#${cat.slug}`}
+              className={activeCategory === cat.slug ? "is-active" : undefined}
+              aria-current={activeCategory === cat.slug ? "true" : undefined}
+              onClick={() => selectCategory(cat.slug)}
+            >
+              {cat.name}
+            </a>
+          ))}
+        </div>
       </nav>
 
       <div className="order-body" id="menu">
@@ -662,7 +664,9 @@ function CategoryBlock({
         {category.items.map((item) => (
           <li key={item.id}>
             <button type="button" className="order-item" onClick={() => onPick(item)} disabled={disabled}>
-              <img src={item.imageUrl} alt="" loading="lazy" decoding="async" />
+              <span className="order-item-media">
+                <img src={item.imageUrl} alt="" loading="lazy" decoding="async" />
+              </span>
               <span className="order-item-copy">
                 <strong>{item.name}</strong>
                 {item.description ? <small>{item.description}</small> : null}
@@ -672,7 +676,10 @@ function CategoryBlock({
                   </em>
                 ) : null}
               </span>
-              <span className="order-item-price">{formatR(item.priceCents)}</span>
+              <span className="order-item-aside">
+                <span className="order-item-price">{formatR(item.priceCents)}</span>
+                <span className="order-item-add">Add</span>
+              </span>
             </button>
           </li>
         ))}

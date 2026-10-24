@@ -30,6 +30,13 @@ export const env = {
   get kitchenPin() {
     return read("KITCHEN_PIN", "1234");
   },
+  /**
+   * PIN for /ops (your console across every restaurant site).
+   * Falls back to KITCHEN_PIN so local demos work without a second secret.
+   */
+  get opsPin() {
+    return read("OPS_PIN") || read("KITCHEN_PIN", "1234");
+  },
   get openaiApiKey() {
     return read("OPENAI_API_KEY");
   },
@@ -53,5 +60,17 @@ export const env = {
   },
   get whatsappAppSecret() {
     return read("WHATSAPP_APP_SECRET");
+  },
+  /** Stripe secret key (sk_…). Empty = online wallets disabled, pay at collection only. */
+  get stripeSecretKey() {
+    return read("STRIPE_SECRET_KEY");
+  },
+  /** Stripe publishable key (pk_…). Safe for the browser when online pay is on. */
+  get stripePublishableKey() {
+    return read("STRIPE_PUBLISHABLE_KEY");
+  },
+  /** Optional webhook signing secret for payment_intent.succeeded. */
+  get stripeWebhookSecret() {
+    return read("STRIPE_WEBHOOK_SECRET");
   },
 };

@@ -160,6 +160,25 @@ export function toGraphMessage(message: OutboundMessage): Record<string, unknown
     };
   }
 
+  if (message.kind === "cta_url") {
+    return {
+      type: "interactive",
+      interactive: {
+        type: "cta_url",
+        ...header,
+        body: { text: clamp(message.body, WA_LIMITS.interactiveBody) },
+        ...footer,
+        action: {
+          name: "cta_url",
+          parameters: {
+            display_text: clamp(message.buttonText, WA_LIMITS.ctaUrlButton),
+            url: message.url.slice(0, 2000),
+          },
+        },
+      },
+    };
+  }
+
   // A list message carries at most 10 rows in total, no matter how they are split.
   let budget = WA_LIMITS.maxListRows;
   const sections = [];

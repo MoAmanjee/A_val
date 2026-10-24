@@ -32,6 +32,8 @@ export async function GET() {
       status: order.status,
       totalCents: order.totalCents,
       notes: order.notes,
+      paymentStatus: order.paymentStatus,
+      paymentMethod: order.paymentMethod,
       fulfilment: order.fulfilment,
       deliveryAddress: order.deliveryAddress,
       deliveryNotes: order.deliveryNotes,

@@ -9,11 +9,25 @@ import type { OrderMenuPayload } from "./types";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Order online",
+  title: "Order Mochachos Potch CBD online",
   description:
-    "Order Mochachos Potchefstroom CBD for collection — flame-grilled chicken, burgers, combos, and Mexican meals. Same kitchen as WhatsApp.",
+    "Order Mochachos Potchefstroom CBD for collection at 17 Nelson Mandela Dr — flame-grilled chicken, burgers, combos, and Mexican meals. Same kitchen as WhatsApp.",
+  keywords: [
+    "Mochachos Potch",
+    "Mochachos Potchefstroom",
+    "Mochachos CBD",
+    "order chicken Potchefstroom",
+    "Mexican chicken Potchefstroom",
+  ],
   alternates: { canonical: "/order" },
 };
+
+/** Verified shop hours from the store FAQ (not the 24/7 test DB windows). */
+const SHOP_HOURS_JSON_LD = [
+  { "@type": "OpeningHoursSpecification", dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday"], opens: "10:00", closes: "21:00" },
+  { "@type": "OpeningHoursSpecification", dayOfWeek: ["Friday", "Saturday"], opens: "10:00", closes: "22:00" },
+  { "@type": "OpeningHoursSpecification", dayOfWeek: "Sunday", opens: "11:00", closes: "20:00" },
+];
 
 async function loadMenu(): Promise<OrderMenuPayload> {
   const store = await db.store.findFirst({
@@ -109,5 +123,35 @@ async function loadMenu(): Promise<OrderMenuPayload> {
 
 export default async function OrderPage() {
   const menu = await loadMenu();
-  return <OrderStorefront initial={menu} />;
+  const site = env.appUrl.replace(/\/$/, "") || "https://mochachospotch.co.za";
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Restaurant",
+    name: menu.store.name,
+    image: `${site}${ORDER_BRAND.logo}`,
+    url: site,
+    servesCuisine: ["Mexican", "Chicken", "Burgers"],
+    acceptsReservations: false,
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: menu.store.addressLine,
+      addressLocality: menu.store.city,
+      addressRegion: "North West",
+      addressCountry: "ZA",
+    },
+    openingHoursSpecification: SHOP_HOURS_JSON_LD,
+    hasMenu: `${site}/order`,
+    potentialAction: {
+      "@type": "OrderAction",
+      target: `${site}/order`,
+      deliveryMethod: "http://purl.org/goodrelations/v1#DeliveryModePickUp",
+    },
+  };
+
+  return (
+    <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <OrderStorefront initial={menu} />
+    </>
+  );
 }

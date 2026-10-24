@@ -14,6 +14,8 @@ import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
 /** Sticky topnav + category strip — keep in sync with .order-category scroll-margin. */
 const CATEGORY_SCROLL_OFFSET_PX = 128;
 
+type MenuCategoryWithSlug = MenuCategory & { slug: string };
+
 function formatR(cents: number): string {
   const n = Math.round(cents);
   const whole = Math.floor(Math.abs(n) / 100);
@@ -23,6 +25,33 @@ function formatR(cents: number): string {
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/** Human-readable URL label from a category name, e.g. "Pollo Pueblo" → "pollo-pueblo". */
+function slugifyCategoryName(name: string): string {
+  const slug = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return slug || "category";
+}
+
+function withCategorySlugs(categories: MenuCategory[]): MenuCategoryWithSlug[] {
+  const used = new Set<string>();
+  return categories.map((cat) => {
+    const base = slugifyCategoryName(cat.name);
+    let slug = base;
+    let n = 2;
+    while (used.has(slug)) {
+      slug = `${base}-${n}`;
+      n += 1;
+    }
+    used.add(slug);
+    return { ...cat, slug };
+  });
 }
 
 function visibleModifiers(item: MenuItem, isMeal: boolean | null): MenuModifier[] {
@@ -54,9 +83,9 @@ function featuredFromMenu(categories: MenuCategory[]): { title: string; item: Me
 }
 
 export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
-  const [categories] = useState(initial.categories);
+  const categories = useMemo(() => withCategorySlugs(initial.categories), [initial.categories]);
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [activeCategory, setActiveCategory] = useState(categories[0]?.id ?? "");
+  const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   const [configItem, setConfigItem] = useState<MenuItem | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -85,7 +114,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   const itemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
 
   useEffect(() => {
-    if (!activeCategory && categories[0]) setActiveCategory(categories[0].id);
+    if (!activeCategory && categories[0]) setActiveCategory(categories[0].slug);
   }, [activeCategory, categories]);
 
   // Highlight the category tab that matches the section currently under the sticky header.
@@ -93,12 +122,12 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     if (!categories.length) return;
 
     function categoryInView(): string {
-      let current = categories[0]?.id ?? "";
+      let current = categories[0]?.slug ?? "";
       for (const cat of categories) {
-        const el = document.getElementById(`cat-${cat.id}`);
+        const el = document.getElementById(`cat-${cat.slug}`);
         if (!el) continue;
         if (el.getBoundingClientRect().top <= CATEGORY_SCROLL_OFFSET_PX + 12) {
-          current = cat.id;
+          current = cat.slug;
         }
       }
       return current;
@@ -134,9 +163,9 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     }
   }, [activeCategory]);
 
-  function selectCategory(catId: string) {
+  function selectCategory(slug: string) {
     ignoreScrollSpyUntil.current = Date.now() + 900;
-    setActiveCategory(catId);
+    setActiveCategory(slug);
   }
 
   function openItem(item: MenuItem) {
@@ -356,10 +385,10 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         {categories.map((cat) => (
           <a
             key={cat.id}
-            href={`#cat-${cat.id}`}
-            className={activeCategory === cat.id ? "is-active" : undefined}
-            aria-current={activeCategory === cat.id ? "true" : undefined}
-            onClick={() => selectCategory(cat.id)}
+            href={`#cat-${cat.slug}`}
+            className={activeCategory === cat.slug ? "is-active" : undefined}
+            aria-current={activeCategory === cat.slug ? "true" : undefined}
+            onClick={() => selectCategory(cat.slug)}
           >
             {cat.name}
           </a>
@@ -617,12 +646,12 @@ function CategoryBlock({
   onPick,
   disabled,
 }: {
-  category: MenuCategory;
+  category: MenuCategoryWithSlug;
   onPick: (item: MenuItem) => void;
   disabled?: boolean;
 }) {
   return (
-    <section className="order-category" id={`cat-${category.id}`}>
+    <section className="order-category" id={`cat-${category.slug}`}>
       <div className="order-category-banner" style={{ backgroundImage: `url(${category.imageUrl})` }}>
         <div>
           <h2>{category.name}</h2>

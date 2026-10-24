@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   type CartLine,
   type MenuCategory,
@@ -10,6 +10,9 @@ import {
   lineTotalCents,
 } from "./types";
 import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
+
+/** Sticky topnav + category strip — keep in sync with .order-category scroll-margin. */
+const CATEGORY_SCROLL_OFFSET_PX = 128;
 
 function formatR(cents: number): string {
   const n = Math.round(cents);
@@ -75,6 +78,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   const [pending, startTransition] = useTransition();
   const onlinePayments = useOnlinePaymentsAvailable();
   const featured = useMemo(() => featuredFromMenu(categories), [categories]);
+  const catsNavRef = useRef<HTMLElement | null>(null);
+  const ignoreScrollSpyUntil = useRef(0);
 
   const totalCents = useMemo(() => cart.reduce((sum, line) => sum + lineTotalCents(line), 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -82,6 +87,57 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   useEffect(() => {
     if (!activeCategory && categories[0]) setActiveCategory(categories[0].id);
   }, [activeCategory, categories]);
+
+  // Highlight the category tab that matches the section currently under the sticky header.
+  useEffect(() => {
+    if (!categories.length) return;
+
+    function categoryInView(): string {
+      let current = categories[0]?.id ?? "";
+      for (const cat of categories) {
+        const el = document.getElementById(`cat-${cat.id}`);
+        if (!el) continue;
+        if (el.getBoundingClientRect().top <= CATEGORY_SCROLL_OFFSET_PX + 12) {
+          current = cat.id;
+        }
+      }
+      return current;
+    }
+
+    function onScroll() {
+      if (Date.now() < ignoreScrollSpyUntil.current) return;
+      const next = categoryInView();
+      if (!next) return;
+      setActiveCategory((prev) => (prev === next ? prev : next));
+    }
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [categories]);
+
+  // Keep the active tab visible in the horizontal category strip.
+  useEffect(() => {
+    const nav = catsNavRef.current;
+    if (!nav || !activeCategory) return;
+    const link = nav.querySelector<HTMLElement>(`a[href="#cat-${CSS.escape(activeCategory)}"]`);
+    if (!link) return;
+    const navRect = nav.getBoundingClientRect();
+    const linkRect = link.getBoundingClientRect();
+    const fullyVisible = linkRect.left >= navRect.left + 8 && linkRect.right <= navRect.right - 8;
+    if (!fullyVisible) {
+      link.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    }
+  }, [activeCategory]);
+
+  function selectCategory(catId: string) {
+    ignoreScrollSpyUntil.current = Date.now() + 900;
+    setActiveCategory(catId);
+  }
 
   function openItem(item: MenuItem) {
     setError(null);
@@ -296,13 +352,14 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         </section>
       ) : null}
 
-      <nav className="order-cats" aria-label="Menu categories">
+      <nav className="order-cats" aria-label="Menu categories" ref={catsNavRef}>
         {categories.map((cat) => (
           <a
             key={cat.id}
             href={`#cat-${cat.id}`}
             className={activeCategory === cat.id ? "is-active" : undefined}
-            onClick={() => setActiveCategory(cat.id)}
+            aria-current={activeCategory === cat.id ? "true" : undefined}
+            onClick={() => selectCategory(cat.id)}
           >
             {cat.name}
           </a>

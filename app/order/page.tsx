@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Order online",
-  description: "Photo menu with Zee Flavours, meals, and kitchen notes — same kitchen as WhatsApp.",
+  description:
+    "Order Mochachos Potchefstroom CBD for collection — flame-grilled chicken, burgers, combos, and Mexican meals. Same kitchen as WhatsApp.",
   alternates: { canonical: "/order" },
 };
 

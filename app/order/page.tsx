@@ -9,8 +9,9 @@ import type { OrderMenuPayload } from "./types";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Order online · Mochachos Potch CBD",
+  title: "Order online",
   description: "Photo menu with Zee Flavours, meals, and kitchen notes — same kitchen as WhatsApp.",
+  alternates: { canonical: "/order" },
 };
 
 async function loadMenu(): Promise<OrderMenuPayload> {

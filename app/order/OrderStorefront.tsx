@@ -159,7 +159,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     return (
       <main className="order-shell">
         <section className="order-success">
-          <img src={initial.brand.logo} alt="Mochachos" className="order-logo" />
+          <img src={initial.brand.logo} alt="Mochachos" className="order-logo" decoding="async" />
           <p className="order-kicker">Order received</p>
           <h1>{placed.orderNumber ?? "On the kitchen screen"}</h1>
           <p>

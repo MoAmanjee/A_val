@@ -4,10 +4,24 @@ import Link from "next/link";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 type WhatsAppStatus = { live: boolean; detail: string };
+type WebsitePromo = {
+  id: string;
+  body: string | null;
+  imagePath: string | null;
+  priceCents: number | null;
+  scheduleKind: string | null;
+  active: boolean;
+  scheduleLabel: string;
+};
 type Board = {
   whatsapp: WhatsAppStatus;
   audience: { messaged: number; insideWindow: number };
+  today: string;
+  website: WebsitePromo[];
+  activeOnWebsite: number;
 };
+
+type ScheduleKind = "DAILY" | "WEEKLY" | "CUSTOM";
 
 function formatPriceLabel(raw: string): string | null {
   const trimmed = raw.trim().replace(/^R\s*/i, "").replace(",", ".");
@@ -24,6 +38,10 @@ function previewBody(text: string, priceLabel: string | null): string {
   return `${words}\n\n${priceLabel}\n\nTap Order this and I'll add it. You can add other items, then collect or get it delivered.`;
 }
 
+function defaultDateTimeLocal(dateKey: string, hour: number, minute = 0): string {
+  return `${dateKey}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
 export default function PromotionsPage() {
   const [board, setBoard] = useState<Board | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
@@ -36,6 +54,12 @@ export default function PromotionsPage() {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [showOnWebsite, setShowOnWebsite] = useState(true);
+  const [scheduleKind, setScheduleKind] = useState<ScheduleKind>("DAILY");
+  const [scheduleDate, setScheduleDate] = useState("");
+  const [scheduleWeekOf, setScheduleWeekOf] = useState("");
+  const [scheduleStartsAt, setScheduleStartsAt] = useState("");
+  const [scheduleEndsAt, setScheduleEndsAt] = useState("");
   const fileInput = useRef<HTMLInputElement>(null);
   const cancelBtn = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -55,6 +79,10 @@ export default function PromotionsPage() {
     setNeedsLogin(false);
     setBoard(data);
     setError("");
+    setScheduleDate((prev) => prev || data.today);
+    setScheduleWeekOf((prev) => prev || data.today);
+    setScheduleStartsAt((prev) => prev || defaultDateTimeLocal(data.today, 10));
+    setScheduleEndsAt((prev) => prev || defaultDateTimeLocal(data.today, 21));
   }, []);
 
   useEffect(() => {
@@ -128,6 +156,20 @@ export default function PromotionsPage() {
       setError("That price is not valid. Use rands, for example 49.90.");
       return;
     }
+    if (showOnWebsite) {
+      if (scheduleKind === "DAILY" && !scheduleDate) {
+        setError("Pick the day this special should show on the website.");
+        return;
+      }
+      if (scheduleKind === "WEEKLY" && !scheduleWeekOf) {
+        setError("Pick any day in the week this special should show.");
+        return;
+      }
+      if (scheduleKind === "CUSTOM" && (!scheduleStartsAt || !scheduleEndsAt)) {
+        setError("Set a start and end time for the website special.");
+        return;
+      }
+    }
     setConfirmOpen(true);
   }
 
@@ -144,6 +186,16 @@ export default function PromotionsPage() {
     if (text.trim()) body.set("text", text.trim());
     if (price.trim()) body.set("price", price.trim());
     if (file) body.set("image", file);
+    if (showOnWebsite) {
+      body.set("showOnWebsite", "1");
+      body.set("scheduleKind", scheduleKind);
+      if (scheduleKind === "DAILY") body.set("scheduleDate", scheduleDate);
+      if (scheduleKind === "WEEKLY") body.set("scheduleWeekOf", scheduleWeekOf);
+      if (scheduleKind === "CUSTOM") {
+        body.set("scheduleStartsAt", scheduleStartsAt);
+        body.set("scheduleEndsAt", scheduleEndsAt);
+      }
+    }
     const res = await fetch("/api/promotions", { method: "POST", body });
     const data = await res.json().catch(() => ({}));
     setBusy(false);
@@ -189,6 +241,14 @@ export default function PromotionsPage() {
   const priceLabel = formatPriceLabel(price);
   const bodyPreview = previewBody(text, priceLabel);
   const audienceCount = board.audience.insideWindow;
+  const scheduleSummary =
+    !showOnWebsite
+      ? "WhatsApp only — not shown on the website."
+      : scheduleKind === "DAILY"
+        ? `Website: that calendar day (${scheduleDate || board.today}), Johannesburg time.`
+        : scheduleKind === "WEEKLY"
+          ? `Website: the week of ${scheduleWeekOf || board.today} (Mon–Sun, Johannesburg time).`
+          : `Website: ${scheduleStartsAt || "…"} → ${scheduleEndsAt || "…"} (Johannesburg time).`;
 
   return (
     <main className="kitchen-shell min-h-screen px-4 py-5">
@@ -197,9 +257,14 @@ export default function PromotionsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-300">Mochachos Potch CBD</p>
           <h1 className="text-3xl font-black">Promotions</h1>
         </div>
-        <Link href="/kitchen" className="rounded-full border border-neutral-600 px-4 py-2 text-sm">
-          Kitchen
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/specials" className="rounded-full border border-neutral-600 px-4 py-2 text-sm" target="_blank">
+            View specials page
+          </Link>
+          <Link href="/kitchen" className="rounded-full border border-neutral-600 px-4 py-2 text-sm">
+            Kitchen
+          </Link>
+        </div>
       </header>
 
       <p className={`mb-4 rounded-xl px-4 py-3 text-sm ${board.whatsapp.live ? "bg-emerald-950 text-emerald-100" : "bg-amber-950 text-amber-100"}`}>
@@ -209,7 +274,9 @@ export default function PromotionsPage() {
       <p className="mb-5 text-sm text-neutral-400">
         {board.audience.messaged} {board.audience.messaged === 1 ? "person has" : "people have"} messaged the shop.
         {" "}
-        {audienceCount} can receive a picture or note right now. WhatsApp only allows that for 24 hours after their last message. Add a price and they can tap Order this. It joins the basket and checks out like any other item.
+        {audienceCount} can receive a picture or note right now. WhatsApp only allows that for 24 hours after their last message.
+        Tick “Show on website” to also list it on the public specials page until the schedule ends
+        {board.activeOnWebsite > 0 ? ` — ${board.activeOnWebsite} live now.` : "."}
       </p>
 
       <form onSubmit={openConfirm} className="max-w-xl rounded-2xl bg-neutral-900 p-5">
@@ -265,12 +332,132 @@ export default function PromotionsPage() {
         {preview ? (
           <img src={preview} alt="Promotion preview" className="mt-4 max-h-64 rounded-xl object-contain" />
         ) : null}
+
+        <fieldset className="mt-5 rounded-xl border border-neutral-700 p-4">
+          <legend className="px-1 text-sm font-semibold text-amber-200">Website schedule</legend>
+          <label className="flex items-start gap-3 text-sm">
+            <input
+              type="checkbox"
+              checked={showOnWebsite}
+              onChange={(e) => setShowOnWebsite(e.target.checked)}
+              className="mt-1"
+            />
+            <span>
+              Show on the website specials page
+              <span className="mt-1 block text-xs text-neutral-500">
+                Still WhatsApps customers in the 24-hour window. When the schedule ends it disappears from the site automatically.
+              </span>
+            </span>
+          </label>
+
+          {showOnWebsite ? (
+            <div className="mt-4 space-y-3">
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Schedule type">
+                {(
+                  [
+                    ["DAILY", "Daily"],
+                    ["WEEKLY", "Weekly"],
+                    ["CUSTOM", "Custom range"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <label
+                    key={value}
+                    className={`cursor-pointer rounded-full border px-3 py-1.5 text-sm ${
+                      scheduleKind === value ? "border-red-500 bg-red-950 text-red-100" : "border-neutral-600 text-neutral-300"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="scheduleKind"
+                      value={value}
+                      checked={scheduleKind === value}
+                      onChange={() => setScheduleKind(value)}
+                      className="sr-only"
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+
+              {scheduleKind === "DAILY" ? (
+                <label className="block text-sm" htmlFor="schedule-date">
+                  Day (Johannesburg time)
+                  <input
+                    id="schedule-date"
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                  />
+                </label>
+              ) : null}
+
+              {scheduleKind === "WEEKLY" ? (
+                <label className="block text-sm" htmlFor="schedule-week">
+                  Any day in that week (Mon–Sun, Johannesburg time)
+                  <input
+                    id="schedule-week"
+                    type="date"
+                    value={scheduleWeekOf}
+                    onChange={(e) => setScheduleWeekOf(e.target.value)}
+                    className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                  />
+                </label>
+              ) : null}
+
+              {scheduleKind === "CUSTOM" ? (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm" htmlFor="schedule-start">
+                    Starts
+                    <input
+                      id="schedule-start"
+                      type="datetime-local"
+                      value={scheduleStartsAt}
+                      onChange={(e) => setScheduleStartsAt(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                    />
+                  </label>
+                  <label className="block text-sm" htmlFor="schedule-end">
+                    Ends
+                    <input
+                      id="schedule-end"
+                      type="datetime-local"
+                      value={scheduleEndsAt}
+                      onChange={(e) => setScheduleEndsAt(e.target.value)}
+                      className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                    />
+                  </label>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </fieldset>
+
         {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
         {result ? <p className="mt-3 text-sm text-emerald-300">{result}</p> : null}
         <button type="submit" disabled={busy} className="mt-4 rounded-xl bg-red-700 px-4 py-3 font-semibold disabled:opacity-60">
           Preview &amp; send
         </button>
       </form>
+
+      {board.website.length ? (
+        <section className="mt-8 max-w-xl">
+          <h2 className="text-lg font-bold">Recent website specials</h2>
+          <ul className="mt-3 space-y-2">
+            {board.website.map((promo) => (
+              <li key={promo.id} className="rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <strong className="font-semibold">{promo.body?.split("\n")[0] || "Special"}</strong>
+                  <span className={promo.active ? "text-emerald-300" : "text-neutral-500"}>
+                    {promo.active ? "Live" : "Ended"}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-neutral-400">{promo.scheduleLabel || promo.scheduleKind}</p>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       {confirmOpen ? (
         <div className="promo-confirm" role="presentation" onClick={cancelConfirm}>
@@ -286,6 +473,7 @@ export default function PromotionsPage() {
             <p className="promo-confirm-audience">
               Goes to {audienceCount} {audienceCount === 1 ? "customer" : "customers"} in the 24-hour window.
             </p>
+            <p className="mb-3 text-sm text-neutral-400">{scheduleSummary}</p>
 
             <div className="promo-wa-preview" aria-label="Message preview">
               <div className="promo-wa-bubble">

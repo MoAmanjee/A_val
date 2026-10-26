@@ -491,6 +491,15 @@ enum PaymentStatus {
   FAILED
 }
 
+enum PromotionScheduleKind {
+  /// Calendar day in the store timezone (Africa/Johannesburg).
+  DAILY
+  /// Monday 00:00 through Sunday end-of-day in the store timezone.
+  WEEKLY
+  /// Explicit start and end datetimes.
+  CUSTOM
+}
+
 /// A picture, a note, or both, sent to people who have already messaged the shop.
 model Promotion {
   id        String   @id @default(cuid())
@@ -502,6 +511,11 @@ model Promotion {
   /// When set, the message includes Order this and the special joins a normal basket.
   priceCents Int?
   menuItemId String?
+  /// When true, the special appears on /specials while startsAt..endsAt is active.
+  showOnWebsite Boolean @default(false)
+  scheduleKind  PromotionScheduleKind?
+  startsAt      DateTime?
+  endsAt        DateTime?
   createdAt DateTime @default(now())
 
   store      Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
@@ -509,6 +523,7 @@ model Promotion {
   deliveries PromotionDelivery[]
 
   @@index([storeId, createdAt])
+  @@index([storeId, showOnWebsite, startsAt, endsAt])
   @@map("promotions")
 }
 

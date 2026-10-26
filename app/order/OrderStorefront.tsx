@@ -11,6 +11,7 @@ import {
 } from "./types";
 import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
 import { normalizePhone } from "@/utils/phone";
+import { FACEBOOK_PAGE_URL, STORE_MAP } from "@/lib/store-contact";
 
 /** Sticky topnav + category strip — keep in sync with .order-category scroll-margin. */
 const CATEGORY_SCROLL_OFFSET_PX = 128;
@@ -398,6 +399,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         <div className="order-topnav-links">
           <a href="#featured">Favourites</a>
           <a href="#menu">Menu</a>
+          <a href="/specials">Specials</a>
           <button
             type="button"
             className="order-topnav-cart"
@@ -491,6 +493,13 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               {initial.store.addressLine}, {initial.store.city}
             </p>
             <p>Collection only — order online, collect at the counter.</p>
+            <p className="order-footer-social">
+              <a href="/specials">Specials</a>
+              <span aria-hidden="true"> · </span>
+              <a href={FACEBOOK_PAGE_URL} target="_blank" rel="noopener noreferrer">
+                Facebook
+              </a>
+            </p>
           </div>
         </div>
         <div className="order-footer-meta">
@@ -518,6 +527,24 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               ? "Pay at the till, or pay online with Apple Pay, Google Pay, or card."
               : "Pay at the till when you collect."}
           </p>
+        </div>
+        <div className="order-footer-map">
+          <p>
+            <span>Find us</span>
+            {STORE_MAP.label}
+          </p>
+          <div className="order-map-frame">
+            <iframe
+              title="Map of Mochachos Potchefstroom CBD"
+              src={STORE_MAP.embedSrc}
+              loading="lazy"
+              referrerPolicy="no-referrer-when-downgrade"
+              allowFullScreen
+            />
+          </div>
+          <a className="order-map-link" href={STORE_MAP.directionsUrl} target="_blank" rel="noopener noreferrer">
+            Open in Google Maps
+          </a>
         </div>
       </footer>
 

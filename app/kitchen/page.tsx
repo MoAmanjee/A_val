@@ -39,8 +39,17 @@ type HistoryTicket = {
   acknowledgedAt: string | null;
   readyAt: string | null;
   collectedAt: string | null;
+  dayKey: string | null;
   customerName: string;
   items: { id: string; name: string; quantity: number; notes: string | null; isMeal: boolean | null; modifiers: string[] }[];
+};
+
+type HistoryDay = {
+  key: string;
+  weekday: string;
+  dayNum: string;
+  isToday: boolean;
+  isFuture: boolean;
 };
 
 type Board = {
@@ -51,6 +60,13 @@ type Board = {
 type HistoryBoard = {
   store: { name: string; currencySymbol: string };
   since: string;
+  weekStartsAt: string;
+  weekEndsAt: string;
+  weekLabel: string;
+  weekResetsOn: string;
+  todayKey: string;
+  day: string | null;
+  days: HistoryDay[];
   summary: {
     orderCount: number;
     collectedCount: number;
@@ -90,6 +106,7 @@ export default function KitchenPage() {
   const [tab, setTab] = useState<"live" | "history">("live");
   const [board, setBoard] = useState<Board | null>(null);
   const [history, setHistory] = useState<HistoryBoard | null>(null);
+  const [historyDay, setHistoryDay] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
@@ -114,8 +131,9 @@ export default function KitchenPage() {
     setError("");
   }, []);
 
-  const loadHistory = useCallback(async () => {
-    const res = await fetch("/api/kitchen/orders/history", { cache: "no-store" });
+  const loadHistory = useCallback(async (day: string | null = historyDay) => {
+    const qs = day ? `?day=${encodeURIComponent(day)}` : "";
+    const res = await fetch(`/api/kitchen/orders/history${qs}`, { cache: "no-store" });
     if (res.status === 401) {
       setNeedsLogin(true);
       setHistory(null);
@@ -129,7 +147,7 @@ export default function KitchenPage() {
     setNeedsLogin(false);
     setHistory(data);
     setError("");
-  }, []);
+  }, [historyDay]);
 
   useEffect(() => {
     if (tab === "live") {
@@ -137,9 +155,9 @@ export default function KitchenPage() {
       const timer = setInterval(() => void loadLive(), 4000);
       return () => clearInterval(timer);
     }
-    void loadHistory();
+    void loadHistory(historyDay);
     return undefined;
-  }, [tab, loadLive, loadHistory]);
+  }, [tab, historyDay, loadLive, loadHistory]);
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -456,17 +474,56 @@ export default function KitchenPage() {
         <section className="kitchen-history">
           <div className="kitchen-history-summary">
             <div>
-              <p className="label">This week’s completed orders</p>
+              <p className="label">
+                {historyDay
+                  ? `${history.days.find((d) => d.key === historyDay)?.weekday ?? "Day"}’s completed orders`
+                  : "This week’s completed orders"}
+              </p>
               <p className="value">{history.summary.collectedCount} collected</p>
               <p className="hint">{money(history.summary.collectedTotalCents, symbol)} total</p>
+              <p className="kitchen-history-reset">
+                {history.weekLabel} · resets Monday 00:00 (Johannesburg)
+              </p>
             </div>
-            <button type="button" className="rounded-full border border-neutral-600 px-4 py-2 text-sm" onClick={() => void loadHistory()}>
+            <button
+              type="button"
+              className="rounded-full border border-neutral-600 px-4 py-2 text-sm"
+              onClick={() => void loadHistory(historyDay)}
+            >
               Refresh
             </button>
           </div>
+          <div className="kitchen-history-days" role="tablist" aria-label="Filter history by day">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={historyDay === null}
+              className={historyDay === null ? "active" : ""}
+              onClick={() => setHistoryDay(null)}
+            >
+              All days
+            </button>
+            {history.days.map((day) => (
+              <button
+                key={day.key}
+                type="button"
+                role="tab"
+                aria-selected={historyDay === day.key}
+                disabled={day.isFuture}
+                className={historyDay === day.key ? "active" : ""}
+                onClick={() => setHistoryDay(day.key)}
+              >
+                <span className="weekday">{day.weekday}</span>
+                <span className="daynum">{day.dayNum}</span>
+                {day.isToday ? <span className="today">Today</span> : null}
+              </button>
+            ))}
+          </div>
           {history.orders.length === 0 ? (
             <p className="text-sm text-neutral-500">
-              No completed orders yet this week. When you mark an order Collected, the slip shows up here.
+              {historyDay
+                ? "No completed orders on this day yet."
+                : "No completed orders yet this week. When you mark an order Collected, the slip shows up here. History clears every Monday."}
             </p>
           ) : (
             <div className="kitchen-history-list">

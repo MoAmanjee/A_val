@@ -61,6 +61,10 @@ export async function placeWebOrder(input: WebCheckoutInput): Promise<FullOrder>
   if (phone.length < 10 || phone.length > 15) {
     throw new InvalidStateError("Please enter a valid South African mobile number");
   }
+  const customerName = input.name?.trim() ?? "";
+  if (!customerName) {
+    throw new InvalidStateError("Please enter your name");
+  }
   if (!input.lines.length) throw new InvalidStateError("Your cart is empty");
 
   const store = await db.store.findFirst({ orderBy: { createdAt: "asc" } });
@@ -75,10 +79,10 @@ export async function placeWebOrder(input: WebCheckoutInput): Promise<FullOrder>
     create: {
       storeId: store.id,
       phone,
-      name: input.name?.trim().slice(0, 80) || null,
+      name: customerName.slice(0, 80),
     },
     update: {
-      name: input.name?.trim().slice(0, 80) || undefined,
+      name: customerName.slice(0, 80),
     },
   });
 

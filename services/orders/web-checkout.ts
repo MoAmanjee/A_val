@@ -36,7 +36,7 @@ export type OnlineWalletChoice = "apple_pay" | "samsung_pay" | "google_pay" | "c
 
 export interface WebCheckoutInput {
   phone: string;
-  name?: string;
+  name: string;
   notes?: string;
   fulfilment?: "COLLECTION" | "DELIVERY";
   deliveryAddress?: string;

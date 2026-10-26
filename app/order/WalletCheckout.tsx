@@ -127,7 +127,7 @@ export function WalletCheckout({
           variables: {
             colorPrimary: "#e10600",
             borderRadius: "12px",
-            fontFamily: "Figtree, Avenir Next, sans-serif",
+            fontFamily: "Manrope, Avenir Next, sans-serif",
           },
         },
       }}

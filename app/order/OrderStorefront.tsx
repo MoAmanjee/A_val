@@ -10,9 +10,22 @@ import {
   lineTotalCents,
 } from "./types";
 import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
+import { normalizePhone } from "@/utils/phone";
 
 /** Sticky topnav + category strip — keep in sync with .order-category scroll-margin. */
 const CATEGORY_SCROLL_OFFSET_PX = 128;
+
+/** Verified branch hours from the store FAQ. */
+const SHOP_HOURS = [
+  { days: "Mon – Thu", hours: "10:00 – 21:00" },
+  { days: "Fri – Sat", hours: "10:00 – 22:00" },
+  { days: "Sunday", hours: "11:00 – 20:00" },
+];
+
+function looksLikeSaMobile(input: string): boolean {
+  const digits = normalizePhone(input);
+  return /^27\d{9}$/.test(digits);
+}
 
 type MenuCategoryWithSlug = MenuCategory & { slug: string };
 
@@ -183,6 +196,43 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     setCart((prev) => prev.filter((l) => l.key !== key));
   }
 
+  function setLineQuantity(key: string, quantity: number) {
+    const next = Math.max(0, Math.min(50, Math.round(quantity)));
+    if (next <= 0) {
+      removeLine(key);
+      return;
+    }
+    setCart((prev) => prev.map((line) => (line.key === key ? { ...line, quantity: next } : line)));
+  }
+
+  useEffect(() => {
+    const open = Boolean(configItem || showCart || showCheckout);
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
+      setShowCart(false);
+      setShowCheckout(false);
+      setConfigItem(null);
+      setWallet(null);
+      setError(null);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = previous;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [configItem, showCart, showCheckout]);
+
+  // Live store: only offer real online wallets when Stripe is configured.
+  useEffect(() => {
+    if (onlinePayments === false && payMode === "online") {
+      setPayMode("collection");
+      setWallet(null);
+    }
+  }, [onlinePayments, payMode]);
+
   function cartPayload() {
     return cart.map((line) => ({
       menuItemId: line.menuItemId,
@@ -196,20 +246,23 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     }));
   }
 
-  function placeOrder(opts?: { paymentIntentId?: string; onlineWallet?: "apple_pay" | "samsung_pay" | "google_pay" | "card" }) {
+  function placeOrder(opts?: { paymentIntentId?: string }) {
     setError(null);
+    if (!looksLikeSaMobile(phone)) {
+      setError("Enter a valid South African mobile number, e.g. 082 123 4567");
+      return;
+    }
     startTransition(async () => {
       try {
         const res = await fetch("/api/order/place", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            phone,
+            phone: normalizePhone(phone),
             name: name.trim() || undefined,
             notes: kitchenNotes.trim() || undefined,
             fulfilment: "COLLECTION",
             paymentIntentId: opts?.paymentIntentId,
-            onlineWallet: opts?.onlineWallet,
             lines: cartPayload(),
           }),
         });
@@ -234,8 +287,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   function startOnlinePayment() {
     setError(null);
-    if (!phone.trim()) {
-      setError("Enter your mobile number first");
+    if (!looksLikeSaMobile(phone)) {
+      setError("Enter a valid South African mobile number, e.g. 082 123 4567");
       return;
     }
     startTransition(async () => {
@@ -245,7 +298,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             amountCents: totalCents,
-            phone,
+            phone: normalizePhone(phone),
             name: name.trim() || undefined,
           }),
         });
@@ -272,20 +325,25 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       <main className="order-shell">
         <section className="order-success">
           <img src={initial.brand.logo} alt="Mochachos" className="order-logo" decoding="async" />
-          <p className="order-kicker">Order received</p>
-          <h1>{placed.orderNumber ?? "On the kitchen screen"}</h1>
-          <p>
-            Total {formatR(placed.totalCents)}. Collection at {initial.store.addressLine}, {initial.store.city}.
-            {placed.quotedPrepMinutes
-              ? ` Kitchen usually needs about ${placed.quotedPrepMinutes} minutes once they accept.`
-              : null}
-          </p>
-          <p className="order-muted">
-            {placed.paymentStatus === "PAID"
-              ? `Paid online${placed.paymentMethod ? ` (${placed.paymentMethod.replace(/_/g, " ")})` : ""}.`
-              : "Pay at the till when you collect."}{" "}
-            We WhatsApp status updates to the number you gave — confirmed, cooking, and ready.
-          </p>
+          <p className="order-kicker">Order confirmed</p>
+          <h1>{placed.orderNumber ?? "Sent to the kitchen"}</h1>
+          <div className="order-success-card">
+            <p>
+              <strong>Total {formatR(placed.totalCents)}</strong>
+            </p>
+            <p>
+              Collect at {initial.store.addressLine}, {initial.store.city}.
+              {placed.quotedPrepMinutes
+                ? ` Allow about ${placed.quotedPrepMinutes} minutes after the kitchen accepts.`
+                : null}
+            </p>
+            <p className="order-muted">
+              {placed.paymentStatus === "PAID"
+                ? `Paid online${placed.paymentMethod ? ` (${placed.paymentMethod.replace(/_/g, " ")})` : ""}.`
+                : "Pay at the till when you collect."}{" "}
+              We will WhatsApp you when the order is confirmed, cooking, and ready.
+            </p>
+          </div>
           <button
             type="button"
             className="order-btn-primary"
@@ -303,6 +361,9 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   return (
     <main className="order-shell">
+      <a className="order-skip" href="#menu">
+        Skip to menu
+      </a>
       <nav className="order-topnav" aria-label="Storefront">
         <a href="#menu" className="order-topnav-brand">
           <img src={initial.brand.mark} alt="Mochachos" width={40} height={40} decoding="async" />
@@ -361,8 +422,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       {featured.length > 0 ? (
         <section className="order-featured" id="featured" aria-labelledby="featured-heading">
           <div className="order-section-head">
-            <h2 id="featured-heading">Kitchen favourites</h2>
-            <p>Popular picks from the live menu — tap to customise and add.</p>
+            <h2 id="featured-heading">Customer favourites</h2>
+            <p>Tap a dish to choose spice, meal options, and add it to your order.</p>
           </div>
           <ul className="order-featured-grid">
             {featured.map(({ title, item }) => (
@@ -411,13 +472,21 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
             <p>
               {initial.store.addressLine}, {initial.store.city}
             </p>
-            <p>Collection orders only — same kitchen as WhatsApp.</p>
+            <p>Collection only — order online, collect at the counter.</p>
           </div>
         </div>
         <div className="order-footer-meta">
           <p>
+            <span>Hours</span>
+            {SHOP_HOURS.map((row) => (
+              <span key={row.days} className="order-footer-hours">
+                {row.days}: {row.hours}
+              </span>
+            ))}
+          </p>
+          <p>
             <span>Collection</span>
-            Collect at the till. Typical prep {initial.store.defaultPrepMinutes} minutes after kitchen accept.
+            Collect at the till. Typical prep {initial.store.defaultPrepMinutes} minutes after the kitchen accepts.
           </p>
           {initial.store.whatsappDisplay ? (
             <p>
@@ -427,7 +496,9 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           ) : null}
           <p>
             <span>Payment</span>
-            Pay at collection, or pay online at checkout when available.
+            {onlinePayments
+              ? "Pay at the till, or pay online with Apple Pay, Google Pay, or card."
+              : "Pay at the till when you collect."}
           </p>
         </div>
       </footer>
@@ -451,7 +522,15 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       ) : null}
 
       {showCart ? (
-        <aside className="order-sheet" role="dialog" aria-label="Your order">
+        <aside
+          className="order-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Your order"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCart(false);
+          }}
+        >
           <div className="order-sheet-panel">
             <header>
               <h2>Your order</h2>
@@ -460,7 +539,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               </button>
             </header>
             {cart.length === 0 ? (
-              <p className="order-muted">Nothing in the basket yet.</p>
+              <p className="order-muted">Your basket is empty. Browse the menu to add items.</p>
             ) : (
               <ul className="order-cart-list">
                 {cart.map((line) => (
@@ -468,16 +547,33 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                     <img src={line.imageUrl} alt="" />
                     <div>
                       <strong>
-                        {line.quantity}× {line.name}
+                        {line.name}
                         {line.isMeal ? " · meal" : ""}
                       </strong>
                       <span>
                         {line.modifiers.map((m) => m.optionNames.join(", ")).filter(Boolean).join(" · ") || "As listed"}
                       </span>
                       {line.notes ? <em>{line.notes}</em> : null}
-                      <button type="button" onClick={() => removeLine(line.key)}>
-                        Remove
-                      </button>
+                      <div className="order-cart-qty">
+                        <button
+                          type="button"
+                          aria-label="Decrease quantity"
+                          onClick={() => setLineQuantity(line.key, line.quantity - 1)}
+                        >
+                          −
+                        </button>
+                        <span>{line.quantity}</span>
+                        <button
+                          type="button"
+                          aria-label="Increase quantity"
+                          onClick={() => setLineQuantity(line.key, line.quantity + 1)}
+                        >
+                          +
+                        </button>
+                        <button type="button" className="order-cart-remove" onClick={() => removeLine(line.key)}>
+                          Remove
+                        </button>
+                      </div>
                     </div>
                     <b>{formatR(lineTotalCents(line))}</b>
                   </li>
@@ -489,7 +585,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <span>Total</span>
                 <strong>{formatR(totalCents)}</strong>
               </div>
-              <p className="order-muted order-cart-fulfil">Collection at {initial.store.addressLine}</p>
+              <p className="order-muted order-cart-note">Collection at {initial.store.addressLine}</p>
               <button
                 type="button"
                 className="order-btn-primary order-btn-block"
@@ -499,7 +595,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                   setShowCheckout(true);
                 }}
               >
-                Checkout
+                Continue to checkout
               </button>
             </footer>
           </div>
@@ -507,16 +603,25 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       ) : null}
 
       {showCheckout ? (
-        <aside className="order-sheet" role="dialog" aria-label="Checkout">
+        <aside
+          className="order-sheet"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Checkout"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCheckout(false);
+          }}
+        >
           <div className="order-sheet-panel">
             <header>
-              <h2>Place order</h2>
+              <h2>Checkout</h2>
               <button type="button" className="order-icon-btn" onClick={() => setShowCheckout(false)} aria-label="Close">
                 ×
               </button>
             </header>
             <p className="order-muted">
-              Collection at {initial.store.addressLine}. We use your number for WhatsApp updates only.
+              Collection at {initial.store.addressLine}, {initial.store.city}. Your number is only used for WhatsApp order
+              updates.
             </p>
             <label className="order-field">
               Mobile number
@@ -526,11 +631,12 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 autoComplete="tel"
+                required
               />
             </label>
             <label className="order-field">
               Name (optional)
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="How should we greet you?" />
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="First name" autoComplete="name" />
             </label>
             <label className="order-field">
               Kitchen notes / allergies
@@ -538,7 +644,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 rows={3}
                 value={kitchenNotes}
                 onChange={(e) => setKitchenNotes(e.target.value)}
-                placeholder="One note for the whole order — e.g. no onion, nut allergy"
+                placeholder="e.g. no onion, nut allergy"
               />
             </label>
 
@@ -555,22 +661,28 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 >
                   Pay at collection
                 </button>
-                <button
-                  type="button"
-                  className={payMode === "online" ? "is-on" : undefined}
-                  onClick={() => setPayMode("online")}
-                >
-                  Pay online
-                </button>
+                {onlinePayments ? (
+                  <button
+                    type="button"
+                    className={payMode === "online" ? "is-on" : undefined}
+                    onClick={() => setPayMode("online")}
+                  >
+                    Pay online
+                  </button>
+                ) : null}
               </div>
               <p className="order-muted">
                 {payMode === "online"
-                  ? "Apple Pay, Samsung Pay, Google Pay, or card — then we ticket the kitchen."
-                  : "Pay at the till when you collect. Or switch to Pay online."}
+                  ? "Pay securely with Apple Pay, Google Pay, Samsung Pay, or card — then we send the order to the kitchen."
+                  : "Pay at the till when you collect your order."}
               </p>
             </fieldset>
 
-            {error ? <p className="order-error">{error}</p> : null}
+            {error ? (
+              <p className="order-error" role="alert">
+                {error}
+              </p>
+            ) : null}
 
             {payMode === "online" && onlinePayments === true && wallet ? (
               <WalletCheckout
@@ -581,34 +693,6 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 onError={(message) => setError(message || null)}
                 onPaid={(paymentIntentId) => placeOrder({ paymentIntentId })}
               />
-            ) : null}
-
-            {payMode === "online" && onlinePayments === false ? (
-              <div className="order-wallet">
-                <p className="order-muted">
-                  Choose how you want to pay online. Add Stripe keys later for live Apple Pay / Samsung Pay charges —
-                  for now picking a wallet marks the kitchen ticket as paid.
-                </p>
-                <div className="order-chips">
-                  {(
-                    [
-                      ["apple_pay", "Apple Pay"],
-                      ["samsung_pay", "Samsung Pay"],
-                      ["google_pay", "Google Pay"],
-                      ["card", "Card"],
-                    ] as const
-                  ).map(([id, label]) => (
-                    <button
-                      key={id}
-                      type="button"
-                      disabled={pending || !phone.trim()}
-                      onClick={() => placeOrder({ onlineWallet: id })}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </div>
             ) : null}
 
             <footer>
@@ -623,7 +707,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                   disabled={pending || !phone.trim()}
                   onClick={() => placeOrder()}
                 >
-                  {pending ? "Sending to kitchen…" : "Place order"}
+                  {pending ? "Sending to kitchen…" : "Place collection order"}
                 </button>
               ) : onlinePayments === true && !wallet ? (
                 <button
@@ -632,7 +716,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                   disabled={pending || !phone.trim()}
                   onClick={startOnlinePayment}
                 >
-                  {pending ? "Preparing wallets…" : "Continue to wallets"}
+                  {pending ? "Preparing payment…" : "Continue to secure payment"}
                 </button>
               ) : null}
             </footer>
@@ -773,7 +857,15 @@ function ItemConfigurator({
     quantity;
 
   return (
-    <aside className="order-sheet" role="dialog" aria-label={`Configure ${item.name}`}>
+    <aside
+      className="order-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Configure ${item.name}`}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="order-sheet-panel order-config">
         <header>
           <h2>{item.name}</h2>

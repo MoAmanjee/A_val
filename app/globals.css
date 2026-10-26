@@ -953,7 +953,7 @@ body {
   min-height: 32px;
 }
 
-.order-cart-fulfil {
+.order-cart-note {
   margin: 0 0 0.75rem;
 }
 
@@ -1228,6 +1228,86 @@ body {
   .order-btn-primary:hover:not(:disabled) {
     transform: none;
   }
+}
+
+
+.order-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--ink);
+  color: #fff;
+  padding: 0.7rem 1rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.order-skip:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+.order-success-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 1.1rem 1.15rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.order-success-card p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.order-footer-hours {
+  display: block;
+  margin-top: 0.2rem;
+}
+
+.order-cart-qty {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.35rem;
+}
+
+.order-cart-qty button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--sand);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: var(--ink);
+  padding: 0;
+}
+
+.order-cart-qty span {
+  min-width: 1.25rem;
+  text-align: center;
+  font-weight: 800;
+}
+
+.order-cart-remove {
+  width: auto !important;
+  height: auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--flame) !important;
+  font-weight: 700 !important;
+  margin-left: 0.35rem;
+  min-height: 32px;
+}
+
+.order-cart-list button.order-cart-remove {
+  padding: 0.2rem 0.15rem;
 }
 
 /* ---------------------------------------------------------------- Ops console */

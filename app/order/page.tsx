@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { categoryImage, itemImage, ORDER_BRAND } from "@/services/menu/web-images";
+import { loadOrderableWebsitePromo } from "@/services/menu/web-promo-item";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { env } from "@/lib/env";
 import { OrderStorefront } from "./OrderStorefront";
@@ -121,8 +122,16 @@ async function loadMenu(): Promise<OrderMenuPayload> {
   };
 }
 
-export default async function OrderPage() {
+export default async function OrderPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ promo?: string | string[] }>;
+}) {
   const menu = await loadMenu();
+  const params = (await searchParams) ?? {};
+  const promoRaw = params.promo;
+  const promoId = Array.isArray(promoRaw) ? promoRaw[0] : promoRaw;
+  const prefillItem = promoId ? await loadOrderableWebsitePromo(promoId) : null;
   const site = env.appUrl.replace(/\/$/, "") || "https://mochachospotch.co.za";
   const jsonLd = {
     "@context": "https://schema.org",
@@ -151,7 +160,7 @@ export default async function OrderPage() {
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <OrderStorefront initial={menu} />
+      <OrderStorefront initial={menu} prefillItem={prefillItem} />
     </>
   );
 }

@@ -107,13 +107,43 @@ function featuredFromMenu(categories: MenuCategory[]): { title: string; item: Me
   return picks;
 }
 
-export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
+function needsConfiguration(item: MenuItem): boolean {
+  if (item.mealUpgradeCents != null && item.mealUpgradeCents > 0) return true;
+  return item.modifiers.some((mod) => {
+    if (mod.scope === "MEAL_ONLY") return false;
+    return mod.required || mod.minSelect > 0;
+  });
+}
+
+function quickCartLine(item: MenuItem): CartLine {
+  return {
+    key: uid(),
+    menuItemId: item.id,
+    name: item.name,
+    imageUrl: item.imageUrl,
+    quantity: 1,
+    unitPriceCents: item.priceCents,
+    mealUpgradeCents: item.mealUpgradeCents ?? 0,
+    isMeal: item.mealUpgradeCents != null && item.mealUpgradeCents > 0 ? false : null,
+    mealDescription: item.mealDescription,
+    modifiers: [],
+  };
+}
+
+export function OrderStorefront({
+  initial,
+  prefillItem = null,
+}: {
+  initial: OrderMenuPayload;
+  prefillItem?: MenuItem | null;
+}) {
   const categories = useMemo(() => withCategorySlugs(initial.categories), [initial.categories]);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [activeCategory, setActiveCategory] = useState(categories[0]?.slug ?? "");
   const [configItem, setConfigItem] = useState<MenuItem | null>(null);
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
+  const prefillHandled = useRef(false);
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [kitchenNotes, setKitchenNotes] = useState("");
@@ -144,6 +174,31 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   useEffect(() => {
     if (!activeCategory && categories[0]) setActiveCategory(categories[0].slug);
   }, [activeCategory, categories]);
+
+  // Specials page deep-link: /order?promo=… adds the deal and opens checkout (or the options sheet).
+  useEffect(() => {
+    if (!prefillItem || prefillHandled.current) return;
+    prefillHandled.current = true;
+    const blocked =
+      !initial.store.acceptingOrders ||
+      !initial.store.webEnabled ||
+      initial.store.billingStatus === "SUSPENDED";
+    if (blocked) return;
+    if (needsConfiguration(prefillItem)) {
+      setConfigItem(prefillItem);
+    } else {
+      setCart([quickCartLine(prefillItem)]);
+      setShowCart(false);
+      setShowCheckout(true);
+    }
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("promo")) {
+        url.searchParams.delete("promo");
+        window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+      }
+    }
+  }, [prefillItem, initial.store.acceptingOrders, initial.store.webEnabled, initial.store.billingStatus]);
 
   // Highlight the category tab that matches the section currently under the sticky header.
   useEffect(() => {
@@ -306,6 +361,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         setWallet(null);
         setShowCheckout(false);
         setShowCart(false);
+        if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
       } catch (e) {
         setError(e instanceof Error ? e.message : "Could not place the order");
       }
@@ -668,117 +724,116 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               Collection at {initial.store.addressLine}, {initial.store.city}. Name and number are required so the kitchen
               can identify your order and WhatsApp you updates.
             </p>
-            <label className={`order-field${nameMissing ? " is-invalid" : ""}`}>
-              Name
-              <input
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  if (missingFields) setMissingFields(null);
-                }}
-                placeholder="Your name"
-                autoComplete="name"
-                required
-                aria-invalid={nameMissing || undefined}
-              />
-            </label>
-            <label className={`order-field${phoneMissing ? " is-invalid" : ""}`}>
-              Mobile number
-              <input
-                inputMode="tel"
-                placeholder="082 123 4567"
-                value={phone}
-                onChange={(e) => {
-                  setPhone(e.target.value);
-                  if (missingFields) setMissingFields(null);
-                }}
-                autoComplete="tel"
-                required
-                aria-invalid={phoneMissing || undefined}
-              />
-            </label>
-            <label className="order-field">
-              Kitchen notes / allergies
-              <textarea
-                rows={3}
-                value={kitchenNotes}
-                onChange={(e) => setKitchenNotes(e.target.value)}
-                placeholder="e.g. no onion, nut allergy"
-              />
-            </label>
-
-            <fieldset className="order-choice-set">
-              <legend>Payment</legend>
-              <div className="order-chips">
-                <button
-                  type="button"
-                  className={payMode === "collection" ? "is-on" : undefined}
-                  onClick={() => {
-                    setPayMode("collection");
-                    setWallet(null);
+            <form
+              className="order-checkout-form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (payMode === "collection") placeOrder();
+                else if (onlinePayments === true && !wallet) startOnlinePayment();
+              }}
+            >
+              <label className={`order-field${nameMissing ? " is-invalid" : ""}`}>
+                Name
+                <input
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (missingFields) setMissingFields(null);
                   }}
-                >
-                  Pay at collection
-                </button>
-                {onlinePayments ? (
+                  placeholder="Your name"
+                  autoComplete="name"
+                  required
+                  aria-invalid={nameMissing || undefined}
+                />
+              </label>
+              <label className={`order-field${phoneMissing ? " is-invalid" : ""}`}>
+                Mobile number
+                <input
+                  inputMode="tel"
+                  placeholder="082 123 4567"
+                  value={phone}
+                  onChange={(e) => {
+                    setPhone(e.target.value);
+                    if (missingFields) setMissingFields(null);
+                  }}
+                  autoComplete="tel"
+                  required
+                  aria-invalid={phoneMissing || undefined}
+                />
+              </label>
+              <label className="order-field">
+                Kitchen notes / allergies
+                <textarea
+                  rows={3}
+                  value={kitchenNotes}
+                  onChange={(e) => setKitchenNotes(e.target.value)}
+                  placeholder="e.g. no onion, nut allergy"
+                />
+              </label>
+
+              <fieldset className="order-choice-set">
+                <legend>Payment</legend>
+                <div className="order-chips">
                   <button
                     type="button"
-                    className={payMode === "online" ? "is-on" : undefined}
-                    onClick={() => setPayMode("online")}
+                    className={payMode === "collection" ? "is-on" : undefined}
+                    onClick={() => {
+                      setPayMode("collection");
+                      setWallet(null);
+                    }}
                   >
-                    Pay online
+                    Pay at collection
+                  </button>
+                  {onlinePayments ? (
+                    <button
+                      type="button"
+                      className={payMode === "online" ? "is-on" : undefined}
+                      onClick={() => setPayMode("online")}
+                    >
+                      Pay online
+                    </button>
+                  ) : null}
+                </div>
+                <p className="order-muted">
+                  {payMode === "online"
+                    ? "Pay securely with Apple Pay, Google Pay, Samsung Pay, or card — then we send the order to the kitchen."
+                    : "Pay at the till when you collect your order."}
+                </p>
+              </fieldset>
+
+              {error ? (
+                <p className="order-error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              {payMode === "online" && onlinePayments === true && wallet ? (
+                <WalletCheckout
+                  clientSecret={wallet.clientSecret}
+                  publishableKey={wallet.publishableKey}
+                  totalCents={totalCents}
+                  pending={pending}
+                  onError={(message) => setError(message || null)}
+                  onPaid={(paymentIntentId) => placeOrder({ paymentIntentId })}
+                />
+              ) : null}
+
+              <footer>
+                <div className="order-total-row">
+                  <span>{payMode === "online" ? "Pay online" : "Pay at collection"}</span>
+                  <strong>{formatR(totalCents)}</strong>
+                </div>
+                {payMode === "collection" ? (
+                  <button type="submit" className="order-btn-primary order-btn-block" disabled={pending}>
+                    {pending ? "Sending to kitchen…" : "Place collection order"}
+                  </button>
+                ) : onlinePayments === true && !wallet ? (
+                  <button type="submit" className="order-btn-primary order-btn-block" disabled={pending}>
+                    {pending ? "Preparing payment…" : "Continue to secure payment"}
                   </button>
                 ) : null}
-              </div>
-              <p className="order-muted">
-                {payMode === "online"
-                  ? "Pay securely with Apple Pay, Google Pay, Samsung Pay, or card — then we send the order to the kitchen."
-                  : "Pay at the till when you collect your order."}
-              </p>
-            </fieldset>
-
-            {error ? (
-              <p className="order-error" role="alert">
-                {error}
-              </p>
-            ) : null}
-
-            {payMode === "online" && onlinePayments === true && wallet ? (
-              <WalletCheckout
-                clientSecret={wallet.clientSecret}
-                publishableKey={wallet.publishableKey}
-                totalCents={totalCents}
-                pending={pending}
-                onError={(message) => setError(message || null)}
-                onPaid={(paymentIntentId) => placeOrder({ paymentIntentId })}
-              />
-            ) : null}
-
-            <footer>
-              <div className="order-total-row">
-                <span>{payMode === "online" ? "Pay online" : "Pay at collection"}</span>
-                <strong>{formatR(totalCents)}</strong>
-              </div>
-              {payMode === "collection" ? (
-                <button
-                  type="button"
-                  className="order-btn-primary order-btn-block"
-                  disabled={pending}
-                  onClick={() => placeOrder()}
-                >
-                  {pending ? "Sending to kitchen…" : "Place collection order"}
-                </button>
-              ) : onlinePayments === true && !wallet ? (
-                <button
-                  type="button"
-                  className="order-btn-primary order-btn-block"
-                  disabled={pending}
-                  onClick={startOnlinePayment}
-                >
-                  {pending ? "Preparing payment…" : "Continue to secure payment"}
-                </button>
-              ) : null}
-            </footer>
+              </footer>
+            </form>
           </div>
         </aside>
       ) : null}

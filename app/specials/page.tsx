@@ -21,6 +21,7 @@ type PublicPromo = {
   body: string | null;
   imagePath: string | null;
   priceCents: number | null;
+  menuItemId: string | null;
   scheduleLabel: string;
 };
 
@@ -38,6 +39,7 @@ async function loadActiveSpecials(): Promise<{ storeName: string; address: strin
       body: true,
       imagePath: true,
       priceCents: true,
+      menuItemId: true,
       scheduleKind: true,
       startsAt: true,
       endsAt: true,
@@ -52,6 +54,7 @@ async function loadActiveSpecials(): Promise<{ storeName: string; address: strin
       body: row.body,
       imagePath: row.imagePath,
       priceCents: row.priceCents,
+      menuItemId: row.menuItemId,
       scheduleLabel: formatScheduleLabel(row.scheduleKind, row.startsAt, row.endsAt),
     })),
   };
@@ -144,8 +147,11 @@ export default async function SpecialsPage() {
                     {promo.priceCents != null ? (
                       <p className="specials-price">{formatCents(promo.priceCents, "R")}</p>
                     ) : null}
-                    <Link href="/order" className="specials-order-link">
-                      Order for collection
+                    <Link
+                      href={promo.menuItemId ? `/order?promo=${encodeURIComponent(promo.id)}` : "/order"}
+                      className="specials-order-link"
+                    >
+                      {promo.menuItemId ? "Order this special" : "Browse the menu"}
                     </Link>
                   </div>
                 </li>

@@ -422,11 +422,6 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
         </div>
       </header>
 
-      <p className="order-fulfill-banner" role="note">
-        Collection only — pay at the till or online, then collect at the counter. Prep is usually about{" "}
-        {initial.store.defaultPrepMinutes} minutes once the kitchen accepts.
-      </p>
-
       {featured.length > 0 ? (
         <section className="order-featured" id="featured" aria-labelledby="featured-heading">
           <div className="order-section-head">

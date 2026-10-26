@@ -55,7 +55,7 @@ const ITEM_IMAGES: Record<string, string> = {
   "Buddy": "/order-food/mrd/buddy.png",
   "Bun": "/order-food/mrd/bun.png",
   "Burrito": "/order-food/mrd/burrito.jpg",
-  "Can": "/order-food/mrd/buddy.png",
+  "Can": "/order-food/item-canvari.png",
   "Chicken Burger": "/order-food/mrd/single-chicken-burger.jpg",
   "Chicken Burger, Beeg Chips & Buddy": "/order-food/mrd/chicken-burger-beeg-chips-and-a-buddy.jpg",
   "Chicken Burrito, Beeg Chips & Buddy": "/order-food/mrd/chicken-burrito-beeg-chips-and-buddy.jpg",

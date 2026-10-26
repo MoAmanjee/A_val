@@ -36,6 +36,9 @@ export const metadata: Metadata = {
     images: ["/order-food/brand-mark-512.png"],
   },
   robots: { index: true, follow: true },
+  verification: {
+    google: "scShYES9m-gp8M3CSHhYrWv23YuXzdQC6p7FJg9B2Rs",
+  },
 };
 
 export const viewport: Viewport = {

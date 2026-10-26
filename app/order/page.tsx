@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { db } from "@/lib/db";
 import { categoryImage, itemImage, ORDER_BRAND } from "@/services/menu/web-images";
-import { loadOrderableWebsitePromo } from "@/services/menu/web-promo-item";
+import { loadActiveWebsiteSpecials, loadOrderableWebsitePromo } from "@/services/menu/web-promo-item";
 import { DELIVERY_ENABLED } from "@/services/orders/features";
 import { env } from "@/lib/env";
 import { OrderStorefront } from "./OrderStorefront";
@@ -128,6 +128,7 @@ export default async function OrderPage({
   searchParams?: Promise<{ promo?: string | string[] }>;
 }) {
   const menu = await loadMenu();
+  const specials = await loadActiveWebsiteSpecials(menu.store.id);
   const params = (await searchParams) ?? {};
   const promoRaw = params.promo;
   const promoId = Array.isArray(promoRaw) ? promoRaw[0] : promoRaw;
@@ -160,7 +161,7 @@ export default async function OrderPage({
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
-      <OrderStorefront initial={menu} prefillItem={prefillItem} />
+      <OrderStorefront initial={menu} specials={specials} prefillItem={prefillItem} />
     </>
   );
 }

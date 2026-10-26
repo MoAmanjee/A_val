@@ -64,6 +64,17 @@ export interface OrderMenuPayload {
   categories: MenuCategory[];
 }
 
+/** Active kitchen website special shown in place of favourites on /order. */
+export interface StorefrontSpecial {
+  id: string;
+  title: string;
+  scheduleLabel: string;
+  imageUrl: string;
+  priceCents: number | null;
+  /** When set, tapping the card opens configure / add-to-cart for this item. */
+  item: MenuItem | null;
+}
+
 export interface CartModifierChoice {
   groupId: string;
   groupName: string;

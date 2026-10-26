@@ -7,6 +7,7 @@ import {
   type MenuItem,
   type MenuModifier,
   type OrderMenuPayload,
+  type StorefrontSpecial,
   lineTotalCents,
 } from "./types";
 import { WalletCheckout, useOnlinePaymentsAvailable } from "./WalletCheckout";
@@ -86,27 +87,6 @@ function visibleModifiers(item: MenuItem, isMeal: boolean | null): MenuModifier[
   });
 }
 
-/** Featured picks drawn only from real menu categories already on the store. */
-function featuredFromMenu(categories: MenuCategory[]): { title: string; item: MenuItem }[] {
-  const preferred = ["Familia Fiesta", "Combinacion", "Burger El' Supremo", "Pollo Pueblo", "Mexican Meals"];
-  const picks: { title: string; item: MenuItem }[] = [];
-  for (const name of preferred) {
-    const cat = categories.find((c) => c.name === name);
-    if (!cat?.items[0]) continue;
-    picks.push({ title: cat.name, item: cat.items[0] });
-    if (picks.length >= 4) break;
-  }
-  if (picks.length < 4) {
-    for (const cat of categories) {
-      if (picks.some((p) => p.item.id === cat.items[0]?.id)) continue;
-      if (!cat.items[0]) continue;
-      picks.push({ title: cat.name, item: cat.items[0] });
-      if (picks.length >= 4) break;
-    }
-  }
-  return picks;
-}
-
 function needsConfiguration(item: MenuItem): boolean {
   if (item.mealUpgradeCents != null && item.mealUpgradeCents > 0) return true;
   return item.modifiers.some((mod) => {
@@ -132,9 +112,11 @@ function quickCartLine(item: MenuItem): CartLine {
 
 export function OrderStorefront({
   initial,
+  specials = [],
   prefillItem = null,
 }: {
   initial: OrderMenuPayload;
+  specials?: StorefrontSpecial[];
   prefillItem?: MenuItem | null;
 }) {
   const categories = useMemo(() => withCategorySlugs(initial.categories), [initial.categories]);
@@ -144,6 +126,7 @@ export function OrderStorefront({
   const [showCart, setShowCart] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
   const prefillHandled = useRef(false);
+  const hasSpecials = specials.length > 0;
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [kitchenNotes, setKitchenNotes] = useState("");
@@ -162,7 +145,6 @@ export function OrderStorefront({
   } | null>(null);
   const [pending, startTransition] = useTransition();
   const onlinePayments = useOnlinePaymentsAvailable();
-  const featured = useMemo(() => featuredFromMenu(categories), [categories]);
   const catsNavRef = useRef<HTMLElement | null>(null);
   const ignoreScrollSpyUntil = useRef(0);
   const nameMissing = Boolean(missingFields?.some((f) => f === "Name"));
@@ -453,9 +435,8 @@ export function OrderStorefront({
           </span>
         </a>
         <div className="order-topnav-links">
-          <a href="#featured">Favourites</a>
+          {hasSpecials ? <a href="#specials">Specials</a> : null}
           <a href="#menu">Menu</a>
-          <a href="/specials">Specials</a>
           <button
             type="button"
             className="order-topnav-cart"
@@ -495,25 +476,35 @@ export function OrderStorefront({
         </div>
       </header>
 
-      {featured.length > 0 ? (
-        <section className="order-featured" id="featured" aria-labelledby="featured-heading">
+      {hasSpecials ? (
+        <section className="order-featured" id="specials" aria-labelledby="specials-heading">
           <div className="order-section-head">
-            <h2 id="featured-heading">Customer favourites</h2>
-            <p>Tap a dish to choose spice, meal options, and add it to your order.</p>
+            <h2 id="specials-heading">Current specials</h2>
+            <p>Kitchen deals live right now. Tap one to add it to your order — when the schedule ends, this section disappears.</p>
           </div>
           <ul className="order-featured-grid">
-            {featured.map(({ title, item }) => (
-              <li key={item.id}>
-                <button type="button" className="order-featured-card" onClick={() => openItem(item)} disabled={orderingDisabled}>
-                  <img src={item.imageUrl} alt="" loading="lazy" decoding="async" />
-                  <span className="order-featured-copy">
-                    <small>{title}</small>
-                    <strong>{item.name}</strong>
-                    <em>{formatR(item.priceCents)}</em>
-                  </span>
-                </button>
-              </li>
-            ))}
+            {specials.map((special) => {
+              const orderable = Boolean(special.item) && !orderingDisabled;
+              return (
+                <li key={special.id}>
+                  <button
+                    type="button"
+                    className="order-featured-card"
+                    disabled={!orderable}
+                    onClick={() => {
+                      if (special.item) openItem(special.item);
+                    }}
+                  >
+                    <img src={special.imageUrl} alt="" loading="lazy" decoding="async" />
+                    <span className="order-featured-copy">
+                      <small>{special.scheduleLabel || "Special"}</small>
+                      <strong>{special.title}</strong>
+                      {special.priceCents != null ? <em>{formatR(special.priceCents)}</em> : <em>Ask the kitchen</em>}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
@@ -550,8 +541,12 @@ export function OrderStorefront({
             </p>
             <p>Collection only — order online, collect at the counter.</p>
             <p className="order-footer-social">
-              <a href="/specials">Specials</a>
-              <span aria-hidden="true"> · </span>
+              {hasSpecials ? (
+                <>
+                  <a href="#specials">Specials</a>
+                  <span aria-hidden="true"> · </span>
+                </>
+              ) : null}
               <a href={FACEBOOK_PAGE_URL} target="_blank" rel="noopener noreferrer">
                 Facebook
               </a>

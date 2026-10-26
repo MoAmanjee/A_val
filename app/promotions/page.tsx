@@ -60,6 +60,7 @@ export default function PromotionsPage() {
   const [scheduleWeekOf, setScheduleWeekOf] = useState("");
   const [scheduleStartsAt, setScheduleStartsAt] = useState("");
   const [scheduleEndsAt, setScheduleEndsAt] = useState("");
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const cancelBtn = useRef<HTMLButtonElement>(null);
   const titleId = useId();
@@ -125,6 +126,28 @@ export default function PromotionsPage() {
     }
     setError("");
     setFile(next);
+  }
+
+  async function removeWebsitePromo(promo: WebsitePromo) {
+    if (removingId) return;
+    const label = promo.body?.split("\n")[0]?.trim() || "this special";
+    if (!window.confirm(`Remove “${label}” from the website now?\n\nWhatsApp messages already sent stay as they are.`)) {
+      return;
+    }
+    setRemovingId(promo.id);
+    setError("");
+    setResult("");
+    try {
+      const res = await fetch(`/api/promotions/${encodeURIComponent(promo.id)}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "Could not remove that promotion.");
+      setResult(data.detail || "Removed from the website.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not remove that promotion.");
+    } finally {
+      setRemovingId(null);
+    }
   }
 
   async function login(e: React.FormEvent) {
@@ -459,6 +482,9 @@ export default function PromotionsPage() {
       {board.website.length ? (
         <section className="mt-8 max-w-xl">
           <h2 className="text-lg font-bold">Recent website specials</h2>
+          <p className="mt-1 text-xs text-neutral-500">
+            Live specials can be removed anytime — they come off the public specials page straight away.
+          </p>
           <ul className="mt-3 space-y-2">
             {board.website.map((promo) => (
               <li key={promo.id} className="rounded-xl border border-neutral-800 bg-neutral-950 px-4 py-3 text-sm">
@@ -469,6 +495,16 @@ export default function PromotionsPage() {
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-neutral-400">{promo.scheduleLabel || promo.scheduleKind}</p>
+                {promo.active ? (
+                  <button
+                    type="button"
+                    className="mt-3 rounded-lg border border-neutral-600 px-3 py-1.5 text-xs font-semibold text-neutral-200 hover:border-red-500 hover:text-red-200 disabled:opacity-60"
+                    disabled={removingId === promo.id}
+                    onClick={() => void removeWebsitePromo(promo)}
+                  >
+                    {removingId === promo.id ? "Removing…" : "Remove from website"}
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

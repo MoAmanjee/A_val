@@ -248,6 +248,10 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   function placeOrder(opts?: { paymentIntentId?: string }) {
     setError(null);
+    if (!name.trim()) {
+      setError("Enter your name");
+      return;
+    }
     if (!looksLikeSaMobile(phone)) {
       setError("Enter a valid South African mobile number, e.g. 082 123 4567");
       return;
@@ -259,7 +263,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             phone: normalizePhone(phone),
-            name: name.trim() || undefined,
+            name: name.trim(),
             notes: kitchenNotes.trim() || undefined,
             fulfilment: "COLLECTION",
             paymentIntentId: opts?.paymentIntentId,
@@ -287,6 +291,10 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   function startOnlinePayment() {
     setError(null);
+    if (!name.trim()) {
+      setError("Enter your name");
+      return;
+    }
     if (!looksLikeSaMobile(phone)) {
       setError("Enter a valid South African mobile number, e.g. 082 123 4567");
       return;
@@ -299,7 +307,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
           body: JSON.stringify({
             amountCents: totalCents,
             phone: normalizePhone(phone),
-            name: name.trim() || undefined,
+            name: name.trim(),
           }),
         });
         const data = await res.json();
@@ -620,9 +628,19 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               </button>
             </header>
             <p className="order-muted">
-              Collection at {initial.store.addressLine}, {initial.store.city}. Your number is only used for WhatsApp order
-              updates.
+              Collection at {initial.store.addressLine}, {initial.store.city}. Name and number are required so the kitchen
+              can identify your order and WhatsApp you updates.
             </p>
+            <label className="order-field">
+              Name
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+                autoComplete="name"
+                required
+              />
+            </label>
             <label className="order-field">
               Mobile number
               <input
@@ -633,10 +651,6 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 autoComplete="tel"
                 required
               />
-            </label>
-            <label className="order-field">
-              Name (optional)
-              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="First name" autoComplete="name" />
             </label>
             <label className="order-field">
               Kitchen notes / allergies
@@ -704,7 +718,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <button
                   type="button"
                   className="order-btn-primary order-btn-block"
-                  disabled={pending || !phone.trim()}
+                  disabled={pending || !phone.trim() || !name.trim()}
                   onClick={() => placeOrder()}
                 >
                   {pending ? "Sending to kitchen…" : "Place collection order"}
@@ -713,7 +727,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <button
                   type="button"
                   className="order-btn-primary order-btn-block"
-                  disabled={pending || !phone.trim()}
+                  disabled={pending || !phone.trim() || !name.trim()}
                   onClick={startOnlinePayment}
                 >
                   {pending ? "Preparing payment…" : "Continue to secure payment"}

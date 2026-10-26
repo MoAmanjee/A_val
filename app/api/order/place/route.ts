@@ -22,7 +22,7 @@ const lineSchema = z.object({
 
 const bodySchema = z.object({
   phone: z.string().min(8).max(20),
-  name: z.string().max(80).optional(),
+  name: z.string().trim().min(1, "Name is required").max(80),
   notes: z.string().max(500).optional(),
   fulfilment: z.enum(["COLLECTION", "DELIVERY"]).optional(),
   deliveryAddress: z.string().max(240).optional(),

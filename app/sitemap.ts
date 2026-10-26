@@ -5,7 +5,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
   return [
     {
-      url: base,
+      url: `${base}/`,
       lastModified: now,
       changeFrequency: "daily",
       priority: 1,

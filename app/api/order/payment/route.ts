@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 const bodySchema = z.object({
   amountCents: z.number().int().min(500).max(500_000),
   phone: z.string().min(8).max(20),
-  name: z.string().max(80).optional(),
+  name: z.string().trim().min(1, "Name is required").max(80),
 });
 
 /** Create a Stripe PaymentIntent so the mini-site can show Apple Pay / Samsung Pay / card. */

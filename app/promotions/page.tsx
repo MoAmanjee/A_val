@@ -245,10 +245,10 @@ export default function PromotionsPage() {
     !showOnWebsite
       ? "WhatsApp only — not shown on the website."
       : scheduleKind === "DAILY"
-        ? `Website: that calendar day (${scheduleDate || board.today}), Johannesburg time.`
+        ? `Website: one day only (${scheduleDate || board.today}), then it comes off automatically.`
         : scheduleKind === "WEEKLY"
-          ? `Website: the week of ${scheduleWeekOf || board.today} (Mon–Sun, Johannesburg time).`
-          : `Website: ${scheduleStartsAt || "…"} → ${scheduleEndsAt || "…"} (Johannesburg time).`;
+          ? `Website: that Mon–Sun week (${scheduleWeekOf || board.today}), then it comes off.`
+          : `Website: custom window ${scheduleStartsAt || "…"} → ${scheduleEndsAt || "…"} (Johannesburg time).`;
 
   return (
     <main className="kitchen-shell min-h-screen px-4 py-5">
@@ -275,8 +275,10 @@ export default function PromotionsPage() {
         {board.audience.messaged} {board.audience.messaged === 1 ? "person has" : "people have"} messaged the shop.
         {" "}
         {audienceCount} can receive a picture or note right now (customers who messaged in the last month).
-        Tick “Show on website” to also list it on the public specials page until the schedule ends
+        Tick “Show on website” to also list it on the public specials page for the time you choose
         {board.activeOnWebsite > 0 ? ` — ${board.activeOnWebsite} live now.` : "."}
+        {" "}
+        There is no monthly website option — pick one day, one week, or your own dates.
       </p>
 
       <form onSubmit={openConfirm} className="max-w-xl rounded-2xl bg-neutral-900 p-5">
@@ -352,12 +354,15 @@ export default function PromotionsPage() {
 
           {showOnWebsite ? (
             <div className="mt-4 space-y-3">
+              <p className="text-xs text-neutral-400">
+                WhatsApp always sends once when you hit send. These buttons only control how long the special stays on the website.
+              </p>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Schedule type">
                 {(
                   [
-                    ["DAILY", "Daily"],
-                    ["WEEKLY", "Weekly"],
-                    ["CUSTOM", "Custom range"],
+                    ["DAILY", "One day"],
+                    ["WEEKLY", "One week"],
+                    ["CUSTOM", "Custom dates"],
                   ] as const
                 ).map(([value, label]) => (
                   <label
@@ -381,7 +386,7 @@ export default function PromotionsPage() {
 
               {scheduleKind === "DAILY" ? (
                 <label className="block text-sm" htmlFor="schedule-date">
-                  Day (Johannesburg time)
+                  Which day should it show? (one-time — that day only, then it comes off)
                   <input
                     id="schedule-date"
                     type="date"
@@ -389,12 +394,15 @@ export default function PromotionsPage() {
                     onChange={(e) => setScheduleDate(e.target.value)}
                     className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
                   />
+                  <span className="mt-2 block text-xs text-neutral-500">
+                    For a special that only runs today, leave today’s date. It is not a repeating daily promo.
+                  </span>
                 </label>
               ) : null}
 
               {scheduleKind === "WEEKLY" ? (
                 <label className="block text-sm" htmlFor="schedule-week">
-                  Any day in that week (Mon–Sun, Johannesburg time)
+                  Pick any day in the week it should stay up (Mon–Sun)
                   <input
                     id="schedule-week"
                     type="date"
@@ -402,31 +410,39 @@ export default function PromotionsPage() {
                     onChange={(e) => setScheduleWeekOf(e.target.value)}
                     className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
                   />
+                  <span className="mt-2 block text-xs text-neutral-500">
+                    Stays on the specials page for that whole week, then drops off. WhatsApp is still only sent once.
+                  </span>
                 </label>
               ) : null}
 
               {scheduleKind === "CUSTOM" ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="block text-sm" htmlFor="schedule-start">
-                    Starts
-                    <input
-                      id="schedule-start"
-                      type="datetime-local"
-                      value={scheduleStartsAt}
-                      onChange={(e) => setScheduleStartsAt(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
-                    />
-                  </label>
-                  <label className="block text-sm" htmlFor="schedule-end">
-                    Ends
-                    <input
-                      id="schedule-end"
-                      type="datetime-local"
-                      value={scheduleEndsAt}
-                      onChange={(e) => setScheduleEndsAt(e.target.value)}
-                      className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
-                    />
-                  </label>
+                <div className="space-y-2">
+                  <p className="text-xs text-neutral-500">
+                    Use this for something like Fri 10:00 → Sun 20:00, or any other start and end you choose.
+                  </p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="block text-sm" htmlFor="schedule-start">
+                      Starts
+                      <input
+                        id="schedule-start"
+                        type="datetime-local"
+                        value={scheduleStartsAt}
+                        onChange={(e) => setScheduleStartsAt(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                      />
+                    </label>
+                    <label className="block text-sm" htmlFor="schedule-end">
+                      Ends
+                      <input
+                        id="schedule-end"
+                        type="datetime-local"
+                        value={scheduleEndsAt}
+                        onChange={(e) => setScheduleEndsAt(e.target.value)}
+                        className="mt-2 w-full rounded-xl border border-neutral-700 bg-black px-3 py-3 text-sm"
+                      />
+                    </label>
+                  </div>
                 </div>
               ) : null}
             </div>

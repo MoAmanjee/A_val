@@ -58,6 +58,6 @@ describe("promotion website schedule", () => {
 
   it("formats a schedule label", () => {
     const { startsAt, endsAt } = dayWindowJohannesburg("2026-10-26");
-    expect(formatScheduleLabel("DAILY", startsAt, endsAt)).toMatch(/Today only/i);
+    expect(formatScheduleLabel("DAILY", startsAt, endsAt)).toMatch(/One day/i);
   });
 });

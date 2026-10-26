@@ -92,7 +92,7 @@ function parseWebsiteFromForm(form: FormData): WebsiteScheduleInput | null {
     const endsAt = typeof form.get("scheduleEndsAt") === "string" ? String(form.get("scheduleEndsAt")) : "";
     return { kind: "CUSTOM", startsAt, endsAt };
   }
-  throw new Error("Choose Daily, Weekly, or a custom date range for the website.");
+  throw new Error("Choose One day, One week, or custom dates for the website.");
 }
 
 export async function POST(req: Request) {

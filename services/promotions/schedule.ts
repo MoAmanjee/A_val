@@ -122,10 +122,10 @@ export function formatScheduleLabel(
     minute: "2-digit",
     hour12: false,
   });
-  if (kind === "DAILY") return `Today only · ${fmtDay.format(startsAt)}`;
+  if (kind === "DAILY") return `One day · ${fmtDay.format(startsAt)}`;
   if (kind === "WEEKLY") {
     const lastDay = new Date(endsAt.getTime() - 1);
-    return `This week · ${fmtDay.format(startsAt)} – ${fmtDay.format(lastDay)}`;
+    return `One week · ${fmtDay.format(startsAt)} – ${fmtDay.format(lastDay)}`;
   }
   return `${fmtStamp.format(startsAt)} – ${fmtStamp.format(endsAt)}`;
 }

@@ -27,6 +27,17 @@ function looksLikeSaMobile(input: string): boolean {
   return /^27\d{9}$/.test(digits);
 }
 
+function checkoutFieldIssues(nameValue: string, phoneValue: string): string[] {
+  const issues: string[] = [];
+  if (!nameValue.trim()) issues.push("Name");
+  if (!phoneValue.trim()) {
+    issues.push("Mobile number");
+  } else if (!looksLikeSaMobile(phoneValue)) {
+    issues.push("Mobile number (use a valid SA number, e.g. 082 123 4567)");
+  }
+  return issues;
+}
+
 type MenuCategoryWithSlug = MenuCategory & { slug: string };
 
 function formatR(cents: number): string {
@@ -110,6 +121,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     null,
   );
   const [error, setError] = useState<string | null>(null);
+  const [missingFields, setMissingFields] = useState<string[] | null>(null);
   const [placed, setPlaced] = useState<{
     orderNumber: string | null;
     totalCents: number;
@@ -122,6 +134,8 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   const featured = useMemo(() => featuredFromMenu(categories), [categories]);
   const catsNavRef = useRef<HTMLElement | null>(null);
   const ignoreScrollSpyUntil = useRef(0);
+  const nameMissing = Boolean(missingFields?.some((f) => f === "Name"));
+  const phoneMissing = Boolean(missingFields?.some((f) => f.startsWith("Mobile number")));
 
   const totalCents = useMemo(() => cart.reduce((sum, line) => sum + lineTotalCents(line), 0), [cart]);
   const itemCount = useMemo(() => cart.reduce((sum, line) => sum + line.quantity, 0), [cart]);
@@ -206,12 +220,16 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
   }
 
   useEffect(() => {
-    const open = Boolean(configItem || showCart || showCheckout);
+    const open = Boolean(configItem || showCart || showCheckout || missingFields?.length);
     if (!open) return;
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     function onKey(e: KeyboardEvent) {
       if (e.key !== "Escape") return;
+      if (missingFields?.length) {
+        setMissingFields(null);
+        return;
+      }
       setShowCart(false);
       setShowCheckout(false);
       setConfigItem(null);
@@ -223,7 +241,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
       document.body.style.overflow = previous;
       window.removeEventListener("keydown", onKey);
     };
-  }, [configItem, showCart, showCheckout]);
+  }, [configItem, showCart, showCheckout, missingFields]);
 
   // Live store: only offer real online wallets when Stripe is configured.
   useEffect(() => {
@@ -246,16 +264,20 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
     }));
   }
 
+  function requireCheckoutFields(): boolean {
+    const issues = checkoutFieldIssues(name, phone);
+    if (issues.length) {
+      setMissingFields(issues);
+      setError(null);
+      return false;
+    }
+    setMissingFields(null);
+    return true;
+  }
+
   function placeOrder(opts?: { paymentIntentId?: string }) {
     setError(null);
-    if (!name.trim()) {
-      setError("Enter your name");
-      return;
-    }
-    if (!looksLikeSaMobile(phone)) {
-      setError("Enter a valid South African mobile number, e.g. 082 123 4567");
-      return;
-    }
+    if (!requireCheckoutFields()) return;
     startTransition(async () => {
       try {
         const res = await fetch("/api/order/place", {
@@ -291,14 +313,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
 
   function startOnlinePayment() {
     setError(null);
-    if (!name.trim()) {
-      setError("Enter your name");
-      return;
-    }
-    if (!looksLikeSaMobile(phone)) {
-      setError("Enter a valid South African mobile number, e.g. 082 123 4567");
-      return;
-    }
+    if (!requireCheckoutFields()) return;
     startTransition(async () => {
       try {
         const res = await fetch("/api/order/payment", {
@@ -626,25 +641,33 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
               Collection at {initial.store.addressLine}, {initial.store.city}. Name and number are required so the kitchen
               can identify your order and WhatsApp you updates.
             </p>
-            <label className="order-field">
+            <label className={`order-field${nameMissing ? " is-invalid" : ""}`}>
               Name
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (missingFields) setMissingFields(null);
+                }}
                 placeholder="Your name"
                 autoComplete="name"
                 required
+                aria-invalid={nameMissing || undefined}
               />
             </label>
-            <label className="order-field">
+            <label className={`order-field${phoneMissing ? " is-invalid" : ""}`}>
               Mobile number
               <input
                 inputMode="tel"
                 placeholder="082 123 4567"
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => {
+                  setPhone(e.target.value);
+                  if (missingFields) setMissingFields(null);
+                }}
                 autoComplete="tel"
                 required
+                aria-invalid={phoneMissing || undefined}
               />
             </label>
             <label className="order-field">
@@ -713,7 +736,7 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <button
                   type="button"
                   className="order-btn-primary order-btn-block"
-                  disabled={pending || !phone.trim() || !name.trim()}
+                  disabled={pending}
                   onClick={() => placeOrder()}
                 >
                   {pending ? "Sending to kitchen…" : "Place collection order"}
@@ -722,13 +745,37 @@ export function OrderStorefront({ initial }: { initial: OrderMenuPayload }) {
                 <button
                   type="button"
                   className="order-btn-primary order-btn-block"
-                  disabled={pending || !phone.trim() || !name.trim()}
+                  disabled={pending}
                   onClick={startOnlinePayment}
                 >
                   {pending ? "Preparing payment…" : "Continue to secure payment"}
                 </button>
               ) : null}
             </footer>
+          </div>
+        </aside>
+      ) : null}
+
+      {missingFields?.length ? (
+        <aside
+          className="order-validate"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="order-validate-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setMissingFields(null);
+          }}
+        >
+          <div className="order-validate-panel">
+            <h2 id="order-validate-title">Please complete these fields</h2>
+            <ul>
+              {missingFields.map((field) => (
+                <li key={field}>{field}</li>
+              ))}
+            </ul>
+            <button type="button" className="order-btn-primary order-btn-block" onClick={() => setMissingFields(null)}>
+              OK
+            </button>
           </div>
         </aside>
       ) : null}

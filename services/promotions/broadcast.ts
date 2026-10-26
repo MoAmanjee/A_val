@@ -8,8 +8,8 @@ import { encodeReplyId } from "@/services/messaging/reply-ids";
 import { CloudApiWhatsAppService, getCredentials, getWhatsAppService, type MediaRef, type OutboundMessage } from "@/services/whatsapp";
 import { formatCents, parsePriceToCents } from "@/utils/money";
 
-/** WhatsApp only allows a free-form picture or text inside this window. */
-export const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Promotion broadcasts go to customers who messaged within the last month. */
+export const SESSION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const PLACEHOLDER_PHONE_ID = "100000000000001";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -107,7 +107,7 @@ export function describeWhatsApp(store: Pick<Store, "whatsappPhoneNumberId" | "w
   }
   return {
     live: true,
-    detail: "WhatsApp is live. A promotion goes to customers who messaged in the last 24 hours.",
+    detail: "WhatsApp is live. A promotion goes to customers who messaged in the last month.",
   };
 }
 
@@ -241,7 +241,7 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
           status: "SKIPPED",
           detail:
             window === "closed"
-              ? "Their last message was more than 24 hours ago. WhatsApp blocks a free-form promotion after that."
+              ? "Their last message was more than a month ago, so they were skipped."
               : "There is no incoming message time for this customer.",
         },
       });
@@ -268,8 +268,8 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
 
   const waDetail =
     sent > 0
-      ? `Sent to ${sent} ${sent === 1 ? "customer" : "customers"} who messaged in the last 24 hours.`
-      : "Nobody was inside WhatsApp's 24-hour window, so no phone received it.";
+      ? `Sent to ${sent} ${sent === 1 ? "customer" : "customers"} who messaged in the last month.`
+      : "Nobody messaged in the last month, so no phone received it.";
 
   return {
     id: promotion.id,

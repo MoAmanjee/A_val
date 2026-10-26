@@ -274,7 +274,7 @@ export default function PromotionsPage() {
       <p className="mb-5 text-sm text-neutral-400">
         {board.audience.messaged} {board.audience.messaged === 1 ? "person has" : "people have"} messaged the shop.
         {" "}
-        {audienceCount} can receive a picture or note right now. WhatsApp only allows that for 24 hours after their last message.
+        {audienceCount} can receive a picture or note right now (customers who messaged in the last month).
         Tick “Show on website” to also list it on the public specials page until the schedule ends
         {board.activeOnWebsite > 0 ? ` — ${board.activeOnWebsite} live now.` : "."}
       </p>
@@ -345,7 +345,7 @@ export default function PromotionsPage() {
             <span>
               Show on the website specials page
               <span className="mt-1 block text-xs text-neutral-500">
-                Still WhatsApps customers in the 24-hour window. When the schedule ends it disappears from the site automatically.
+                Still WhatsApps customers who messaged in the last month. When the schedule ends it disappears from the site automatically.
               </span>
             </span>
           </label>
@@ -471,7 +471,7 @@ export default function PromotionsPage() {
             <p className="promo-confirm-kicker">WhatsApp preview</p>
             <h2 id={titleId}>Send this promotion?</h2>
             <p className="promo-confirm-audience">
-              Goes to {audienceCount} {audienceCount === 1 ? "customer" : "customers"} in the 24-hour window.
+              Goes to {audienceCount} {audienceCount === 1 ? "customer" : "customers"} who messaged in the last month.
             </p>
             <p className="mb-3 text-sm text-neutral-400">{scheduleSummary}</p>
 

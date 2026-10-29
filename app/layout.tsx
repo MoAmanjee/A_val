@@ -16,12 +16,9 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-48.png", type: "image/png", sizes: "48x48" },
-      { url: "/icon-96.png", type: "image/png", sizes: "96x96" },
       { url: "/icon.png", type: "image/png", sizes: "192x192" },
     ],
     apple: [{ url: "/apple-icon.png", sizes: "180x180" }],
-    shortcut: ["/favicon.ico"],
   },
   openGraph: {
     type: "website",
@@ -30,13 +27,13 @@ export const metadata: Metadata = {
     siteName: "Mochachos Potch CBD",
     title: "Mochachos Potch CBD",
     description: "Order online from Mochachos Potchefstroom CBD.",
-    images: [{ url: "/order-food/brand-mark-google-512.png", width: 512, height: 512, alt: "Mochachos" }],
+    images: [{ url: "/order-food/brand-mark-512.png", width: 512, height: 512, alt: "Mochachos" }],
   },
   twitter: {
     card: "summary",
     title: "Mochachos Potch CBD",
     description: "Order online from Mochachos Potchefstroom CBD.",
-    images: ["/order-food/brand-mark-google-512.png"],
+    images: ["/order-food/brand-mark-512.png"],
   },
   robots: { index: true, follow: true },
   verification: {

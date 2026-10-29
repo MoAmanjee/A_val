@@ -1,5 +1,6 @@
 import type { MessageType, Store } from "@prisma/client";
 import { db } from "@/lib/db";
+import { env } from "@/lib/env";
 import { errorMessage } from "@/lib/errors";
 import { answerFaqWithLlm, getLLMClient, isLLMConfigured, runAgent, type LLMClient } from "@/services/ai";
 import {
@@ -29,10 +30,13 @@ import {
   clarifyItemsMessage,
   missedItemsMessage,
   pausedMessage,
+  suspendedMessage,
   welcomeMessage,
 } from "@/services/messaging/templates";
 import { findDraft } from "@/services/orders/cart";
+import { LEAN_ORDERING } from "@/services/orders/features";
 import { findActiveOrder } from "@/services/orders/lifecycle";
+import { tenantGate } from "@/services/ops/tenant";
 import { getCredentials, getWhatsAppService, type InboundMessage, type StatusUpdate } from "@/services/whatsapp";
 import { firstName } from "@/utils/phone";
 import { isOpenAt } from "@/utils/time";
@@ -258,8 +262,14 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
-    if (!conv.store.acceptingOrders && !activeOrder) {
-      await sendToCustomer(conv.id, pausedMessage(conv.store), "AI");
+    // Ops cut-off (billing / channel kill) comes before kitchen pause.
+    const gate = tenantGate(conv.store, "whatsapp");
+    if (!gate.ok && !activeOrder) {
+      const cutOff =
+        conv.store.billingStatus === "SUSPENDED" || !conv.store.whatsappEnabled
+          ? suspendedMessage(conv.store, gate.reason ?? "")
+          : pausedMessage(conv.store);
+      await sendToCustomer(conv.id, cutOff, "AI");
       return;
     }
 
@@ -268,11 +278,15 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       return;
     }
 
+    // "menu" / "hi" must not be read as a missed food item. Dictation runs first
+    // for real orders, but browse intents fall through to the menu handlers below.
+    const browseIntent = wantsMenu(text) || wantsMenuPictures(text) || isGreeting(text);
+
     // A typed order fills every slot it already names (item, flavour, meal,
     // drink, collection or delivery) so we only ask for the rest.
     try {
       const dictated = await applyDictation(conv.id, text);
-      if (!dictated.changed && dictated.unmatched.length && (isLLMConfigured() || opts.llm)) {
+      if (!dictated.changed && dictated.unmatched.length && !browseIntent && (isLLMConfigured() || opts.llm)) {
         const recovered = await recoverMissedOrder(conv.id, draft?.items.length ?? 0, opts.llm);
         if (recovered) return;
       }
@@ -282,7 +296,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       const stillMissed = dictated.unmatched.filter(
         (clause) => !dictated.ambiguous.some((group) => group.clause === clause),
       );
-      if (stillMissed.length) {
+      if (stillMissed.length && !browseIntent) {
         await sendToCustomer(conv.id, missedItemsMessage(stillMissed), "AI");
       }
       if (dictated.deliveryPaused) {
@@ -292,7 +306,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
         await advanceFlow(conv.id);
         return;
       }
-      if (dictated.unmatched.length || dictated.deliveryPaused) return;
+      if ((dictated.unmatched.length || dictated.deliveryPaused) && !browseIntent) return;
     } catch (e) {
       console.error("[flow] could not read the typed order", e);
       await sendToCustomer(conv.id, { kind: "text", text: `Sorry, I could not add that \u2014 ${errorMessage(e)}` }, "AI");
@@ -337,14 +351,17 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
       }
     }
 
-    // A greeting with nothing in the basket starts the order with the menu pictures
-    // and then the tappable sections.
+    // A greeting with nothing in the basket starts the order. Lean mode skips
+    // the menu pictures until they ask, which saves two WhatsApp messages.
     if (!draft?.items.length && (isGreeting(text) || wantsMenu(text) || wantsMenuPictures(text))) {
-      await sendMenuPictures(conv.id, {
-        includePdf: /\bpdf\b/i.test(text),
-        force: wantsMenuPictures(text),
-        newOrder: true,
-      });
+      const sendPics = !LEAN_ORDERING || wantsMenuPictures(text) || wantsMenu(text);
+      if (sendPics) {
+        await sendMenuPictures(conv.id, {
+          includePdf: /\bpdf\b/i.test(text),
+          force: wantsMenuPictures(text) || wantsMenu(text),
+          newOrder: true,
+        });
+      }
       const categories = await getCategories(conv.storeId);
       const name = customer.name ?? firstName(customer.whatsappProfileName);
       await sendToCustomer(
@@ -353,6 +370,7 @@ export async function processInboundMessage(msg: InboundMessage, opts: { llm?: L
           ? welcomeMessage(conv.store, name, {
               returning: customer.orderCount > 0,
               openNote: openState.closesAt ? `Open until ${openState.closesAt} today` : undefined,
+              orderUrl: `${env.appUrl.replace(/\/$/, "")}/order`,
             })
           : categoryPickerMessage(conv.store, categories),
         "AI",

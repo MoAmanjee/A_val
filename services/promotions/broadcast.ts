@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Store } from "@prisma/client";
+import type { PromotionScheduleKind, Store } from "@prisma/client";
 import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { sendToCustomer } from "@/services/conversations";
@@ -8,8 +8,8 @@ import { encodeReplyId } from "@/services/messaging/reply-ids";
 import { CloudApiWhatsAppService, getCredentials, getWhatsAppService, type MediaRef, type OutboundMessage } from "@/services/whatsapp";
 import { formatCents, parsePriceToCents } from "@/utils/money";
 
-/** WhatsApp only allows a free-form picture or text inside this window. */
-export const SESSION_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** Promotion broadcasts go to customers who messaged within the last month. */
+export const SESSION_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
 
 const PLACEHOLDER_PHONE_ID = "100000000000001";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -107,7 +107,7 @@ export function describeWhatsApp(store: Pick<Store, "whatsappPhoneNumberId" | "w
   }
   return {
     live: true,
-    detail: "WhatsApp is live. A promotion goes to customers who messaged in the last 24 hours.",
+    detail: "WhatsApp is live. A promotion goes to customers who messaged in the last month.",
   };
 }
 
@@ -124,11 +124,19 @@ export async function promotionAudience(storeId: string, now = new Date()): Prom
   };
 }
 
+export interface PromotionWebsiteOptions {
+  showOnWebsite: boolean;
+  scheduleKind?: PromotionScheduleKind | null;
+  startsAt?: Date | null;
+  endsAt?: Date | null;
+}
+
 export interface PromotionInput {
   storeId: string;
   text: string | null;
   image: { bytes: Buffer; mimeType: string } | null;
   priceCents?: number | null;
+  website?: PromotionWebsiteOptions | null;
 }
 
 export interface PromotionResult {
@@ -151,10 +159,28 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
     if (input.image.bytes.length < 32) throw new Error("That picture looks empty.");
   }
 
+  const website = input.website;
+  if (website?.showOnWebsite) {
+    if (!website.scheduleKind || !website.startsAt || !website.endsAt) {
+      throw new Error("Choose how long this promotion stays on the website.");
+    }
+    if (website.endsAt.getTime() <= website.startsAt.getTime()) {
+      throw new Error("The website end time must be after the start time.");
+    }
+  }
+
   const store = await db.store.findUniqueOrThrow({ where: { id: input.storeId } });
   const status = describeWhatsApp(store);
   const promotion = await db.promotion.create({
-    data: { storeId: store.id, body: text, priceCents },
+    data: {
+      storeId: store.id,
+      body: text,
+      priceCents,
+      showOnWebsite: Boolean(website?.showOnWebsite),
+      scheduleKind: website?.showOnWebsite ? website.scheduleKind ?? null : null,
+      startsAt: website?.showOnWebsite ? website.startsAt ?? null : null,
+      endsAt: website?.showOnWebsite ? website.endsAt ?? null : null,
+    },
   });
 
   let imagePath: string | null = null;
@@ -191,7 +217,10 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
       sent: 0,
       skipped: recipients.length,
       failed: 0,
-      detail: `${status.detail} ${recipients.length} ${recipients.length === 1 ? "person was" : "people were"} not sent.`,
+      detail: websiteDetail(
+        `${status.detail} ${recipients.length} ${recipients.length === 1 ? "person was" : "people were"} not sent.`,
+        Boolean(website?.showOnWebsite),
+      ),
     };
   }
 
@@ -212,7 +241,7 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
           status: "SKIPPED",
           detail:
             window === "closed"
-              ? "Their last message was more than 24 hours ago. WhatsApp blocks a free-form promotion after that."
+              ? "Their last message was more than a month ago, so they were skipped."
               : "There is no incoming message time for this customer.",
         },
       });
@@ -237,17 +266,24 @@ export async function sendPromotion(input: PromotionInput, now = new Date()): Pr
     }
   }
 
+  const waDetail =
+    sent > 0
+      ? `Sent to ${sent} ${sent === 1 ? "customer" : "customers"} who messaged in the last month.`
+      : "Nobody messaged in the last month, so no phone received it.";
+
   return {
     id: promotion.id,
     reachedPhones: true,
     sent,
     skipped,
     failed,
-    detail:
-      sent > 0
-        ? `Sent to ${sent} ${sent === 1 ? "customer" : "customers"} who messaged in the last 24 hours.`
-        : "Nobody was inside WhatsApp's 24-hour window, so no phone received it.",
+    detail: websiteDetail(waDetail, Boolean(website?.showOnWebsite)),
   };
+}
+
+function websiteDetail(whatsappDetail: string, onWebsite: boolean): string {
+  if (!onWebsite) return whatsappDetail;
+  return `${whatsappDetail} It is also live on the website specials page for the schedule you chose.`;
 }
 
 async function loadRecipients(storeId: string): Promise<{ customerId: string; conversationId: string; lastInboundAt: Date | null }[]> {

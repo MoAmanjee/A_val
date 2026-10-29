@@ -5,6 +5,9 @@
  */
 export const DEFAULT_TIMEZONE = "Africa/Johannesburg";
 
+/** South Africa Standard Time is fixed UTC+2 (no DST). */
+const SAST_OFFSET = "+02:00";
+
 export interface ZonedParts {
   /** 0 = Sunday ... 6 = Saturday, in the store's timezone. */
   dayOfWeek: number;
@@ -12,6 +15,11 @@ export interface ZonedParts {
   minute: number;
   /** Minutes since local midnight, for comparing against opening hours. */
   minutesOfDay: number;
+}
+
+export interface DateWindow {
+  startsAt: Date;
+  endsAt: Date;
 }
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -30,6 +38,61 @@ export function zonedParts(at: Date, timeZone = DEFAULT_TIMEZONE): ZonedParts {
   const hour = Number(get("hour")) % 24;
   const minute = Number(get("minute"));
   return { dayOfWeek, hour, minute, minutesOfDay: hour * 60 + minute };
+}
+
+/** YYYY-MM-DD in Africa/Johannesburg for a given instant. */
+export function johannesburgDateKey(at = new Date(), timeZone = DEFAULT_TIMEZONE): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(at);
+}
+
+function assertDateKey(value: string, label: string): string {
+  const key = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) {
+    throw new Error(`Pick a ${label} date (YYYY-MM-DD).`);
+  }
+  const probe = new Date(`${key}T12:00:00${SAST_OFFSET}`);
+  if (Number.isNaN(probe.getTime())) throw new Error(`That ${label} date is not valid.`);
+  return key;
+}
+
+/** Local midnight SAST → exclusive next midnight for one calendar day. */
+export function dayWindowJohannesburg(dateKey: string): DateWindow {
+  const key = assertDateKey(dateKey, "day");
+  const startsAt = new Date(`${key}T00:00:00.000${SAST_OFFSET}`);
+  const endsAt = new Date(startsAt.getTime() + 24 * 60 * 60 * 1000);
+  return { startsAt, endsAt };
+}
+
+/**
+ * Kitchen History weeks run Monday 00:00 → next Monday 00:00 (Africa/Johannesburg).
+ * Pass any date in the week (YYYY-MM-DD); defaults to “today” in Johannesburg.
+ */
+export function weekWindowJohannesburg(weekOf?: string | Date): DateWindow {
+  const key =
+    typeof weekOf === "string"
+      ? assertDateKey(weekOf, "week")
+      : johannesburgDateKey(weekOf instanceof Date ? weekOf : new Date());
+  const noon = new Date(`${key}T12:00:00.000${SAST_OFFSET}`);
+  // Noon SAST is 10:00 UTC, so UTC weekday matches the Johannesburg weekday.
+  const day = noon.getUTCDay(); // 0 Sun … 6 Sat
+  const mondayOffset = day === 0 ? -6 : 1 - day;
+  const mondayKey = johannesburgDateKey(new Date(noon.getTime() + mondayOffset * 24 * 60 * 60 * 1000));
+  const startsAt = new Date(`${mondayKey}T00:00:00.000${SAST_OFFSET}`);
+  const endsAt = new Date(startsAt.getTime() + 7 * 24 * 60 * 60 * 1000);
+  return { startsAt, endsAt };
+}
+
+/** Seven YYYY-MM-DD keys from Monday through Sunday for the week containing `at`. */
+export function weekDayKeysJohannesburg(at = new Date()): string[] {
+  const { startsAt } = weekWindowJohannesburg(at);
+  return Array.from({ length: 7 }, (_, i) =>
+    johannesburgDateKey(new Date(startsAt.getTime() + i * 24 * 60 * 60 * 1000)),
+  );
 }
 
 /** "18:45" in the store's timezone. */

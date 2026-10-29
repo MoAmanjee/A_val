@@ -1,5 +1,6 @@
 import type { MenuCategory, MenuItem, Store } from "@prisma/client";
 import { encodeReplyId } from "@/services/messaging/reply-ids";
+import { LEAN_ORDERING } from "@/services/orders/features";
 import type { FullOrder, FullOrderItem, ItemModifierLink } from "@/services/orders/query";
 import { clamp, WA_LIMITS, type ListRow, type OutboundMessage } from "@/services/whatsapp";
 import { formatCents } from "@/utils/money";
@@ -103,23 +104,37 @@ export function orderSummaryText(order: FullOrder, store: Store): string {
 export function welcomeMessage(
   store: Store,
   name: string | null,
-  opts: { returning?: boolean; openNote?: string } = {},
+  opts: { returning?: boolean; openNote?: string; orderUrl: string },
 ): OutboundMessage {
   const hello = name ? `Hi ${name}!` : "Hi there!";
   const intro = opts.returning
     ? `${hello} 👋 Welcome back to ${storeName(store)}.`
     : `${hello} 👋 Welcome to ${storeName(store)} in ${store.city}.`;
-  const body = `${intro}\n\nType the whole order in one message, or tap through the menu. If you leave a spice out, I ask for that item on its own.`;
+  const body = [
+    intro,
+    "",
+    "Fastest: type the whole order in one message (spice + meal + drink).",
+    "Or tap Order online for the photo menu — spice, meals, and notes are there.",
+    "Say menu to browse in WhatsApp.",
+  ].join("\n");
 
+  // CTA URL opens the mini-site in WhatsApp's browser — no second "here is the link" message.
   return {
-    kind: "buttons",
+    kind: "cta_url",
     body,
+    buttonText: "Order online",
+    url: opts.orderUrl,
     footer: opts.openNote,
-    buttons: [
-      { id: encodeReplyId({ kind: "typeOrder" }), title: "Type my order" },
-      { id: encodeReplyId({ kind: "categories" }), title: "Browse the menu" },
-      { id: encodeReplyId({ kind: "menuPhotos" }), title: "Menu pictures" },
-    ],
+  };
+}
+
+/** Fallback if an old Order online reply button is tapped — still opens as a CTA, not a plain link text. */
+export function onlineMenuMessage(orderUrl: string): OutboundMessage {
+  return {
+    kind: "cta_url",
+    body: "Photo menu with Zee Flavours, meals, and kitchen notes — same kitchen as WhatsApp.",
+    buttonText: "Order online",
+    url: orderUrl,
   };
 }
 
@@ -309,11 +324,13 @@ export function interactiveBasket(order: FullOrder, store: Store): string {
   return `${order.items.length} items so far.\n*Total: ${money(store, order.totalCents)}*`;
 }
 
-const CONFIRM_PROMPT = "Confirm this order, add another item, or cancel.";
+const CONFIRM_PROMPT = LEAN_ORDERING
+  ? "Place this order, add another item, or cancel. I will ask for kitchen notes next."
+  : "Confirm this order, add another item, or cancel.";
 
 function orderActionButtons(): { id: string; title: string }[] {
   return [
-    { id: encodeReplyId({ kind: "anythingElse", done: true }), title: "Confirm order" },
+    { id: encodeReplyId({ kind: "anythingElse", done: true }), title: LEAN_ORDERING ? "Place order" : "Confirm order" },
     { id: encodeReplyId({ kind: "anythingElse", done: false }), title: "Add to order" },
     { id: encodeReplyId({ kind: "confirm", answer: "cancel" }), title: "Cancel order" },
   ];
@@ -508,6 +525,19 @@ export function itemNotesMessage(item: FullOrderItem): OutboundMessage {
   };
 }
 
+/** One kitchen note for the whole order (lean checkout). */
+export function orderNotesMessage(order: FullOrder): OutboundMessage {
+  const already = order.notes?.trim();
+  const lead = already
+    ? `You already noted: ${already}. Any other notes for the kitchen (allergies or leave-outs)? Type them, or tap No notes.`
+    : "Any notes for the kitchen? Allergies or leave-outs for this order — for example no tomato on the burger, or a peanut allergy. Type them, or tap No notes.";
+  return {
+    kind: "buttons",
+    body: clamp(lead, WA_LIMITS.interactiveBody),
+    buttons: [{ id: encodeReplyId({ kind: "orderNote", skip: true }), title: "No notes" }],
+  };
+}
+
 export const COLLECTION_ONLY_MESSAGE: OutboundMessage = {
   kind: "text",
   text: "Delivery is off for now. This order is collection from the shop, and you pay at the till.",
@@ -586,10 +616,39 @@ export function confirmationMessages(order: FullOrder, store: Store, prepMinutes
   if (inline.length <= MAX_SUMMARY_IN_BODY) {
     return [{ kind: "buttons", body: inline, buttons }];
   }
+
+  // Large baskets (often over R1 000) must not be truncated off the receipt.
+  const header = "🧾 *Your receipt*\n\n";
+  const chunks = chunkWhatsAppText(`${header}${summary}`, WA_LIMITS.textBody);
   return [
-    { kind: "text", text: `🧾 *Your receipt*\n\n${summary}` },
-    { kind: "buttons", body: question, buttons },
+    ...chunks.map((text) => ({ kind: "text" as const, text })),
+    { kind: "buttons", body: clamp(question, WA_LIMITS.interactiveBody), buttons },
   ];
+}
+
+/** Split a long receipt on line breaks so every item still reaches WhatsApp. */
+function chunkWhatsAppText(text: string, max: number): string[] {
+  if (text.length <= max) return [text];
+  const lines = text.split("\n");
+  const chunks: string[] = [];
+  let current = "";
+  for (const line of lines) {
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length <= max) {
+      current = next;
+      continue;
+    }
+    if (current) chunks.push(current);
+    if (line.length <= max) {
+      current = line;
+      continue;
+    }
+    // A single oversized line — hard-split rather than drop it.
+    for (let i = 0; i < line.length; i += max) chunks.push(line.slice(i, i + max));
+    current = "";
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : [clamp(text, max)];
 }
 
 // ---------------------------------------------------------------- Order progress
@@ -689,6 +748,14 @@ export function pausedMessage(store: Store): OutboundMessage {
   return {
     kind: "text",
     text: `Thanks for messaging ${storeName(store)}! We have paused new WhatsApp orders for a moment${store.pausedReason ? ` \u2014 ${store.pausedReason}` : ""}. Please try again shortly or give us a call${store.phone ? ` on +${store.phone}` : ""}.`,
+  };
+}
+
+/** Ops cut-off (non-payment or channel kill switch) — not the kitchen pausing for the night. */
+export function suspendedMessage(store: Store, reason: string): OutboundMessage {
+  return {
+    kind: "text",
+    text: `Thanks for messaging ${storeName(store)}. Ordering is unavailable right now${reason ? ` \u2014 ${reason}` : ""}.`,
   };
 }
 

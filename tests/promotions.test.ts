@@ -5,15 +5,21 @@ import { toGraphMessage } from "@/services/whatsapp/cloud";
 
 describe("promotion audience", () => {
   const now = new Date("2026-10-09T10:00:00.000Z");
+  const dayMs = 24 * 60 * 60 * 1000;
 
-  it("keeps customers who messaged inside the last 24 hours", () => {
+  it("uses a 30-day audience window", () => {
+    expect(SESSION_WINDOW_MS).toBe(30 * dayMs);
+  });
+
+  it("keeps customers who messaged inside the last month", () => {
     expect(classifyRecipient(new Date(now.getTime() - 60 * 60 * 1000), now)).toBe("open");
+    expect(classifyRecipient(new Date(now.getTime() - 14 * dayMs), now)).toBe("open");
     expect(classifyRecipient(new Date(now.getTime() - SESSION_WINDOW_MS + 1000), now)).toBe("open");
   });
 
-  it("skips customers whose last message is older than 24 hours", () => {
+  it("skips customers whose last message is older than a month", () => {
     expect(classifyRecipient(new Date(now.getTime() - SESSION_WINDOW_MS), now)).toBe("closed");
-    expect(classifyRecipient(new Date(now.getTime() - 3 * SESSION_WINDOW_MS), now)).toBe("closed");
+    expect(classifyRecipient(new Date(now.getTime() - 45 * dayMs), now)).toBe("closed");
     expect(classifyRecipient(null, now)).toBe("unknown");
   });
 });

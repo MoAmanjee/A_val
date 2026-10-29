@@ -40,6 +40,8 @@ export type OutboundMessage =
   | { kind: "text"; text: string }
   | { kind: "buttons"; body: string; buttons: ReplyButton[]; header?: string; footer?: string; image?: MediaRef }
   | { kind: "list"; body: string; buttonLabel: string; sections: ListSection[]; header?: string; footer?: string }
+  /** Opens the URL in WhatsApp's in-app browser when tapped — no extra link message. */
+  | { kind: "cta_url"; body: string; buttonText: string; url: string; header?: string; footer?: string }
   | { kind: "image"; media: MediaRef; caption?: string }
   | { kind: "document"; media: MediaRef; filename: string; caption?: string };
 
